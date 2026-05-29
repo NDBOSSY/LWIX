@@ -1,0 +1,1265 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Trading Engine{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .welcome-section {
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .welcome-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 300px;
+        height: 300px;
+        background: rgba(111, 223, 223, 0.1);
+        border-radius: 50%;
+    }
+
+    .welcome-section::after {
+        content: '';
+        position: absolute;
+        bottom: -30%;
+        left: 60%;
+        width: 200px;
+        height: 200px;
+        background: rgba(168, 92, 249, 0.15);
+        border-radius: 50%;
+    }
+
+    .welcome-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .welcome-icon-circle {
+        width: 55px;
+        height: 55px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        flex-shrink: 0;
+        animation: wave 2s ease-in-out infinite;
+    }
+
+    @keyframes wave {
+
+        0%,
+        100% {
+            transform: rotate(0deg);
+        }
+
+        25% {
+            transform: rotate(15deg);
+        }
+
+        75% {
+            transform: rotate(-15deg);
+        }
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #CFF7F7 0%, #E8F6FF 100%);
+        border-radius: 14px;
+        padding: 0.8rem 1rem;
+        border: 1px solid #E5E7EB;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(75, 123, 229, 0.1);
+        border-color: #6FDFDF;
+    }
+
+    .stat-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50px;
+        height: 50px;
+        border-radius: 0 0 0 50px;
+        opacity: 0.08;
+    }
+
+    .stat-card.license::after {
+        background: #4B7BE5;
+    }
+
+    .stat-card.downloads::after {
+        background: #3FBFB3;
+    }
+
+    .stat-card.status::after {
+        background: #A85CF9;
+    }
+
+    .stat-card.expiry::after {
+        background: #5534A5;
+    }
+
+    .stat-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .stat-icon.blue {
+        background: rgba(75, 123, 229, 0.1);
+        color: #4B7BE5;
+    }
+
+    .stat-icon.teal {
+        background: rgba(63, 191, 179, 0.1);
+        color: #3FBFB3;
+    }
+
+    .stat-icon.purple {
+        background: rgba(168, 92, 249, 0.1);
+        color: #A85CF9;
+    }
+
+    .stat-icon.dark-purple {
+        background: rgba(85, 52, 165, 0.1);
+        color: #5534A5;
+    }
+
+    .stat-info {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2D2D2D;
+        line-height: 1.2;
+    }
+
+    .stat-label {
+        color: #807F80;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1.2;
+    }
+
+    .main-content {
+        display: grid;
+        grid-template-columns: 1fr 1.5fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1024px) {
+        .main-content {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+        }
+
+        .stat-card {
+            padding: 0.6rem 0.8rem;
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            font-size: 0.9rem;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+        }
+    }
+
+    .license-card {
+        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
+        border-radius: 20px;
+        border: 1px solid #E5E7EB;
+        overflow: hidden;
+    }
+
+    .license-header {
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
+        padding: 1.2rem 1.5rem;
+        color: white;
+    }
+
+    .license-body {
+        padding: 1.5rem;
+    }
+
+    .license-key-display {
+        background: #FEFAF3;
+        border: 2px dashed #6FDFDF;
+        border-radius: 12px;
+        padding: 1.2rem;
+        font-family: 'Courier New', monospace;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #5534A5;
+        text-align: center;
+        letter-spacing: 1px;
+        position: relative;
+        margin-bottom: 1.2rem;
+    }
+
+    .copy-key-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: #4B7BE5;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.65rem;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .copy-key-btn:hover {
+        background: #5534A5;
+    }
+
+    .license-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.8rem;
+    }
+
+    .license-info-item {
+        background: linear-gradient(135deg, #A9C4F7 0%, #B9A6E8 100%);
+        padding: 0.8rem;
+        border-radius: 10px;
+    }
+
+    .license-info-item .label {
+        font-size: 0.7rem;
+        color: #807F80;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.2rem;
+    }
+
+    .license-info-item .value {
+        font-weight: 600;
+        color: #2D2D2D;
+        font-size: 0.85rem;
+    }
+
+    .no-license-state {
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+
+    .no-license-icon {
+        width: 80px;
+        height: 80px;
+        background: rgba(168, 92, 249, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.2rem;
+        font-size: 2rem;
+        color: #A85CF9;
+    }
+
+    .ea-section {
+        background: white;
+        border-radius: 20px;
+        border: 1px solid #E5E7EB;
+        overflow: hidden;
+    }
+
+    .ea-header {
+        background: white;
+        padding: 1.2rem 1.5rem;
+        border-bottom: 1px solid #E5E7EB;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ea-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 0.8rem;
+        padding: 1.2rem;
+    }
+
+    .ea-card {
+        background: #F8F9FA;
+        border-radius: 14px;
+        padding: 1.2rem;
+        border: 1px solid #E5E7EB;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .ea-card:hover {
+        border-color: #6FDFDF;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        transform: translateY(-2px);
+    }
+
+    .ea-card.locked {
+        opacity: 0.7;
+        filter: grayscale(20%);
+    }
+
+    .ea-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .ea-icon {
+        width: 42px;
+        height: 42px;
+        background: linear-gradient(135deg, #A85CF9 0%, #4B7BE5 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    .ea-info h6 {
+        margin: 0;
+        font-weight: 600;
+        color: #2D2D2D;
+        font-size: 0.9rem;
+    }
+
+    .ea-info small {
+        color: #807F80;
+        font-size: 0.78rem;
+    }
+
+    .ea-meta {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.8rem;
+        flex-wrap: wrap;
+    }
+
+    .ea-badge {
+        background: white;
+        border: 1px solid #E5E7EB;
+        padding: 0.25rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        color: #807F80;
+    }
+
+    .ea-badge.version {
+        background: rgba(75, 123, 229, 0.1);
+        color: #4B7BE5;
+        border-color: rgba(75, 123, 229, 0.2);
+    }
+
+    .ea-badge.size {
+        background: rgba(63, 191, 179, 0.1);
+        color: #3FBFB3;
+        border-color: rgba(63, 191, 179, 0.2);
+    }
+
+    .download-btn {
+        width: 100%;
+        padding: 0.6rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .download-btn.active {
+        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+        color: white;
+    }
+
+    .download-btn.active:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(63, 191, 179, 0.3);
+    }
+
+    .download-btn.locked {
+        background: #E5E7EB;
+        color: #807F80;
+        cursor: not-allowed;
+    }
+
+    .discord-section {
+        background: white;
+        border-radius: 20px;
+        border: 1px solid #E5E7EB;
+        overflow: hidden;
+        margin-top: 1.5rem;
+    }
+
+    .discord-header {
+        background: #5865F2;
+        padding: 1.2rem 1.5rem;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .discord-body {
+        padding: 1.2rem;
+        text-align: center;
+    }
+
+    .download-all-section {
+        background: linear-gradient(135deg, #F8F9FA 0%, #FFFFFF 100%);
+        border: 2px solid #6FDFDF;
+        border-radius: 16px;
+        padding: 1.2rem;
+        margin-top: 1.2rem;
+        text-align: center;
+    }
+
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #E5E7EB;
+        border-top-color: #4B7BE5;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* ========== LICENSE MODAL ========== */
+    .custom-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.25s ease;
+    }
+
+    .custom-modal-overlay.show {
+        display: flex;
+    }
+
+    .custom-modal {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 340px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        animation: slideUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        overflow: hidden;
+    }
+
+    .custom-modal-header {
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
+        padding: 1.5rem 1.2rem 1.2rem;
+        text-align: center;
+    }
+
+    .modal-icon-circle {
+        width: 45px;
+        height: 45px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.6rem;
+        font-size: 1.3rem;
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .custom-modal-header h3 {
+        color: white;
+        font-weight: 700;
+        margin: 0;
+        font-size: 1.15rem;
+    }
+
+    .custom-modal-body {
+        padding: 1.2rem 1.2rem 0.8rem;
+        background: #FFF8ED;
+    }
+
+    .benefit-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 0.8rem 0;
+    }
+
+    .benefit-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.55rem 0.8rem;
+        margin-bottom: 0.4rem;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
+        transition: all 0.2s ease;
+    }
+
+    .benefit-item:hover {
+        transform: translateX(4px);
+        border-color: #6FDFDF;
+    }
+
+    .benefit-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        color: white;
+    }
+
+    .benefit-icon.unlock {
+        background: linear-gradient(135deg, #4B7BE5 0%, #6FDFDF 100%);
+    }
+
+    .benefit-icon.discord {
+        background: linear-gradient(135deg, #5865F2 0%, #A85CF9 100%);
+    }
+
+    .benefit-icon.activate {
+        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+    }
+
+    .benefit-text {
+        font-weight: 500;
+        color: #2D2D2D;
+        font-size: 0.82rem;
+    }
+
+    .security-note {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem;
+        background: rgba(75, 123, 229, 0.05);
+        border-radius: 8px;
+        color: #4B7BE5;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .custom-modal-footer {
+        padding: 0.8rem 1.2rem 1.2rem;
+        background: #FFF8ED;
+        display: flex;
+        gap: 0.6rem;
+    }
+
+    .btn-modal {
+        flex: 1;
+        padding: 0.6rem 1rem;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+
+    .btn-modal-confirm {
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(75, 123, 229, 0.25);
+    }
+
+    .btn-modal-confirm:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(75, 123, 229, 0.35);
+    }
+
+    .btn-modal-cancel {
+        background: white;
+        color: #807F80;
+        border: 1.5px solid #E5E7EB;
+    }
+
+    .btn-modal-cancel:hover {
+        border-color: #807F80;
+        color: #2D2D2D;
+    }
+
+    /* ========== DOWNLOAD ALL MODAL ========== */
+    .download-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.25s ease;
+    }
+
+    .download-modal-overlay.show {
+        display: flex;
+    }
+
+    .download-modal {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 320px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        animation: slideUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        overflow: hidden;
+    }
+
+    .download-modal-header {
+        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+        padding: 1.5rem 1.2rem 1.2rem;
+        text-align: center;
+    }
+
+    .download-modal-icon {
+        width: 45px;
+        height: 45px;
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.6rem;
+        font-size: 1.3rem;
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .download-modal-header h3 {
+        color: white;
+        font-weight: 700;
+        margin: 0;
+        font-size: 1.15rem;
+    }
+
+    .download-modal-header p {
+        color: rgba(255, 255, 255, 0.9);
+        margin: 0.2rem 0 0;
+        font-size: 0.8rem;
+    }
+
+    .download-modal-body {
+        padding: 1.5rem 1.5rem 1rem;
+        background: #FFF8ED;
+        text-align: center;
+    }
+
+    .download-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: white;
+        border: 2px solid #3FBFB3;
+        border-radius: 12px;
+        padding: 0.7rem 1.5rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .download-count-badge .count {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #3FBFB3;
+        line-height: 1;
+    }
+
+    .download-count-badge .label {
+        font-size: 0.85rem;
+        color: #807F80;
+        font-weight: 500;
+    }
+
+    .download-info {
+        color: #807F80;
+        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .download-modal-footer {
+        padding: 0.8rem 1.5rem 1.5rem;
+        background: #FFF8ED;
+        display: flex;
+        gap: 0.6rem;
+    }
+
+    .btn-download-modal {
+        flex: 1;
+        padding: 0.6rem 1rem;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+
+    .btn-download-confirm {
+        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(63, 191, 179, 0.25);
+    }
+
+    .btn-download-confirm:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(63, 191, 179, 0.35);
+    }
+
+    .btn-download-cancel {
+        background: white;
+        color: #807F80;
+        border: 1.5px solid #E5E7EB;
+    }
+
+    .btn-download-cancel:hover {
+        border-color: #807F80;
+        color: #2D2D2D;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(40px) scale(0.96);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+        <div class="welcome-content">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="welcome-icon-circle">
+                            <i class="fas fa-hand-wave"></i>
+                        </div>
+                        <div>
+                            <h2 class="fw-bold mb-1">Welcome back!</h2>
+                            <p class="mb-0 opacity-75">{{ user.email }}</p>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">
+                        <span class="badge"
+                            style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
+                            <i class="fas fa-calendar me-1"></i>
+                            Member since {{ user.created_at.strftime('%B %Y') }}
+                        </span>
+                        <span class="badge"
+                            style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
+                            <i class="fas fa-key me-1"></i>
+                            {{ user.licenses.count() }} License(s)
+                        </span>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end mt-2 mt-md-0">
+                    <span
+                        class="badge {% if user.membership_status == 'active' %}badge-active{% else %}badge-expired{% endif %} fs-6">
+                        <i
+                            class="fas fa-{{ 'check-circle' if user.membership_status == 'active' else 'times-circle' }} me-1"></i>
+                        {{ user.membership_status|title }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card license">
+            <div class="stat-icon blue">
+                <i class="fas fa-key"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ user.licenses.count() }}</div>
+                <div class="stat-label">Active Licenses</div>
+            </div>
+        </div>
+
+        <div class="stat-card downloads">
+            <div class="stat-icon teal">
+                <i class="fas fa-download"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value" id="totalDownloads">0</div>
+                <div class="stat-label">Total Downloads</div>
+            </div>
+        </div>
+
+        <div class="stat-card status">
+            <div class="stat-icon purple">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ user.membership_status|title }}</div>
+                <div class="stat-label">Membership Status</div>
+            </div>
+        </div>
+
+        <div class="stat-card expiry">
+            <div class="stat-icon dark-purple">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">
+                    {% if user.membership_end %}
+                    {{ (user.membership_end - now).days if user.membership_end > now else 0 }}d
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </div>
+                <div class="stat-label">Days Remaining</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="main-content">
+        <!-- License Section -->
+        <div class="license-card">
+            <div class="license-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-key me-2"></i>
+                    License Details
+                </h5>
+            </div>
+            <div class="license-body">
+                {% if license %}
+                <div class="license-key-display">
+                    {{ license.license_key }}
+                    <button class="copy-key-btn" onclick="copyToClipboard('{{ license.license_key }}')">
+                        <i class="fas fa-copy me-1"></i>Copy
+                    </button>
+                </div>
+
+                <div class="license-info-grid">
+                    <div class="license-info-item">
+                        <div class="label">Status</div>
+                        <div class="value">
+                            <span
+                                class="badge {% if license.status == 'active' %}badge-active{% else %}badge-expired{% endif %}">
+                                {{ license.status|title }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="license-info-item">
+                        <div class="label">Version</div>
+                        <div class="value">{{ license.ea_version or '1.0.0' }}</div>
+                    </div>
+                    <div class="license-info-item">
+                        <div class="label">Created</div>
+                        <div class="value">{{ license.created_at.strftime('%b %d, %Y') }}</div>
+                    </div>
+                    <div class="license-info-item">
+                        <div class="label">Expires</div>
+                        <div class="value">{{ license.expires_at.strftime('%b %d, %Y') }}</div>
+                    </div>
+                    <div class="license-info-item">
+                        <div class="label">Validations</div>
+                        <div class="value">{{ license.validation_count }}</div>
+                    </div>
+                    <div class="license-info-item">
+                        <div class="label">Machine</div>
+                        <div class="value">{{ 'Bound' if license.machine_id else 'Not Bound' }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-license-state">
+                    <div class="no-license-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h5 class="mb-2">No License Generated</h5>
+                    <p class="text-muted mb-3">Generate your license key to unlock all features and downloads</p>
+                    <button class="btn btn-primary btn-lg px-5" onclick="showLicenseModal()">
+                        <i class="fas fa-plus me-2"></i>Generate License
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- EA Downloads Section -->
+        <div class="ea-section">
+            <div class="ea-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-robot me-2" style="color: #A85CF9;"></i>
+                    Expert Advisors
+                </h5>
+                {% if ea_files %}
+                <span class="badge"
+                    style="background: rgba(75, 123, 229, 0.1); color: #4B7BE5; padding: 0.4rem 0.8rem;">
+                    {{ ea_files|length }} Available
+                </span>
+                {% endif %}
+            </div>
+
+            {% if ea_files %}
+            <div class="ea-grid">
+                {% for ea in ea_files %}
+                <div class="ea-card {% if not license %}locked{% endif %}">
+                    <div class="ea-card-header">
+                        <div class="ea-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="ea-info">
+                            <h6>{{ ea.filename }}</h6>
+                            <small>{{ ea.description or 'Expert Advisor' }}</small>
+                        </div>
+                    </div>
+
+                    <div class="ea-meta">
+                        <span class="ea-badge version">
+                            <i class="fas fa-code-branch me-1"></i>v{{ ea.version }}
+                        </span>
+                        {% if ea.file_size %}
+                        <span class="ea-badge size">
+                            <i class="fas fa-hdd me-1"></i>{{ (ea.file_size / 1024)|round(1) }} KB
+                        </span>
+                        {% endif %}
+                        <span class="ea-badge">
+                            <i class="fas fa-download me-1"></i>{{ ea.download_count }}
+                        </span>
+                    </div>
+
+                    {% if license %}
+                    <a href="{{ url_for('download_ea', file_id=ea.id) }}" class="download-btn active"
+                        onclick="trackDownload()">
+                        <i class="fas fa-download me-2"></i>Download EA
+                    </a>
+                    {% else %}
+                    <button class="download-btn locked" disabled>
+                        <i class="fas fa-lock me-2"></i>License Required
+                    </button>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if license and ea_files|length > 1 %}
+            <div class="download-all-section">
+                <h6 class="mb-2">
+                    <i class="fas fa-layer-group me-2" style="color: #4B7BE5;"></i>
+                    Want all EAs?
+                </h6>
+                <p class="text-muted small mb-3">Download all Expert Advisors at once</p>
+                <button class="btn btn-primary" onclick="showDownloadAllModal()">
+                    <i class="fas fa-download me-2"></i>Download All EAs ({{ ea_files|length }})
+                </button>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-box-open fa-3x mb-3" style="color: #807F80;"></i>
+                <h6 class="text-muted">No EAs Available</h6>
+                <p class="text-muted small">Check back soon for new Expert Advisors</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Discord Section -->
+    <div class="discord-section">
+        <div class="discord-header">
+            <i class="fab fa-discord fa-2x"></i>
+            <div>
+                <h5 class="mb-0">Discord Community</h5>
+                <small class="opacity-75">Get support, updates, and connect with other traders</small>
+            </div>
+        </div>
+        <div class="discord-body">
+            {% if user.discord_joined %}
+            <i class="fas fa-check-circle fa-3x mb-3" style="color: #3FBFB3;"></i>
+            <h6>You're Connected!</h6>
+            <p class="text-muted">You have access to the private Discord community</p>
+            {% else %}
+            <p class="text-muted mb-3">
+                {% if license %}
+                Join our exclusive Discord community for support and updates
+                {% else %}
+                Generate a license to get Discord access
+                {% endif %}
+            </p>
+            {% if discord_invite and license %}
+            <a href="{{ discord_invite }}" target="_blank" class="btn btn-discord btn-lg">
+                <i class="fab fa-discord me-2"></i>Join Discord Server
+            </a>
+            {% elif not license %}
+            <button class="btn btn-outline-primary btn-lg" onclick="showLicenseModal()">
+                <i class="fas fa-key me-2"></i>Get License First
+            </button>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ========== LICENSE MODAL ========== -->
+<div class="custom-modal-overlay" id="licenseModal">
+    <div class="custom-modal">
+        <div class="custom-modal-header">
+            <div class="modal-icon-circle">
+                <i class="fas fa-key"></i>
+            </div>
+            <h3>Generate License Key</h3>
+        </div>
+        <div class="custom-modal-body">
+            <ul class="benefit-list">
+                <li class="benefit-item">
+                    <div class="benefit-icon unlock">
+                        <i class="fas fa-lock-open"></i>
+                    </div>
+                    <span class="benefit-text">Unlock all EA downloads</span>
+                </li>
+                <li class="benefit-item">
+                    <div class="benefit-icon discord">
+                        <i class="fab fa-discord"></i>
+                    </div>
+                    <span class="benefit-text">Discord community access</span>
+                </li>
+                <li class="benefit-item">
+                    <div class="benefit-icon activate">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <span class="benefit-text">Activate membership</span>
+                </li>
+            </ul>
+            <div class="security-note">
+                <i class="fas fa-shield-alt"></i>
+                <span>License valid for 365 days</span>
+            </div>
+        </div>
+        <div class="custom-modal-footer">
+            <button class="btn-modal btn-modal-cancel" onclick="closeLicenseModal()">Cancel</button>
+            <button class="btn-modal btn-modal-confirm" onclick="confirmGenerateLicense()">Generate</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== DOWNLOAD ALL MODAL ========== -->
+<div class="download-modal-overlay" id="downloadAllModal">
+    <div class="download-modal">
+        <div class="download-modal-header">
+            <div class="download-modal-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <h3>Download All EAs</h3>
+            <p>Get all Expert Advisors at once</p>
+        </div>
+        <div class="download-modal-body">
+            <div class="download-count-badge">
+                <span class="count" id="downloadCountBadge">{{ ea_files|length }}</span>
+                <span class="label">Expert<br>Advisors</span>
+            </div>
+            <p class="download-info">
+                <i class="fas fa-info-circle me-1"></i>
+                Downloads will start one by one
+            </p>
+        </div>
+        <div class="download-modal-footer">
+            <button class="btn-download-modal btn-download-cancel" onclick="closeDownloadAllModal()">Cancel</button>
+            <button class="btn-download-modal btn-download-confirm" onclick="confirmDownloadAll()">Download All</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner mb-3"></div>
+    <p style="color: #4B7BE5; font-weight: 600; font-size: 1rem;">Generating your license key...</p>
+    <p style="color: #807F80; font-size: 0.85rem;">This will only take a moment</p>
+</div>
+
+<script>
+    function showLicenseModal() {
+        document.getElementById('licenseModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLicenseModal() {
+        document.getElementById('licenseModal').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    function confirmGenerateLicense() {
+        closeLicenseModal();
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        fetch('{{ url_for("generate_license") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                if (data.success) {
+                    showToast('License generated successfully! 🎉', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast(data.error || 'Failed to generate license', 'error');
+                }
+            })
+            .catch(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                showToast('Error occurred.', 'error');
+            });
+    }
+
+    function showDownloadAllModal() {
+        const count = document.querySelectorAll('a[href*="download-ea"]').length;
+        document.getElementById('downloadCountBadge').textContent = count;
+        document.getElementById('downloadAllModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDownloadAllModal() {
+        document.getElementById('downloadAllModal').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    function confirmDownloadAll() {
+        closeDownloadAllModal();
+        const downloadLinks = document.querySelectorAll('a[href*="download-ea"]');
+        if (downloadLinks.length === 0) {
+            showToast('No EAs available', 'error');
+            return;
+        }
+        showToast(`Starting ${downloadLinks.length} downloads...`, 'success');
+        downloadLinks.forEach((link, index) => {
+            setTimeout(() => { window.open(link.href, '_blank'); }, index * 1000);
+        });
+    }
+
+    document.getElementById('licenseModal').addEventListener('click', function (e) {
+        if (e.target === this) closeLicenseModal();
+    });
+
+    document.getElementById('downloadAllModal').addEventListener('click', function (e) {
+        if (e.target === this) closeDownloadAllModal();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeLicenseModal();
+            closeDownloadAllModal();
+        }
+    });
+
+    function trackDownload() {
+        const countEl = document.getElementById('totalDownloads');
+        if (countEl) {
+            countEl.textContent = parseInt(countEl.textContent) + 1;
+        }
+        showToast('Download started! 📥', 'success');
+    }
+</script>
+{% endblock %}

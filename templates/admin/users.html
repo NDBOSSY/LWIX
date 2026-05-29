@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - EALicense{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="fas fa-users-cog me-2"></i>User Management</h2>
+        <input type="text" class="form-control w-auto" id="searchUsers" placeholder="Search users...">
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="usersTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Membership</th>
+                            <th>Licenses</th>
+                            <th>Discord</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>#{{ user.id }}</td>
+                            <td>
+                                <strong>{{ user.email }}</strong>
+                                {% if user.email_verified %}
+                                <i class="fas fa-check-circle text-success"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span
+                                    class="badge {% if user.membership_status == 'active' %}badge-active{% else %}badge-expired{% endif %}">
+                                    {{ user.membership_status|title }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if user.membership_end %}
+                                <small>{{ user.membership_end.strftime('%b %d, %Y') }}</small>
+                                {% else %}
+                                <small class="text-muted">N/A</small>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-primary">{{ user.licenses.count() }}</span></td>
+                            <td>
+                                {% if user.discord_joined %}
+                                <i class="fab fa-discord text-primary"></i> Joined
+                                {% else %}
+                                <i class="fas fa-times text-muted"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.membership_status == 'active' %}
+                                <form method="POST" action="{{ url_for('revoke_membership', user_id=user.id) }}"
+                                    class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Revoke membership for {{ user.email }}?\nThis will revoke all licenses and remove from Discord.')">
+                                        <i class="fas fa-ban me-1"></i>Revoke
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('searchUsers').addEventListener('keyup', function () {
+        const term = this.value.toLowerCase();
+        document.querySelectorAll('#usersTable tbody tr').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+        });
+    });
+</script>
+{% endblock %}

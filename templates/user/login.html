@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Login - EALicense{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #F8FAFC 0%, #E8F0FE 100%);
+    }
+
+    .login-wrapper {
+        display: flex;
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        max-width: 900px;
+        width: 100%;
+    }
+
+    .login-visual {
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
+        padding: 3rem 2.5rem;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        flex: 1;
+    }
+
+    .login-visual::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+        background: rgba(111, 223, 223, 0.15);
+        border-radius: 50%;
+    }
+
+    .login-visual::after {
+        content: '';
+        position: absolute;
+        bottom: -30px;
+        left: -30px;
+        width: 150px;
+        height: 150px;
+        background: rgba(168, 92, 249, 0.2);
+        border-radius: 50%;
+    }
+
+    .login-visual-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .login-visual .logo-text {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 1.5rem;
+    }
+
+    .login-visual h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        line-height: 1.2;
+    }
+
+    .login-visual p {
+        opacity: 0.9;
+        font-size: 0.95rem;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .feature-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .feature-list li i {
+        width: 28px;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+
+    .login-form-section {
+        padding: 3rem 2.5rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .login-form-section .form-header {
+        margin-bottom: 2rem;
+    }
+
+    .login-form-section .form-header h3 {
+        font-weight: 700;
+        color: #2D2D2D;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .login-form-section .form-header p {
+        color: #807F80;
+        font-size: 0.9rem;
+    }
+
+    .input-group-custom {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .input-group-custom .input-icon {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #4B7BE5;
+        font-size: 1.1rem;
+        z-index: 2;
+    }
+
+    .input-group-custom input {
+        width: 100%;
+        padding: 0.9rem 1rem 0.9rem 3rem;
+        border: 2px solid #E5E7EB;
+        border-radius: 14px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: #F8FAFC;
+        color: #2D2D2D;
+    }
+
+    .input-group-custom input:focus {
+        outline: none;
+        border-color: #6FDFDF;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(111, 223, 223, 0.1);
+    }
+
+    .input-group-custom input::placeholder {
+        color: #B0B0B0;
+    }
+
+    .login-btn {
+        width: 100%;
+        padding: 0.9rem;
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 30px rgba(75, 123, 229, 0.3);
+    }
+
+    .login-btn:active {
+        transform: translateY(0);
+    }
+
+    .security-badges {
+        display: flex;
+        gap: 0.8rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+    }
+
+    .security-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: #F0FDF9;
+        border: 1px solid #3FBFB3;
+        color: #3FBFB3;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+        .login-wrapper {
+            flex-direction: column;
+            max-width: 400px;
+        }
+
+        .login-visual {
+            padding: 2rem 1.5rem;
+        }
+
+        .login-visual h2 {
+            font-size: 1.5rem;
+        }
+
+        .login-form-section {
+            padding: 2rem 1.5rem;
+        }
+
+        .security-badges {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-wrapper">
+        <!-- Visual Side -->
+        <div class="login-visual">
+            <div class="login-visual-content">
+                <div class="logo-text">
+                    <i class="fas fa-shield-alt me-2"></i>Trading Engine
+                </div>
+                <h2>Secure Licensing Platform</h2>
+                <p>Access your dashboard, manage licenses, and download your Expert Advisors with enterprise-grade
+                    security.</p>
+
+                <ul class="feature-list">
+                    <li>
+                        <i class="fas fa-shield-alt"></i>
+                        <span>256-bit Encrypted Connection</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-key"></i>
+                        <span>Instant License Generation</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-download"></i>
+                        <span>Direct EA Downloads</span>
+                    </li>
+                    <li>
+                        <i class="fab fa-discord"></i>
+                        <span>Discord Community Access</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Form Side -->
+        <div class="login-form-section">
+            <div class="form-header">
+                <h3>Member Access Portal</h3>
+                <p>Enter your email to receive a secure OTP code</p>
+            </div>
+
+            <form method="POST" id="loginForm">
+                <div class="input-group-custom">
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" name="email" placeholder="you@example.com" required autofocus
+                        autocomplete="email">
+                </div>
+
+                <button type="submit" class="login-btn" id="submitBtn">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Send OTP Code</span>
+                </button>
+
+                <div class="security-badges">
+                    <div class="security-badge">
+                        <i class="fas fa-lock"></i>
+                        <span>SSL Encrypted</span>
+                    </div>
+                    <div class="security-badge">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Secure OTP</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', function () {
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span><span>Sending OTP...</span>';
+        btn.style.opacity = '0.8';
+    });
+</script>
+{% endblock %}

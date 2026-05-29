@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}500 - Server Error{% endblock %}
+{% block content %}
+<div class="container text-center"
+    style="min-height: 70vh; display: flex; align-items: center; justify-content: center;">
+    <div>
+        <i class="fas fa-cogs text-danger" style="font-size: 6rem;"></i>
+        <h1 class="display-1 fw-bold text-muted mt-3">500</h1>
+        <h2>Internal Server Error</h2>
+        <p class="text-muted mb-4">Something went wrong. Please try again later.</p>
+        <a href="{{ url_for('user_login') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-redo me-2"></i>Try Again
+        </a>
+    </div>
+</div>
+{% endblock %}
