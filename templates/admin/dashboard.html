@@ -318,6 +318,7 @@
     .activity-dot.revoke { background: #EF4444; }
     .activity-dot.upload { background: #A85CF9; }
     .activity-dot.order, .activity-dot.payment { background: #F59E0B; }
+    .activity-dot.delete { background: #EF4444; }
     .activity-dot.default { background: #807F80; }
 
     .btn-primary {
@@ -657,7 +658,7 @@
         </div>
     </div>
 
-    <!-- Bottom Grid: Licenses, EA Files, Upload -->
+    <!-- Bottom Grid: Licenses & EA Files -->
     <div class="content-grid">
         <!-- Recent Licenses -->
         <div class="card">
@@ -708,7 +709,7 @@
             </div>
         </div>
 
-        <!-- EA Files List -->
+        <!-- EA Files List with Delete -->
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-robot me-2"></i>EA Files ({{ ea_files|length }})</h5>
@@ -722,6 +723,7 @@
                                 <th>Version</th>
                                 <th>Level</th>
                                 <th>Downloads</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -745,8 +747,23 @@
                                     </span>
                                 </td>
                                 <td>{{ ea.download_count }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('delete_ea', ea_id=ea.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                            onclick="return confirm('Delete {{ ea.filename }}?\n\nThis cannot be undone!')" title="Delete EA">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                             {% endfor %}
+                            {% if not ea_files %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">
+                                    <i class="fas fa-box-open fa-2x mb-2 d-block"></i>No EA files uploaded
+                                </td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -820,6 +837,7 @@
                     {% elif 'license' in log.action %}license
                     {% elif 'revok' in log.action %}revoke
                     {% elif 'upload' in log.action %}upload
+                    {% elif 'delete' in log.action %}delete
                     {% elif 'order' in log.action or 'payment' in log.action %}order
                     {% else %}default{% endif %}">
                 </div>
