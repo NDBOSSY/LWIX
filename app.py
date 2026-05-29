@@ -1276,6 +1276,29 @@ def auto_init_db():
 # MAIN
 # ============================================================================
 
+@app.route("/fix-plan-level")
+def fix_plan_level():
+    """Add plan_level column - VISIT ONCE THEN DELETE THIS ROUTE"""
+    from sqlalchemy import text
+    try:
+        # Add column
+        db.session.execute(text('ALTER TABLE ea_files ADD COLUMN IF NOT EXISTS plan_level INTEGER DEFAULT 1'))
+        db.session.commit()
+        msg1 = "✅ plan_level column added! "
+    except Exception as e:
+        msg1 = f"Column: {str(e)[:50]}... "
+    
+    try:
+        # Set existing EAs to Level 2
+        db.session.execute(text("UPDATE ea_files SET plan_level = 2"))
+        db.session.commit()
+        msg2 = "✅ EAs set to Level 2"
+    except Exception as e:
+        msg2 = f"Update: {str(e)[:50]}..."
+    
+    return f"{msg1}<br>{msg2}<br><br>Now DELETE this route from app.py!"
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("Trading Engine Platform")
