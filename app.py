@@ -147,7 +147,6 @@ try:
     else:
         encryption_key = Fernet.generate_key()
         cipher_suite = Fernet(encryption_key)
-        print(f"Generated new encryption key: ENCRYPTION_KEY={encryption_key.decode()}")
 except Exception:
     encryption_key = Fernet.generate_key()
     cipher_suite = Fernet(encryption_key)
@@ -217,6 +216,10 @@ class User(UserMixin, db.Model):
             db.session.commit()
             return False
         return True
+
+    def can_login(self):
+        """Only verified members or admin can login"""
+        return self.is_admin or self.email_verified
 
     def get_active_license(self):
         return self.licenses.filter_by(status="active").first()
@@ -421,14 +424,14 @@ def parse_duration_to_days(duration_str: str) -> tuple:
     if not duration_str:
         return Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS, "one_time"
     
-    duration_lower = duration_str.lower()
+    duration_lower = duration_str.lower().strip()
     
-    # English & Dutch month
+    # Dutch/English month
     if "month" in duration_lower or "maand" in duration_lower:
         months = re.findall(r'\d+', duration_lower)
         days = int(months[0]) * 30 if months else 30
         return days, "monthly"
-    # English & Dutch year
+    # Dutch/English year
     elif "year" in duration_lower or "jaar" in duration_lower:
         years = re.findall(r'\d+', duration_lower)
         days = int(years[0]) * 365 if years else 365
@@ -441,15 +444,16 @@ def parse_duration_to_days(duration_str: str) -> tuple:
 
 
 def parse_wix_date(date_str: str):
-    """Parse Wix date string to datetime (supports multiple formats)"""
+    """Parse Wix date string to datetime"""
     if not date_str:
         return None
+    date_str = date_str.strip()
     # Dutch cancellation text
     if "annulering" in date_str.lower() or "cancellation" in date_str.lower():
         return None
     for fmt in ["%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%d", "%d/%m/%Y", "%m-%d-%Y", "%Y-%m-%dT%H:%M:%S.%fZ"]:
         try:
-            return datetime.strptime(date_str.strip(), fmt)
+            return datetime.strptime(date_str, fmt)
         except:
             continue
     return None
@@ -465,11 +469,7 @@ def send_email_async(subject: str, recipients: list, body: str, html_body: str =
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
             if Config.ENVIRONMENT == "development":
-                print(f"\n{'='*50}")
-                print(f"EMAIL TO: {recipients}")
-                print(f"SUBJECT: {subject}")
-                print(f"BODY: {body}")
-                print(f"{'='*50}\n")
+                print(f"\nEMAIL TO: {recipients}\nSUBJECT: {subject}\nBODY: {body}\n")
 
     thread = threading.Thread(target=send)
     thread.start()
@@ -478,9 +478,7 @@ def send_email_async(subject: str, recipients: list, body: str, html_body: str =
 def log_audit(user_id: int, action: str, details: str = None, ip_address: str = None):
     try:
         log = AuditLog(
-            user_id=user_id,
-            action=action,
-            details=details,
+            user_id=user_id, action=action, details=details,
             ip_address=ip_address or (request.remote_addr if request else "system"),
         )
         db.session.add(log)
@@ -563,7 +561,7 @@ def health_check():
 
 
 # ============================================================================
-# ROUTES - UNIFIED LOGIN
+# ROUTES - UNIFIED LOGIN (Only verified members can login)
 # ============================================================================
 
 
@@ -587,26 +585,31 @@ def user_login():
 
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
 
+        # Admin login flow
         if email == admin_email:
             session["admin_email"] = email
             return redirect(url_for("admin_password"))
 
+        # Regular user - must exist AND be verified (from Wix webhook)
         user = User.query.filter_by(email=email).first()
 
-        if user and user.locked_until and user.locked_until > datetime.utcnow():
-            flash("Account temporarily locked. Please try again later.", "error")
+        # Block login if user doesn't exist or isn't verified
+        if not user:
+            flash("No account found with this email. Please purchase a plan first.", "error")
             return render_template("user/login.html")
 
-        if not user:
-            user = User(email=email, email_verified=False, is_admin=False)
-            db.session.add(user)
-            db.session.commit()
+        if not user.email_verified:
+            flash("Your account is not yet active. Please complete your purchase on Wix first.", "error")
+            return render_template("user/login.html")
+
+        if user.locked_until and user.locked_until > datetime.utcnow():
+            flash("Account temporarily locked. Please try again later.", "error")
+            return render_template("user/login.html")
 
         try:
             OTPToken.query.filter_by(user_id=user.id, used=False).update({"used": True})
             otp = generate_otp()
             expires_at = datetime.utcnow() + timedelta(minutes=Config.OTP_EXPIRY_MINUTES)
-
             otp_token = OTPToken(user_id=user.id, token=otp, expires_at=expires_at, purpose="login")
             db.session.add(otp_token)
             db.session.commit()
@@ -626,7 +629,7 @@ def user_login():
                     <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
                         <h1 style="color: #4B7BE5; font-size: 36px; margin: 0; letter-spacing: 5px;">{otp}</h1>
                     </div>
-                    <p style="color: #666;">This code expires in {Config.OTP_EXPIRY_MINUTES} minutes.</p>
+                    <p style="color: #666;">Expires in {Config.OTP_EXPIRY_MINUTES} minutes.</p>
                 </div>
             </div>
             """
@@ -638,7 +641,7 @@ def user_login():
 
         except Exception as e:
             logger.error(f"OTP failed: {e}")
-            flash("Failed to send OTP. Please try again.", "error")
+            flash("Failed to send OTP.", "error")
 
     return render_template("user/login.html")
 
@@ -651,7 +654,7 @@ def admin_password():
     admin_user = User.query.filter_by(email=admin_email).first()
     if admin_user and admin_user.locked_until and admin_user.locked_until > datetime.utcnow():
         session.pop("admin_email", None)
-        flash("Admin account locked. Try again later.", "error")
+        flash("Admin account locked.", "error")
         return redirect(url_for("user_login"))
 
     if request.method == "POST":
@@ -665,7 +668,8 @@ def admin_password():
                     email_verified=True, membership_status="active",
                     membership_start=datetime.utcnow(),
                     membership_end=datetime.utcnow() + timedelta(days=3650),
-                    plan_name="Admin", subscription_type="lifetime", subscription_duration_days=36500,
+                    plan_name="Admin", subscription_type="lifetime",
+                    subscription_duration_days=36500,
                 )
                 db.session.add(admin_user)
             else:
@@ -685,21 +689,7 @@ def admin_password():
             if Config.ENVIRONMENT == "development":
                 print(f"\nADMIN OTP: {otp}\n")
 
-            html_body = f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-                    <h2 style="color: white; margin: 0;">Admin Verification</h2>
-                </div>
-                <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
-                    <h3 style="color: #333;">Admin OTP Code</h3>
-                    <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
-                        <h1 style="color: #4B7BE5; font-size: 36px; margin: 0; letter-spacing: 5px;">{otp}</h1>
-                    </div>
-                    <p style="color: #EF4444;">⚠️ Expires in {Config.ADMIN_OTP_EXPIRY_MINUTES} minutes.</p>
-                </div>
-            </div>
-            """
-            send_email_async("Admin OTP - Trading Engine", [admin_email], f"Admin OTP: {otp}", html_body)
+            send_email_async("Admin OTP - Trading Engine", [admin_email], f"Admin OTP: {otp}")
 
             session["pending_email"] = admin_email
             session["is_admin_login"] = True
@@ -713,8 +703,7 @@ def admin_password():
                     admin_user.locked_until = datetime.utcnow() + timedelta(minutes=30)
                     flash("Admin account locked for 30 minutes.", "error")
                 else:
-                    remaining = Config.MAX_LOGIN_ATTEMPTS - admin_user.login_attempts
-                    flash(f"Invalid password. {remaining} attempts remaining.", "error")
+                    flash(f"Invalid password. {Config.MAX_LOGIN_ATTEMPTS - admin_user.login_attempts} attempts remaining.", "error")
                 db.session.commit()
             else:
                 flash("Invalid password.", "error")
@@ -765,13 +754,8 @@ def verify_otp():
             user.login_attempts = 0
             user.last_login = datetime.utcnow()
             user.locked_until = None
-
-            if not user.is_admin and (not user.membership_status or user.membership_status == "pending"):
-                user.membership_status = "active"
-                user.membership_start = datetime.utcnow()
-                user.membership_end = datetime.utcnow() + timedelta(days=Config.LICENSE_EXPIRY_DAYS)
-
             db.session.commit()
+
             login_user(user, remember=True)
             session.pop("pending_email", None)
             session.pop("is_admin_login", None)
@@ -846,41 +830,31 @@ def generate_license():
         license_key = generate_license_key()
         duration_days = current_user.subscription_duration_days or Config.LICENSE_EXPIRY_DAYS
 
-        license = License(
+        lic = License(
             user_id=current_user.id,
             license_key=license_key,
             expires_at=datetime.utcnow() + timedelta(days=duration_days),
             ea_version="1.0.0",
             license_type=current_user.subscription_type or "standard",
         )
-        db.session.add(license)
+        db.session.add(lic)
         db.session.commit()
 
         threading.Thread(target=add_to_discord, args=(current_user.id,)).start()
-        log_audit(current_user.id, "license_generated", f"License {license.mask_license_key()} | {duration_days}d", request.remote_addr)
+        log_audit(current_user.id, "license_generated", f"License {lic.mask_license_key()} | {duration_days}d", request.remote_addr)
 
-        html_body = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-                <h2 style="color: white; margin: 0;">Your License Key</h2>
-            </div>
-            <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
-                <h3>Hi {current_user.get_full_name()}!</h3>
-                <p>Your license key:</p>
-                <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
-                    <h2 style="color: #4B7BE5; font-family: monospace;">{license_key}</h2>
-                </div>
-                <p><strong>Valid until:</strong> {license.expires_at.strftime('%B %d, %Y')}</p>
-            </div>
-        </div>
-        """
-        send_email_async("Your License Key", [current_user.email], f"License key: {license_key}", html_body)
+        send_email_async(
+            "Your License Key - Trading Engine",
+            [current_user.email],
+            f"License key: {license_key}",
+            f"<h3>License: {license_key}</h3><p>Valid until: {lic.expires_at.strftime('%B %d, %Y')}</p>"
+        )
 
         return jsonify({
             "success": True,
             "license_key": license_key,
-            "masked_key": license.mask_license_key(),
-            "expires_at": license.expires_at.isoformat(),
+            "masked_key": lic.mask_license_key(),
+            "expires_at": lic.expires_at.isoformat(),
         })
 
     except Exception as e:
@@ -902,7 +876,7 @@ def download_ea(file_id):
 
     ea_file.download_count += 1
     db.session.commit()
-    log_audit(current_user.id, "ea_download", f"Downloaded {ea_file.filename} v{ea_file.version}", request.remote_addr)
+    log_audit(current_user.id, "ea_download", f"Downloaded {ea_file.filename}", request.remote_addr)
     return send_from_directory(Config.UPLOAD_FOLDER, ea_file.file_path, as_attachment=True, download_name=ea_file.filename)
 
 
@@ -968,8 +942,7 @@ def admin_user_detail(user_id):
 def admin_orders():
     orders = Order.query.order_by(Order.created_at.desc()).all()
     total_revenue = db.session.query(db.func.sum(Order.total_amount)).scalar() or 0
-    revenue_by_plan = db.session.query(Order.plan_name, db.func.count(Order.id), db.func.sum(Order.total_amount)).group_by(Order.plan_name).all()
-    return render_template("admin/orders.html", orders=orders, total_revenue=total_revenue, revenue_by_plan=revenue_by_plan)
+    return render_template("admin/orders.html", orders=orders, total_revenue=total_revenue)
 
 
 @app.route("/admin/revoke-license/<int:license_id>", methods=["POST"])
@@ -982,7 +955,7 @@ def revoke_license(license_id):
     lic.revoked_at = datetime.utcnow()
     db.session.commit()
     threading.Thread(target=remove_from_discord, args=(lic.user.id,)).start()
-    log_audit(current_user.id, "license_revoked", f"Revoked license {lic.license_key}", request.remote_addr)
+    log_audit(current_user.id, "license_revoked", f"Revoked {lic.license_key}", request.remote_addr)
     flash("License revoked.", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -998,7 +971,7 @@ def revoke_membership(user_id):
     License.query.filter_by(user_id=user.id, status="active").update({"status": "revoked", "revoked_at": datetime.utcnow()})
     db.session.commit()
     threading.Thread(target=remove_from_discord, args=(user.id,)).start()
-    log_audit(current_user.id, "membership_revoked", f"Revoked membership for {user.email}", request.remote_addr)
+    log_audit(current_user.id, "membership_revoked", f"Revoked {user.email}", request.remote_addr)
     flash("Membership revoked.", "success")
     return redirect(url_for("admin_users"))
 
@@ -1035,11 +1008,6 @@ def upload_ea():
         return redirect(url_for("admin_dashboard"))
 
     filename = secure_filename(file.filename)
-    version = request.form.get("version", "1.0.0")
-    description = request.form.get("description", "")
-    changelog = request.form.get("changelog", "")
-    is_beta = request.form.get("is_beta") == "on"
-
     saved_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{filename}"
     file_path = os.path.join(Config.UPLOAD_FOLDER, saved_filename)
     file.save(file_path)
@@ -1050,14 +1018,18 @@ def upload_ea():
             sha256_hash.update(byte_block)
 
     ea_file = EAFile(
-        filename=filename, file_path=saved_filename, version=version,
-        file_size=os.path.getsize(file_path), description=description,
-        changelog=changelog, is_beta=is_beta, checksum=sha256_hash.hexdigest(),
+        filename=filename, file_path=saved_filename,
+        version=request.form.get("version", "1.0.0"),
+        file_size=os.path.getsize(file_path),
+        description=request.form.get("description", ""),
+        changelog=request.form.get("changelog", ""),
+        is_beta=request.form.get("is_beta") == "on",
+        checksum=sha256_hash.hexdigest(),
         uploaded_by=current_user.id,
     )
     db.session.add(ea_file)
     db.session.commit()
-    log_audit(current_user.id, "ea_upload", f"Uploaded {filename} v{version}", request.remote_addr)
+    log_audit(current_user.id, "ea_upload", f"Uploaded {filename}", request.remote_addr)
     flash("EA file uploaded.", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -1080,11 +1052,11 @@ def api_validate_license():
 
         lic = License.query.filter_by(license_key=license_key).first()
         if not lic:
-            return jsonify({"valid": False, "error": "Invalid license key"}), 404
+            return jsonify({"valid": False, "error": "Invalid license"}), 404
         if not lic.is_valid():
             return jsonify({"valid": False, "error": "License not active"}), 403
         if lic.machine_id and lic.machine_id != machine_id:
-            return jsonify({"valid": False, "error": "License bound to different machine"}), 403
+            return jsonify({"valid": False, "error": "Machine mismatch"}), 403
 
         if not lic.machine_id and machine_id:
             lic.machine_id = encrypt_data(machine_id)
@@ -1098,11 +1070,9 @@ def api_validate_license():
             "expires_at": lic.expires_at.isoformat(),
             "ea_version": lic.ea_version,
             "user_email": lic.user.email,
-            "license_type": lic.license_type,
-            "validation_count": lic.validation_count,
         })
     except Exception as e:
-        logger.error(f"License validation failed: {e}")
+        logger.error(f"Validation failed: {e}")
         return jsonify({"valid": False, "error": "Validation failed"}), 500
 
 
@@ -1122,45 +1092,41 @@ def api_admin_user_detail(user_id):
 
 
 # ============================================================================
-# WIX WEBHOOK - PLAN ORDERED
+# WIX WEBHOOK - PLAN ORDERED (Perfect parsing)
 # ============================================================================
 
 
 @app.route("/webhook/wix/payment", methods=["POST"])
 @limiter.limit("60 per minute")
 def wix_payment_webhook():
-    """Handle Wix Plan Ordered webhook"""
+    """Handle Wix Plan Ordered webhook with perfect data parsing"""
     try:
         # Wix sends data wrapped in a "data" object
         if request.is_json:
-            raw_data = request.get_json()
+            raw = request.get_json()
         else:
-            raw_data = request.form.to_dict() or request.get_json(force=True, silent=True) or {}
+            raw = request.form.to_dict() or request.get_json(force=True, silent=True) or {}
         
-        # Extract the actual data from Wix wrapper
-        data = raw_data.get("data", raw_data)
-        
-        logger.info(f"Wix Webhook received: {json.dumps(data, indent=2)}")
+        data = raw.get("data", raw)
+        logger.info(f"Wix Webhook: {json.dumps(data, indent=2)}")
 
         event_type = data.get("eventType", "")
 
-        # Only process Plan ordered events
         if event_type != "Plan ordered":
-            logger.info(f"Ignoring event type: {event_type}")
+            logger.info(f"Ignoring: {event_type}")
             return jsonify({"status": "ignored"}), 200
 
-        # Extract fields from Wix
+        # Extract all fields
         email = data.get("contact_email", "").strip().lower()
         contact_id = data.get("contact_id", "")
         first_name = data.get("contact_first_name", "")
         last_name = data.get("contact_last_name", "")
-        plan_name = data.get("plan_name", "Unknown Plan")
+        plan_name = data.get("plan_name", "")
         plan_duration = data.get("plan_duration", "")
         plan_start = data.get("plan_start_date", "")
         plan_end = data.get("plan_end_date", "")
         order_id = data.get("order_id", "")
 
-        # Price
         try:
             plan_price = float(data.get("plan_price_amount", 0))
         except:
@@ -1168,14 +1134,13 @@ def wix_payment_webhook():
         currency = data.get("plan_price_currency", "EUR")
 
         if not email:
-            logger.error("No email in webhook")
             return jsonify({"error": "Email required"}), 400
 
-        # Parse duration (supports Dutch)
+        # Parse duration (NL/EN)
         duration_days, subscription_type = parse_duration_to_days(plan_duration)
 
-        # Check plan name for hints
-        if subscription_type == "one_time":
+        # Fallback: detect from plan name
+        if subscription_type == "one_time" and plan_name:
             plan_lower = plan_name.lower()
             if "monthly" in plan_lower or "maand" in plan_lower:
                 duration_days, subscription_type = 30, "monthly"
@@ -1187,7 +1152,7 @@ def wix_payment_webhook():
         # Parse dates
         membership_start = parse_wix_date(plan_start) or datetime.utcnow()
         membership_end = parse_wix_date(plan_end)
-        
+
         # If no end date (cancellation-based), calculate from duration
         if not membership_end:
             membership_end = membership_start + timedelta(days=duration_days)
@@ -1204,6 +1169,7 @@ def wix_payment_webhook():
                 wix_contact_id=contact_id,
                 wix_order_id=order_id,
                 wix_payment_id=order_id,
+                email_verified=True,  # Auto-verify users from Wix
                 membership_status="active",
                 membership_start=membership_start,
                 membership_end=membership_end,
@@ -1217,24 +1183,26 @@ def wix_payment_webhook():
             db.session.flush()
             is_new_user = True
         else:
+            # Update existing user with new plan data
             user.first_name = first_name or user.first_name
             user.last_name = last_name or user.last_name
             user.wix_contact_id = contact_id or user.wix_contact_id
             user.wix_order_id = order_id or user.wix_order_id
             user.wix_payment_id = order_id or user.wix_payment_id
+            user.email_verified = True  # Ensure verified
             user.membership_status = "active"
             user.membership_start = membership_start
             user.membership_end = membership_end
             user.plan_name = plan_name or user.plan_name
-            user.plan_price = plan_price or user.plan_price
+            user.plan_price = plan_price if plan_price > 0 else user.plan_price
             user.currency = currency or user.currency
             user.subscription_type = subscription_type
             user.subscription_duration_days = duration_days
             db.session.flush()
 
         # Save order
-        existing_order = Order.query.filter_by(wix_order_id=order_id).first()
-        if not existing_order and order_id:
+        existing = Order.query.filter_by(wix_order_id=order_id).first()
+        if not existing and order_id:
             order = Order(
                 user_id=user.id,
                 wix_order_id=order_id,
@@ -1254,29 +1222,17 @@ def wix_payment_webhook():
 
         db.session.commit()
 
-        # Send welcome email
+        # Welcome email
         user_name = f"{first_name} {last_name}".strip() or "there"
-        welcome_html = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-                <h2 style="color: white; margin: 0;">Welcome to Trading Engine!</h2>
-            </div>
-            <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
-                <h3 style="color: #3FBFB3;">Hi {user_name}! 🎉</h3>
-                <p><strong>Plan:</strong> {plan_name}</p>
-                <p><strong>Duration:</strong> {plan_duration}</p>
-                <p><strong>Start:</strong> {membership_start.strftime('%B %d, %Y')}</p>
-                <p><strong>End:</strong> {membership_end.strftime('%B %d, %Y')}</p>
-                <a href="{Config.APP_URL}/login" style="display: inline-block; padding: 12px 30px; background: #4B7BE5; color: white; text-decoration: none; border-radius: 8px; margin-top: 20px;">
-                    Access Dashboard →
-                </a>
-            </div>
-        </div>
-        """
-        send_email_async("Welcome to Trading Engine! 🎉", [email], f"Your {plan_name} is active.", welcome_html)
+        send_email_async(
+            f"Welcome to Trading Engine! 🎉",
+            [email],
+            f"Your {plan_name} is active.",
+            f"<h3>Hi {user_name}!</h3><p>Plan: {plan_name}</p><p>Duration: {plan_duration}</p><p>Access: {Config.APP_URL}/login</p>"
+        )
 
-        log_audit(user.id, "wix_plan_ordered", f"{'New' if is_new_user else 'Existing'} | {plan_name} | {subscription_type}", request.remote_addr)
-        logger.info(f"✅ Plan ordered: {email} | {plan_name} | {subscription_type}")
+        log_audit(user.id, "wix_plan_ordered", f"{'New' if is_new_user else 'Updated'} | {plan_name} | {subscription_type} | {duration_days}d", request.remote_addr)
+        logger.info(f"✅ Plan: {email} | {plan_name} | {subscription_type} | {duration_days}d")
 
         return jsonify({"status": "success"}), 200
 
@@ -1292,7 +1248,7 @@ def wix_payment_webhook():
 
 
 def add_to_discord(user_id: int):
-    if not Config.DISCORD_BOT_TOKEN or not Config.DISCORD_GUILD_ID:
+    if not Config.DISCORD_BOT_TOKEN:
         return
     try:
         with app.app_context():
@@ -1301,7 +1257,6 @@ def add_to_discord(user_id: int):
                 user.discord_joined = True
                 user.discord_user_id = "pending"
                 db.session.commit()
-                log_audit(user_id, "discord_add", f"User {user.email} added to Discord", "system")
     except Exception as e:
         logger.error(f"Discord add failed: {e}")
 
@@ -1316,27 +1271,23 @@ def remove_from_discord(user_id: int):
                 user.discord_joined = False
                 user.discord_user_id = None
                 db.session.commit()
-                log_audit(user_id, "discord_remove", f"User {user.email} removed from Discord", "system")
     except Exception as e:
         logger.error(f"Discord remove failed: {e}")
 
 
 # ============================================================================
-# AUTO-INIT DATABASE ON RAILWAY
+# AUTO-INIT DATABASE
 # ============================================================================
 
 
 @app.before_request
 def auto_init_db():
-    """Auto-create tables on first request if they don't exist"""
     try:
         db.session.execute(db.text("SELECT 1 FROM users LIMIT 1"))
     except Exception:
         try:
             db.create_all()
             logger.info("✅ Database tables created!")
-            
-            # Create admin user
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             admin = User.query.filter_by(email=admin_email).first()
             if not admin:
@@ -1361,12 +1312,9 @@ def auto_init_db():
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Trading Engine - Subscription & Licensing Platform")
+    print("Trading Engine Platform")
     print("=" * 60)
-
     if Config.ENVIRONMENT == "development":
-        print(f"Admin Email: {os.getenv('ADMIN_EMAIL', 'admin@example.com').strip().lower()}")
-        print(f"Admin Password: {os.getenv('ADMIN_PASSWORD', 'admin123').strip()}")
-
+        print(f"Admin: {os.getenv('ADMIN_EMAIL', 'admin@example.com')}")
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
