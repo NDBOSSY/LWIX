@@ -2033,18 +2033,20 @@ def init_db():
 # MAIN
 # ============================================================================
 
-if __name__ == "__main__":
-    print("=" * 60)
-    print("Trading Engine - Subscription & Licensing Platform")
+# Initialize database for both Railway and local development
+with app.app_context():
     print("=" * 60)
     print("Initializing database...")
     init_db()
-    print("Database created successfully!")
-    print(f"Server starting at: http://localhost:5000")
+    print("Database initialized successfully!")
+    print("=" * 60)
+
+if __name__ == "__main__":
+    print("Trading Engine - Subscription & Licensing Platform")
+
     if Config.ENVIRONMENT == "development":
         print(f"Admin Email: {os.getenv('ADMIN_EMAIL', 'admin@example.com').strip().lower()}")
         print(f"Admin Password: {os.getenv('ADMIN_PASSWORD', 'admin123').strip()}")
-    print("=" * 60)
 
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
