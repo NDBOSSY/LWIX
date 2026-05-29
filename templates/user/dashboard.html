@@ -68,7 +68,6 @@
         75% { transform: rotate(-15deg); }
     }
 
-    /* Countdown timer styles */
     .countdown-badge {
         display: inline-flex;
         align-items: center;
@@ -87,6 +86,15 @@
     @keyframes pulse {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.7; }
+    }
+
+    .user-id-badge {
+        background: rgba(255,255,255,0.15);
+        padding: 0.2rem 0.6rem;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-family: monospace;
+        letter-spacing: 0.5px;
     }
 
     .stats-grid {
@@ -183,7 +191,6 @@
         .stat-value { font-size: 1.1rem; }
     }
 
-    /* Membership info card */
     .membership-info-card {
         background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
         border-radius: 20px;
@@ -412,6 +419,12 @@
         border-color: rgba(63, 191, 179, 0.2);
     }
 
+    .ea-badge.level {
+        background: rgba(139, 92, 246, 0.1);
+        color: #8B5CF6;
+        border-color: rgba(139, 92, 246, 0.2);
+    }
+
     .download-btn {
         width: 100%;
         padding: 0.6rem;
@@ -437,6 +450,17 @@
         background: #E5E7EB;
         color: #807F80;
         cursor: not-allowed;
+    }
+
+    .upgrade-hint {
+        background: #FFF8ED;
+        border: 1px solid #F59E0B;
+        border-radius: 10px;
+        padding: 0.8rem;
+        margin-top: 1rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #92400E;
     }
 
     .discord-section {
@@ -492,7 +516,6 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Badges */
     .badge-active {
         background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
         color: white;
@@ -512,8 +535,9 @@
     .badge-monthly { background: #4B7BE5; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-level1 { background: #6B7280; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-level2 { background: #8B5CF6; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
 
-    /* Modals */
     .custom-modal-overlay {
         display: none;
         position: fixed;
@@ -561,17 +585,9 @@
         border: 2px solid rgba(255, 255, 255, 0.25);
     }
 
-    .custom-modal-header h3 {
-        color: white;
-        font-weight: 700;
-        margin: 0;
-        font-size: 1.15rem;
-    }
+    .custom-modal-header h3 { color: white; font-weight: 700; margin: 0; font-size: 1.15rem; }
 
-    .custom-modal-body {
-        padding: 1.2rem 1.2rem 0.8rem;
-        background: #FFF8ED;
-    }
+    .custom-modal-body { padding: 1.2rem 1.2rem 0.8rem; background: #FFF8ED; }
 
     .benefit-list { list-style: none; padding: 0; margin: 0 0 0.8rem 0; }
 
@@ -587,10 +603,7 @@
         transition: all 0.2s ease;
     }
 
-    .benefit-item:hover {
-        transform: translateX(4px);
-        border-color: #6FDFDF;
-    }
+    .benefit-item:hover { transform: translateX(4px); border-color: #6FDFDF; }
 
     .benefit-icon {
         width: 32px;
@@ -647,17 +660,8 @@
         box-shadow: 0 4px 12px rgba(75, 123, 229, 0.25);
     }
 
-    .btn-modal-confirm:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(75, 123, 229, 0.35);
-    }
-
-    .btn-modal-cancel {
-        background: white;
-        color: #807F80;
-        border: 1.5px solid #E5E7EB;
-    }
-
+    .btn-modal-confirm:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(75, 123, 229, 0.35); }
+    .btn-modal-cancel { background: white; color: #807F80; border: 1.5px solid #E5E7EB; }
     .btn-modal-cancel:hover { border-color: #807F80; color: #2D2D2D; }
 
     .download-modal-overlay {
@@ -710,11 +714,7 @@
     .download-modal-header h3 { color: white; font-weight: 700; margin: 0; font-size: 1.15rem; }
     .download-modal-header p { color: rgba(255, 255, 255, 0.9); margin: 0.2rem 0 0; font-size: 0.8rem; }
 
-    .download-modal-body {
-        padding: 1.5rem 1.5rem 1rem;
-        background: #FFF8ED;
-        text-align: center;
-    }
+    .download-modal-body { padding: 1.5rem 1.5rem 1rem; background: #FFF8ED; text-align: center; }
 
     .download-count-badge {
         display: inline-flex;
@@ -732,12 +732,7 @@
 
     .download-info { color: #807F80; font-size: 0.8rem; margin-bottom: 0.5rem; }
 
-    .download-modal-footer {
-        padding: 0.8rem 1.5rem 1.5rem;
-        background: #FFF8ED;
-        display: flex;
-        gap: 0.6rem;
-    }
+    .download-modal-footer { padding: 0.8rem 1.5rem 1.5rem; background: #FFF8ED; display: flex; gap: 0.6rem; }
 
     .btn-download-modal {
         flex: 1;
@@ -793,7 +788,10 @@
                             </p>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 mt-2 flex-wrap">
+                    <div class="d-flex gap-2 mt-2 flex-wrap align-items-center">
+                        <span class="user-id-badge">
+                            <i class="fas fa-id-card me-1"></i>ID: {{ user.id }}
+                        </span>
                         <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
                             <i class="fas fa-calendar me-1"></i>
                             Member since {{ user.created_at.strftime('%B %Y') }}
@@ -812,6 +810,10 @@
                             {{ user.subscription_type|title }}
                         </span>
                         {% endif %}
+                        <span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
+                            <i class="fas fa-layer-group me-1"></i>
+                            Level {{ user.get_plan_level() }}
+                        </span>
                     </div>
                 </div>
                 <div class="col-md-4 text-end mt-2 mt-md-0">
@@ -846,6 +848,14 @@
                 <div class="m-value">{{ user.plan_name or 'Free Tier' }}</div>
             </div>
             <div class="membership-item">
+                <div class="m-label">Plan Level</div>
+                <div class="m-value">
+                    <span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}">
+                        Level {{ user.get_plan_level() }} - {{ 'Full Access' if user.get_plan_level() >= 2 else 'Basic Access' }}
+                    </span>
+                </div>
+            </div>
+            <div class="membership-item">
                 <div class="m-label">Subscription Type</div>
                 <div class="m-value">
                     {% if user.subscription_type %}
@@ -864,10 +874,10 @@
             <div class="membership-item">
                 <div class="m-label">Price</div>
                 <div class="m-value">
-                    {% if user.plan_price %}
+                    {% if user.plan_price and user.plan_price > 0 %}
                     {{ user.currency or 'EUR' }} {{ "%.2f"|format(user.plan_price) }}
                     {% else %}
-                    -
+                    <span style="color: #10B981;">Free</span>
                     {% endif %}
                 </div>
             </div>
@@ -882,6 +892,10 @@
             <div class="membership-item">
                 <div class="m-label">End Date</div>
                 <div class="m-value">{{ user.membership_end.strftime('%b %d, %Y') if user.membership_end else 'N/A' }}</div>
+            </div>
+            <div class="membership-item">
+                <div class="m-label">User ID</div>
+                <div class="m-value" style="font-family: monospace;">#{{ user.id }}</div>
             </div>
         </div>
     </div>
@@ -985,8 +999,15 @@
         <!-- EA Downloads Section -->
         <div class="ea-section">
             <div class="ea-header">
-                <h5 class="mb-0"><i class="fas fa-robot me-2" style="color: #A85CF9;"></i>Expert Advisors</h5>
-                {% if ea_files %}
+                <h5 class="mb-0">
+                    <i class="fas fa-robot me-2" style="color: #A85CF9;"></i>
+                    Expert Advisors
+                </h5>
+                {% if ea_files is defined and all_ea_count is defined %}
+                <span class="badge" style="background: rgba(75, 123, 229, 0.1); color: #4B7BE5; padding: 0.4rem 0.8rem;">
+                    {{ ea_files|length }}/{{ all_ea_count }} Available
+                </span>
+                {% elif ea_files %}
                 <span class="badge" style="background: rgba(75, 123, 229, 0.1); color: #4B7BE5; padding: 0.4rem 0.8rem;">
                     {{ ea_files|length }} Available
                 </span>
@@ -1008,6 +1029,7 @@
                         {% if ea.file_size %}
                         <span class="ea-badge size"><i class="fas fa-hdd me-1"></i>{{ (ea.file_size / 1024)|round(1) }} KB</span>
                         {% endif %}
+                        <span class="ea-badge level"><i class="fas fa-layer-group me-1"></i>Lvl {{ ea.plan_level }}</span>
                         <span class="ea-badge"><i class="fas fa-download me-1"></i>{{ ea.download_count }}</span>
                     </div>
                     {% if license %}
@@ -1023,10 +1045,17 @@
             {% if license and ea_files|length > 1 %}
             <div class="download-all-section">
                 <h6 class="mb-2"><i class="fas fa-layer-group me-2" style="color: #4B7BE5;"></i>Want all EAs?</h6>
-                <p class="text-muted small mb-3">Download all Expert Advisors at once</p>
+                <p class="text-muted small mb-3">Download all available Expert Advisors at once</p>
                 <button class="btn btn-primary" onclick="showDownloadAllModal()">
-                    <i class="fas fa-download me-2"></i>Download All EAs ({{ ea_files|length }})
+                    <i class="fas fa-download me-2"></i>Download All ({{ ea_files|length }})
                 </button>
+            </div>
+            {% endif %}
+            {% if all_ea_count is defined and ea_files|length < all_ea_count %}
+            <div class="upgrade-hint">
+                <i class="fas fa-lock me-1"></i>
+                {{ all_ea_count - ea_files|length }} more EA(s) available on <strong>Level 2</strong>. 
+                <a href="#" style="color: #4B7BE5; font-weight: 600;">Upgrade your plan</a>
             </div>
             {% endif %}
             {% else %}
@@ -1115,14 +1144,14 @@
         <div class="download-modal-header">
             <div class="download-modal-icon"><i class="fas fa-layer-group"></i></div>
             <h3>Download All EAs</h3>
-            <p>Get all Expert Advisors at once</p>
+            <p>Get all available Expert Advisors at once</p>
         </div>
         <div class="download-modal-body">
             <div class="download-count-badge">
                 <span class="count" id="downloadCountBadge">{{ ea_files|length }}</span>
                 <span class="label">Expert<br>Advisors</span>
             </div>
-            <p class="download-info"><i class="fas fa-info-circle me-1"></i>Downloads will start one by one</p>
+            <p class="download-info"><i class="fas fa-info-circle me-1"></i>Downloads start one by one</p>
         </div>
         <div class="download-modal-footer">
             <button class="btn-download-modal btn-download-cancel" onclick="closeDownloadAllModal()">Cancel</button>
@@ -1139,26 +1168,21 @@
 </div>
 
 <script>
-    // Countdown timer
     function updateCountdown() {
         const countdownEl = document.getElementById('membershipCountdown');
         const countdownText = document.getElementById('countdownText');
         const daysRemainingEl = document.getElementById('daysRemaining');
-        
         if (!countdownEl) return;
-        
         const endDate = new Date(countdownEl.dataset.endDate);
         const now = new Date();
         const diffTime = endDate - now;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
         if (diffDays <= 0) {
             countdownText.textContent = 'Expired';
             countdownEl.classList.add('urgent');
             if (daysRemainingEl) daysRemainingEl.textContent = '0d';
             return;
         }
-        
         if (diffDays === 1) {
             const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
             countdownText.textContent = diffHours + ' hours remaining';
@@ -1168,23 +1192,19 @@
         } else {
             countdownText.textContent = diffDays + ' days remaining';
         }
-        
         if (daysRemainingEl) daysRemainingEl.textContent = diffDays + 'd';
     }
-    
     updateCountdown();
-    setInterval(updateCountdown, 60000); // Update every minute
+    setInterval(updateCountdown, 60000);
 
     function showLicenseModal() {
         document.getElementById('licenseModal').classList.add('show');
         document.body.style.overflow = 'hidden';
     }
-
     function closeLicenseModal() {
         document.getElementById('licenseModal').classList.remove('show');
         document.body.style.overflow = '';
     }
-
     function confirmGenerateLicense() {
         closeLicenseModal();
         document.getElementById('loadingOverlay').style.display = 'flex';
@@ -1192,67 +1212,44 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('loadingOverlay').style.display = 'none';
-                if (data.success) {
-                    showToast('License generated successfully! 🎉', 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showToast(data.error || 'Failed to generate license', 'error');
-                }
-            })
-            .catch(() => {
-                document.getElementById('loadingOverlay').style.display = 'none';
-                showToast('Error occurred.', 'error');
-            });
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            if (data.success) {
+                showToast('License generated! 🎉', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(data.error || 'Failed', 'error');
+            }
+        })
+        .catch(() => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            showToast('Error occurred.', 'error');
+        });
     }
-
     function showDownloadAllModal() {
         const count = document.querySelectorAll('a[href*="download-ea"]').length;
         document.getElementById('downloadCountBadge').textContent = count;
         document.getElementById('downloadAllModal').classList.add('show');
         document.body.style.overflow = 'hidden';
     }
-
     function closeDownloadAllModal() {
         document.getElementById('downloadAllModal').classList.remove('show');
         document.body.style.overflow = '';
     }
-
     function confirmDownloadAll() {
         closeDownloadAllModal();
-        const downloadLinks = document.querySelectorAll('a[href*="download-ea"]');
-        if (downloadLinks.length === 0) {
-            showToast('No EAs available', 'error');
-            return;
-        }
-        showToast(`Starting ${downloadLinks.length} downloads...`, 'success');
-        downloadLinks.forEach((link, index) => {
-            setTimeout(() => { window.open(link.href, '_blank'); }, index * 1000);
-        });
+        const links = document.querySelectorAll('a[href*="download-ea"]');
+        if (links.length === 0) { showToast('No EAs available', 'error'); return; }
+        showToast(`Starting ${links.length} downloads...`, 'success');
+        links.forEach((link, i) => setTimeout(() => window.open(link.href, '_blank'), i * 1000));
     }
-
-    document.getElementById('licenseModal').addEventListener('click', function(e) {
-        if (e.target === this) closeLicenseModal();
-    });
-
-    document.getElementById('downloadAllModal').addEventListener('click', function(e) {
-        if (e.target === this) closeDownloadAllModal();
-    });
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeLicenseModal();
-            closeDownloadAllModal();
-        }
-    });
-
+    document.getElementById('licenseModal').addEventListener('click', function(e) { if (e.target === this) closeLicenseModal(); });
+    document.getElementById('downloadAllModal').addEventListener('click', function(e) { if (e.target === this) closeDownloadAllModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeLicenseModal(); closeDownloadAllModal(); } });
     function trackDownload() {
-        const countEl = document.getElementById('totalDownloads');
-        if (countEl) {
-            countEl.textContent = parseInt(countEl.textContent) + 1;
-        }
+        const el = document.getElementById('totalDownloads');
+        if (el) el.textContent = parseInt(el.textContent) + 1;
         showToast('Download started! 📥', 'success');
     }
 </script>
