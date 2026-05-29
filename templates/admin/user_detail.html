@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}User Details - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 1200px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="fas fa-arrow-left me-1"></i>Back to Users
+            </a>
+            <h3>{{ user.get_full_name() }}</h3>
+            <p class="text-muted mb-0">{{ user.email }} · ID: #{{ user.id }}</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0">Account Info</h5></div>
+                <div class="card-body">
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Name:</strong> {{ user.get_full_name() or 'N/A' }}</p>
+                    <p><strong>Phone:</strong> {{ user.phone or 'N/A' }}</p>
+                    <p><strong>Country:</strong> {{ user.country or 'N/A' }}</p>
+                    <p><strong>Status:</strong> 
+                        <span class="badge {% if user.membership_status == 'active' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ user.membership_status|title }}
+                        </span>
+                    </p>
+                    <p><strong>Created:</strong> {{ user.created_at.strftime('%B %d, %Y') }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0">Plan Info</h5></div>
+                <div class="card-body">
+                    <p><strong>Plan:</strong> {{ user.plan_name or 'N/A' }}</p>
+                    <p><strong>Level:</strong> {{ user.get_plan_level() }}</p>
+                    <p><strong>Type:</strong> {{ user.subscription_type or 'N/A' }}</p>
+                    <p><strong>Price:</strong> {% if user.plan_price and user.plan_price > 0 %}{{ user.currency }} {{ "%.2f"|format(user.plan_price) }}{% else %}Free{% endif %}</p>
+                    <p><strong>Start:</strong> {{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</p>
+                    <p><strong>End:</strong> {{ user.membership_end.strftime('%b %d, %Y') if user.membership_end else 'N/A' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Licenses ({{ licenses|length }})</h5>
+            <form method="POST" action="{{ url_for('extend_membership', user_id=user.id) }}" class="d-flex gap-2">
+                <input type="number" name="days" value="30" class="form-control form-control-sm" style="width: 80px;">
+                <button type="submit" class="btn btn-sm btn-success">Extend Days</button>
+            </form>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Key</th><th>Status</th><th>Created</th><th>Expires</th></tr></thead>
+                <tbody>
+                    {% for lic in licenses %}
+                    <tr>
+                        <td><code>{{ lic.mask_license_key() }}</code></td>
+                        <td><span class="badge {% if lic.status == 'active' %}bg-success{% else %}bg-danger{% endif %}">{{ lic.status }}</span></td>
+                        <td>{{ lic.created_at.strftime('%b %d, %Y') }}</td>
+                        <td>{{ lic.expires_at.strftime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not licenses %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">No licenses</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h5 class="mb-0">Orders ({{ orders|length }})</h5></div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Order ID</th><th>Plan</th><th>Amount</th><th>Date</th></tr></thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><code>{{ order.wix_order_id or 'N/A' }}</code></td>
+                        <td>{{ order.plan_name }}</td>
+                        <td>{% if order.total_amount and order.total_amount > 0 %}{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}{% else %}Free{% endif %}</td>
+                        <td>{{ order.created_at.strftime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not orders %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">No orders</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
