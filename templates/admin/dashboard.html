@@ -63,7 +63,7 @@
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         gap: 1rem;
         margin-bottom: 1.5rem;
     }
@@ -99,21 +99,12 @@
         opacity: 0.08;
     }
 
-    .stat-card.users::after {
-        background: #4B7BE5;
-    }
-
-    .stat-card.active::after {
-        background: #3FBFB3;
-    }
-
-    .stat-card.licenses::after {
-        background: #A85CF9;
-    }
-
-    .stat-card.downloads::after {
-        background: #5534A5;
-    }
+    .stat-card.users::after { background: #4B7BE5; }
+    .stat-card.active::after { background: #3FBFB3; }
+    .stat-card.licenses::after { background: #A85CF9; }
+    .stat-card.orders::after { background: #10B981; }
+    .stat-card.revenue::after { background: #F59E0B; }
+    .stat-card.downloads::after { background: #5534A5; }
 
     .stat-icon {
         width: 38px;
@@ -126,29 +117,14 @@
         flex-shrink: 0;
     }
 
-    .stat-icon.blue {
-        background: rgba(75, 123, 229, 0.1);
-        color: #4B7BE5;
-    }
+    .stat-icon.blue { background: rgba(75, 123, 229, 0.1); color: #4B7BE5; }
+    .stat-icon.teal { background: rgba(63, 191, 179, 0.1); color: #3FBFB3; }
+    .stat-icon.purple { background: rgba(168, 92, 249, 0.1); color: #A85CF9; }
+    .stat-icon.green { background: rgba(16, 185, 129, 0.1); color: #10B981; }
+    .stat-icon.gold { background: rgba(245, 158, 11, 0.1); color: #F59E0B; }
+    .stat-icon.dark-purple { background: rgba(85, 52, 165, 0.1); color: #5534A5; }
 
-    .stat-icon.teal {
-        background: rgba(63, 191, 179, 0.1);
-        color: #3FBFB3;
-    }
-
-    .stat-icon.purple {
-        background: rgba(168, 92, 249, 0.1);
-        color: #A85CF9;
-    }
-
-    .stat-icon.dark-purple {
-        background: rgba(85, 52, 165, 0.1);
-        color: #5534A5;
-    }
-
-    .stat-info {
-        flex: 1;
-    }
+    .stat-info { flex: 1; }
 
     .stat-value {
         font-size: 1.3rem;
@@ -171,35 +147,19 @@
         margin-bottom: 1.5rem;
     }
 
-    @media (max-width: 1024px) {
-        .content-grid {
-            grid-template-columns: 1fr;
-        }
+    @media (max-width: 1200px) {
+        .stats-grid { grid-template-columns: repeat(3, 1fr); }
+    }
 
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
+    @media (max-width: 1024px) {
+        .content-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 600px) {
-        .stats-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 0.6rem;
-        }
-
-        .stat-card {
-            padding: 0.6rem 0.8rem;
-        }
-
-        .stat-icon {
-            width: 32px;
-            height: 32px;
-            font-size: 0.9rem;
-        }
-
-        .stat-value {
-            font-size: 1.1rem;
-        }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+        .stat-card { padding: 0.6rem 0.8rem; }
+        .stat-icon { width: 32px; height: 32px; font-size: 0.9rem; }
+        .stat-value { font-size: 1.1rem; }
     }
 
     .card {
@@ -214,12 +174,16 @@
         padding: 1rem 1.5rem;
         color: white;
         border: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
     .card-header h5 {
         color: white;
         font-weight: 600;
         font-size: 1rem;
+        margin: 0;
     }
 
     .card-header .btn-outline-primary {
@@ -236,9 +200,11 @@
     }
 
     .card-body {
-        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
+        background: white;
         padding: 1.2rem;
     }
+
+    .card-body.p-0 { padding: 0; }
 
     .table {
         margin-bottom: 0;
@@ -254,6 +220,7 @@
         padding: 0.6rem 0.8rem;
         font-weight: 600;
         font-size: 0.8rem;
+        white-space: nowrap;
     }
 
     .table tbody td {
@@ -263,9 +230,7 @@
         background: white;
     }
 
-    .table tbody tr:hover td {
-        background: #FFF8ED;
-    }
+    .table tbody tr:hover td { background: #FFF8ED; }
 
     .upload-card {
         background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
@@ -306,7 +271,7 @@
     }
 
     .activity-card {
-        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
+        background: white;
         border-radius: 20px;
         border: 1px solid #E5E7EB;
         overflow: hidden;
@@ -347,25 +312,12 @@
         flex-shrink: 0;
     }
 
-    .activity-dot.login {
-        background: #4B7BE5;
-    }
-
-    .activity-dot.license {
-        background: #3FBFB3;
-    }
-
-    .activity-dot.revoke {
-        background: #EF4444;
-    }
-
-    .activity-dot.upload {
-        background: #A85CF9;
-    }
-
-    .activity-dot.default {
-        background: #807F80;
-    }
+    .activity-dot.login { background: #4B7BE5; }
+    .activity-dot.license { background: #3FBFB3; }
+    .activity-dot.revoke { background: #EF4444; }
+    .activity-dot.upload { background: #A85CF9; }
+    .activity-dot.order, .activity-dot.payment { background: #F59E0B; }
+    .activity-dot.default { background: #807F80; }
 
     .btn-primary {
         background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
@@ -390,10 +342,26 @@
         padding: 0.25rem 0.6rem;
         font-size: 0.75rem;
         transition: all 0.3s;
+        background: white;
     }
 
     .btn-outline-danger:hover {
         background: #EF4444;
+        color: white;
+    }
+
+    .btn-outline-info {
+        border: 1.5px solid #4B7BE5;
+        color: #4B7BE5;
+        border-radius: 8px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
+        transition: all 0.3s;
+        background: white;
+    }
+
+    .btn-outline-info:hover {
+        background: #4B7BE5;
         color: white;
     }
 
@@ -413,6 +381,18 @@
         font-size: 0.75rem;
     }
 
+    .badge-revoked {
+        background: #EF4444;
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+
+    .badge-monthly { background: #4B7BE5; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+
     code {
         background: #FEFAF3;
         border: 1px solid #6FDFDF;
@@ -420,6 +400,39 @@
         padding: 0.15rem 0.4rem;
         color: #5534A5;
         font-size: 0.8rem;
+    }
+
+    .subscription-breakdown {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.8rem;
+    }
+
+    .sub-breakdown-item {
+        background: #FFF8ED;
+        border-radius: 10px;
+        padding: 0.8rem;
+        text-align: center;
+        border: 1px solid #E5E7EB;
+    }
+
+    .sub-breakdown-item .sub-type {
+        font-size: 0.75rem;
+        color: #807F80;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.3rem;
+    }
+
+    .sub-breakdown-item .sub-count {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #4B7BE5;
+    }
+
+    .sub-breakdown-item .sub-revenue {
+        font-size: 0.8rem;
+        color: #807F80;
     }
 </style>
 {% endblock %}
@@ -435,48 +448,51 @@
                 </div>
                 <div>
                     <h2 class="fw-bold mb-1">Admin Dashboard</h2>
-                    <p class="mb-0 opacity-75">Manage users, licenses, and EA files</p>
+                    <p class="mb-0 opacity-75">Manage users, licenses, orders, and EA files</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Stats Grid - Compact -->
+    <!-- Stats Grid -->
     <div class="stats-grid">
         <div class="stat-card users">
-            <div class="stat-icon blue">
-                <i class="fas fa-users"></i>
-            </div>
+            <div class="stat-icon blue"><i class="fas fa-users"></i></div>
             <div class="stat-info">
                 <div class="stat-value">{{ total_users }}</div>
                 <div class="stat-label">Total Users</div>
             </div>
         </div>
-
         <div class="stat-card active">
-            <div class="stat-icon teal">
-                <i class="fas fa-user-check"></i>
-            </div>
+            <div class="stat-icon teal"><i class="fas fa-user-check"></i></div>
             <div class="stat-info">
                 <div class="stat-value">{{ active_users }}</div>
-                <div class="stat-label">Active Users</div>
+                <div class="stat-label">Active Members</div>
             </div>
         </div>
-
         <div class="stat-card licenses">
-            <div class="stat-icon purple">
-                <i class="fas fa-key"></i>
-            </div>
+            <div class="stat-icon purple"><i class="fas fa-key"></i></div>
             <div class="stat-info">
-                <div class="stat-value">{{ total_licenses }}</div>
-                <div class="stat-label">Total Licenses</div>
+                <div class="stat-value">{{ active_licenses }}/{{ total_licenses }}</div>
+                <div class="stat-label">Active / Total Licenses</div>
             </div>
         </div>
-
-        <div class="stat-card downloads">
-            <div class="stat-icon dark-purple">
-                <i class="fas fa-download"></i>
+        <div class="stat-card orders">
+            <div class="stat-icon green"><i class="fas fa-shopping-cart"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ total_orders }}</div>
+                <div class="stat-label">Total Orders</div>
             </div>
+        </div>
+        <div class="stat-card revenue">
+            <div class="stat-icon gold"><i class="fas fa-euro-sign"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">€{{ "%.0f"|format(total_revenue) }}</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
+        </div>
+        <div class="stat-card downloads">
+            <div class="stat-icon dark-purple"><i class="fas fa-download"></i></div>
             <div class="stat-info">
                 <div class="stat-value">{{ total_downloads }}</div>
                 <div class="stat-label">Downloads</div>
@@ -484,7 +500,27 @@
         </div>
     </div>
 
-    <!-- Content Grid -->
+    <!-- Subscription Breakdown -->
+    {% if subscription_stats %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-chart-pie me-2"></i>Subscription Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div class="subscription-breakdown">
+                {% for stat in subscription_stats %}
+                <div class="sub-breakdown-item">
+                    <div class="sub-type">{{ stat[0] or 'Unknown' }}</div>
+                    <div class="sub-count">{{ stat[1] }} users</div>
+                    <div class="sub-revenue">€{{ "%.2f"|format(stat[2] or 0) }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Content Grid: Recent Users & Recent Orders -->
     <div class="content-grid">
         <!-- Recent Users -->
         <div class="card">
@@ -497,7 +533,8 @@
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>Email</th>
+                                <th>User</th>
+                                <th>Plan</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -505,19 +542,42 @@
                         <tbody>
                             {% for user in recent_users %}
                             <tr>
-                                <td>{{ user.email }}</td>
                                 <td>
-                                    <span
-                                        class="badge {% if user.membership_status == 'active' %}badge-active{% else %}badge-expired{% endif %}">
+                                    <strong>{{ user.email }}</strong>
+                                    {% if user.get_full_name() and user.get_full_name() != user.email %}
+                                    <br><small style="color: #807F80;">{{ user.get_full_name() }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.plan_name %}
+                                    <small>{{ user.plan_name }}</small>
+                                    {% if user.subscription_type %}
+                                    <br><span class="badge 
+                                        {% if user.subscription_type == 'monthly' %}badge-monthly
+                                        {% elif user.subscription_type == 'yearly' %}badge-yearly
+                                        {% elif user.subscription_type == 'lifetime' %}badge-lifetime
+                                        {% endif %}">{{ user.subscription_type|title }}</span>
+                                    {% endif %}
+                                    {% else %}
+                                    <small style="color: #807F80;">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if user.membership_status == 'active' %}badge-active
+                                        {% elif user.membership_status == 'revoked' %}badge-revoked
+                                        {% else %}badge-expired{% endif %}">
                                         {{ user.membership_status|title }}
                                     </span>
                                 </td>
                                 <td>
+                                    <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-outline-info btn-sm me-1" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                     {% if user.membership_status == 'active' %}
-                                    <form method="POST" action="{{ url_for('revoke_membership', user_id=user.id) }}"
-                                        class="d-inline">
+                                    <form method="POST" action="{{ url_for('revoke_membership', user_id=user.id) }}" class="d-inline">
                                         <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            onclick="return confirm('Revoke membership for {{ user.email }}?')">
+                                            onclick="return confirm('Revoke membership for {{ user.email }}?')" title="Revoke">
                                             <i class="fas fa-ban"></i>
                                         </button>
                                     </form>
@@ -531,6 +591,53 @@
             </div>
         </div>
 
+        <!-- Recent Orders -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Recent Orders</h5>
+                <a href="{{ url_for('admin_orders') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th>Plan</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td><strong>{{ order.user.email }}</strong></td>
+                                <td>
+                                    <small>{{ order.plan_name or 'N/A' }}</small>
+                                    {% if order.subscription_type %}
+                                    <br><span class="badge badge-active">{{ order.subscription_type|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ order.currency }} {{ "%.2f"|format(order.total_amount or 0) }}</strong></td>
+                                <td><small>{{ order.created_at.strftime('%b %d, %Y') }}</small></td>
+                            </tr>
+                            {% endfor %}
+                            {% if not recent_orders %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">
+                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No orders yet
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Grid: Licenses, Upload & Activity -->
+    <div class="content-grid">
         <!-- Recent Licenses -->
         <div class="card">
             <div class="card-header">
@@ -543,6 +650,7 @@
                             <tr>
                                 <th>License</th>
                                 <th>User</th>
+                                <th>Type</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -552,16 +660,18 @@
                             <tr>
                                 <td><code>{{ lic.mask_license_key() }}</code></td>
                                 <td>{{ lic.user.email }}</td>
+                                <td><small>{{ lic.license_type or 'standard' }}</small></td>
                                 <td>
-                                    <span
-                                        class="badge {% if lic.status == 'active' %}badge-active{% else %}badge-expired{% endif %}">
+                                    <span class="badge 
+                                        {% if lic.status == 'active' %}badge-active
+                                        {% elif lic.status == 'revoked' %}badge-revoked
+                                        {% else %}badge-expired{% endif %}">
                                         {{ lic.status|title }}
                                     </span>
                                 </td>
                                 <td>
                                     {% if lic.status == 'active' %}
-                                    <form method="POST" action="{{ url_for('revoke_license', license_id=lic.id) }}"
-                                        class="d-inline">
+                                    <form method="POST" action="{{ url_for('revoke_license', license_id=lic.id) }}" class="d-inline">
                                         <button type="submit" class="btn btn-outline-danger btn-sm"
                                             onclick="return confirm('Revoke this license?')">
                                             <i class="fas fa-ban"></i> Revoke
@@ -576,63 +686,73 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Upload & Activity -->
-    <div class="content-grid">
-        <!-- Upload EA -->
-        <div class="upload-card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('upload_ea') }}" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label">EA File (.ex4, .ex5, .dll, .zip)</label>
-                        <input type="file" name="file" class="form-control" accept=".ex4,.ex5,.dll,.zip" required>
-                        <small style="color: #807F80; font-size: 0.75rem;">Max: 50MB</small>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Version</label>
-                            <input type="text" name="version" class="form-control" placeholder="1.0.0" required>
+        <!-- Upload EA & Activity -->
+        <div>
+            <div class="upload-card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('upload_ea') }}" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label">EA File (.ex4, .ex5, .dll, .zip)</label>
+                            <input type="file" name="file" class="form-control" accept=".ex4,.ex5,.dll,.zip" required>
+                            <small style="color: #807F80; font-size: 0.75rem;">Max: 50MB</small>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Description</label>
-                            <input type="text" name="description" class="form-control" placeholder="Optional">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Version</label>
+                                <input type="text" name="version" class="form-control" placeholder="1.0.0" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Description</label>
+                                <input type="text" name="description" class="form-control" placeholder="Optional">
+                            </div>
                         </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-cloud-upload-alt me-2"></i>Upload EA
-                    </button>
-                </form>
+                        <div class="mb-3">
+                            <label class="form-label">Changelog</label>
+                            <textarea name="changelog" class="form-control" rows="2" placeholder="What's new?"></textarea>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="is_beta" id="isBeta">
+                            <label class="form-check-label" for="isBeta" style="font-size: 0.85rem;">Beta version</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-cloud-upload-alt me-2"></i>Upload EA
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
+    </div>
 
-        <!-- Activity Log -->
-        <div class="activity-card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
-            </div>
-            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
-                {% for log in recent_logs %}
-                <div class="activity-item">
-                    <div class="activity-dot 
-                        {% if 'login' in log.action %}login
-                        {% elif 'license' in log.action %}license
-                        {% elif 'revok' in log.action %}revoke
-                        {% elif 'upload' in log.action %}upload
-                        {% else %}default{% endif %}">
-                    </div>
-                    <div class="flex-grow-1">
-                        <strong style="color: #2D2D2D; font-size: 0.85rem;">{{ log.action|title }}</strong>
-                        <p class="mb-0" style="color: #807F80; font-size: 0.78rem;">{{ log.details }}</p>
-                        <small style="color: #807F80; font-size: 0.72rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M')
-                            }}</small>
-                    </div>
+    <!-- Activity Log (Full Width) -->
+    <div class="activity-card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+        </div>
+        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+            {% for log in recent_logs %}
+            <div class="activity-item">
+                <div class="activity-dot 
+                    {% if 'login' in log.action %}login
+                    {% elif 'license' in log.action %}license
+                    {% elif 'revok' in log.action %}revoke
+                    {% elif 'upload' in log.action %}upload
+                    {% elif 'order' in log.action or 'payment' in log.action %}order
+                    {% else %}default{% endif %}">
                 </div>
-                {% endfor %}
+                <div class="flex-grow-1">
+                    <strong style="color: #2D2D2D; font-size: 0.85rem;">{{ log.action|title }}</strong>
+                    <p class="mb-0" style="color: #807F80; font-size: 0.78rem;">{{ log.details }}</p>
+                    <small style="color: #807F80; font-size: 0.72rem;">
+                        {{ log.created_at.strftime('%b %d, %Y %H:%M') }}
+                        {% if log.ip_address %} · {{ log.ip_address }}{% endif %}
+                    </small>
+                </div>
             </div>
+            {% endfor %}
         </div>
     </div>
 </div>
