@@ -250,7 +250,7 @@
         padding: 1.2rem;
     }
 
-    .form-control {
+    .form-control, .form-select {
         background: white;
         border: 1.5px solid #E5E7EB;
         border-radius: 10px;
@@ -259,9 +259,10 @@
         transition: all 0.3s;
     }
 
-    .form-control:focus {
+    .form-control:focus, .form-select:focus {
         border-color: #6FDFDF;
         box-shadow: 0 0 0 3px rgba(111, 223, 223, 0.1);
+        outline: none;
     }
 
     .form-label {
@@ -392,6 +393,8 @@
     .badge-monthly { background: #4B7BE5; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-level1 { background: #6B7280; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-level2 { background: #8B5CF6; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
 
     code {
         background: #FEFAF3;
@@ -433,6 +436,12 @@
     .sub-breakdown-item .sub-revenue {
         font-size: 0.8rem;
         color: #807F80;
+    }
+
+    .ea-file-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 </style>
 {% endblock %}
@@ -535,6 +544,7 @@
                             <tr>
                                 <th>User</th>
                                 <th>Plan</th>
+                                <th>Level</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -561,6 +571,11 @@
                                     {% else %}
                                     <small style="color: #807F80;">-</small>
                                     {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}">
+                                        Level {{ user.get_plan_level() }}
+                                    </span>
                                 </td>
                                 <td>
                                     <span class="badge 
@@ -618,7 +633,13 @@
                                     <br><span class="badge badge-active">{{ order.subscription_type|title }}</span>
                                     {% endif %}
                                 </td>
-                                <td><strong>{{ order.currency }} {{ "%.2f"|format(order.total_amount or 0) }}</strong></td>
+                                <td>
+                                    {% if order.total_amount and order.total_amount > 0 %}
+                                    <strong>{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</strong>
+                                    {% else %}
+                                    <span style="color: #10B981;">Free</span>
+                                    {% endif %}
+                                </td>
                                 <td><small>{{ order.created_at.strftime('%b %d, %Y') }}</small></td>
                             </tr>
                             {% endfor %}
@@ -636,7 +657,7 @@
         </div>
     </div>
 
-    <!-- Bottom Grid: Licenses, Upload & Activity -->
+    <!-- Bottom Grid: Licenses, EA Files, Upload -->
     <div class="content-grid">
         <!-- Recent Licenses -->
         <div class="card">
@@ -687,43 +708,102 @@
             </div>
         </div>
 
-        <!-- Upload EA & Activity -->
-        <div>
-            <div class="upload-card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('upload_ea') }}" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label">EA File (.ex4, .ex5, .dll, .zip)</label>
-                            <input type="file" name="file" class="form-control" accept=".ex4,.ex5,.dll,.zip" required>
-                            <small style="color: #807F80; font-size: 0.75rem;">Max: 50MB</small>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Version</label>
-                                <input type="text" name="version" class="form-control" placeholder="1.0.0" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Description</label>
-                                <input type="text" name="description" class="form-control" placeholder="Optional">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Changelog</label>
-                            <textarea name="changelog" class="form-control" rows="2" placeholder="What's new?"></textarea>
-                        </div>
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" name="is_beta" id="isBeta">
-                            <label class="form-check-label" for="isBeta" style="font-size: 0.85rem;">Beta version</label>
-                        </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-cloud-upload-alt me-2"></i>Upload EA
-                        </button>
-                    </form>
+        <!-- EA Files List -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-robot me-2"></i>EA Files ({{ ea_files|length }})</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>File</th>
+                                <th>Version</th>
+                                <th>Level</th>
+                                <th>Downloads</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ea in ea_files %}
+                            <tr>
+                                <td>
+                                    <div class="ea-file-row">
+                                        <i class="fas fa-chart-line" style="color: #A85CF9;"></i>
+                                        <div>
+                                            <strong style="font-size: 0.85rem;">{{ ea.filename }}</strong>
+                                            {% if ea.description %}
+                                            <br><small style="color: #807F80;">{{ ea.description }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge badge-active">v{{ ea.version }}</span></td>
+                                <td>
+                                    <span class="badge {% if ea.plan_level >= 2 %}badge-level2{% else %}badge-level1{% endif %}">
+                                        Level {{ ea.plan_level }}
+                                    </span>
+                                </td>
+                                <td>{{ ea.download_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Upload EA (Full Width) -->
+    <div class="upload-card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('upload_ea') }}" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">EA File (.ex4, .ex5, .dll, .zip)</label>
+                    <input type="file" name="file" class="form-control" accept=".ex4,.ex5,.dll,.zip" required>
+                    <small style="color: #807F80; font-size: 0.75rem;">Max: 50MB</small>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Version</label>
+                        <input type="text" name="version" class="form-control" placeholder="1.0.0" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Plan Level Required</label>
+                        <select name="plan_level" class="form-select">
+                            <option value="1">🟢 Level 1 (Basic - Limited Access)</option>
+                            <option value="2" selected>🟣 Level 2 (Full - All EAs)</option>
+                        </select>
+                        <small style="color: #807F80; font-size: 0.7rem;">
+                            Level 1 users see only Level 1 EAs. Level 2 users see all EAs.
+                        </small>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" name="description" class="form-control" placeholder="Optional description">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label">Changelog</label>
+                        <textarea name="changelog" class="form-control" rows="2" placeholder="What's new in this version?"></textarea>
+                    </div>
+                    <div class="col-md-4 mb-3 d-flex align-items-end">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_beta" id="isBeta">
+                            <label class="form-check-label" for="isBeta" style="font-size: 0.85rem;">
+                                <i class="fas fa-flask me-1" style="color: #A85CF9;"></i>Beta version
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>Upload EA
+                </button>
+            </form>
         </div>
     </div>
 
