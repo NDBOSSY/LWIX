@@ -48,7 +48,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from cryptography.fernet import Fernet
 from email_validator import validate_email, EmailNotValidError
 from dotenv import load_dotenv
-from dateutil import parser as dateparser
 
 # Load environment variables
 load_dotenv()
@@ -77,7 +76,7 @@ class Config:
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
     MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
-    MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", "noreply@yourplatform.com")
+    MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", "noreply@tradingengine.nl")
 
     # Wix
     WIX_WEBHOOK_SECRET = os.getenv("WIX_WEBHOOK_SECRET", "")
@@ -148,11 +147,10 @@ try:
     else:
         encryption_key = Fernet.generate_key()
         cipher_suite = Fernet(encryption_key)
-        print(f"Generated new encryption key. Add to .env: ENCRYPTION_KEY={encryption_key.decode()}")
+        print(f"Generated new encryption key: ENCRYPTION_KEY={encryption_key.decode()}")
 except Exception:
     encryption_key = Fernet.generate_key()
     cipher_suite = Fernet(encryption_key)
-    print(f"Generated new encryption key. Add to .env: ENCRYPTION_KEY={encryption_key.decode()}")
 
 # Create upload folder
 Path(Config.UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
@@ -418,15 +416,43 @@ def generate_otp() -> str:
     return "".join([str(secrets.randbelow(10)) for _ in range(6)])
 
 
-def calculate_subscription_duration(subscription_type: str, duration_days: int = None) -> int:
-    if subscription_type == "lifetime":
-        return 36500
-    elif subscription_type == "yearly":
-        return duration_days or 365
-    elif subscription_type == "monthly":
-        return duration_days or 30
+def parse_duration_to_days(duration_str: str) -> tuple:
+    """Parse duration string to days and subscription type (supports EN/NL)"""
+    if not duration_str:
+        return Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS, "one_time"
+    
+    duration_lower = duration_str.lower()
+    
+    # English & Dutch month
+    if "month" in duration_lower or "maand" in duration_lower:
+        months = re.findall(r'\d+', duration_lower)
+        days = int(months[0]) * 30 if months else 30
+        return days, "monthly"
+    # English & Dutch year
+    elif "year" in duration_lower or "jaar" in duration_lower:
+        years = re.findall(r'\d+', duration_lower)
+        days = int(years[0]) * 365 if years else 365
+        return days, "yearly"
+    # Lifetime / Until cancellation
+    elif "lifetime" in duration_lower or "levenslang" in duration_lower or "annulering" in duration_lower:
+        return 36500, "lifetime"
     else:
-        return duration_days or Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS
+        return Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS, "one_time"
+
+
+def parse_wix_date(date_str: str):
+    """Parse Wix date string to datetime (supports multiple formats)"""
+    if not date_str:
+        return None
+    # Dutch cancellation text
+    if "annulering" in date_str.lower() or "cancellation" in date_str.lower():
+        return None
+    for fmt in ["%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%d", "%d/%m/%Y", "%m-%d-%Y", "%Y-%m-%dT%H:%M:%S.%fZ"]:
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except:
+            continue
+    return None
 
 
 def send_email_async(subject: str, recipients: list, body: str, html_body: str = None):
@@ -465,27 +491,6 @@ def log_audit(user_id: int, action: str, details: str = None, ip_address: str = 
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in {"ex4", "ex5", "dll", "zip"}
-
-
-def parse_duration_to_days(duration_str: str) -> tuple:
-    """Parse Wix plan_duration string to days and subscription type"""
-    if not duration_str:
-        return Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS, "one_time"
-    
-    duration_lower = duration_str.lower()
-    
-    if "month" in duration_lower:
-        months = re.findall(r'\d+', duration_lower)
-        days = int(months[0]) * 30 if months else 30
-        return days, "monthly"
-    elif "year" in duration_lower:
-        years = re.findall(r'\d+', duration_lower)
-        days = int(years[0]) * 365 if years else 365
-        return days, "yearly"
-    elif "lifetime" in duration_lower:
-        return 36500, "lifetime"
-    else:
-        return Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS, "one_time"
 
 
 # ============================================================================
@@ -606,15 +611,18 @@ def user_login():
             db.session.add(otp_token)
             db.session.commit()
 
+            if Config.ENVIRONMENT == "development":
+                print(f"\nUSER OTP for {email}: {otp}\n")
+
             user_name = user.get_full_name() if user.first_name else "there"
             html_body = f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-                    <h2 style="color: white; margin: 0;">Trading Engine Platform</h2>
+                    <h2 style="color: white; margin: 0;">Trading Engine</h2>
                 </div>
                 <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
                     <h3 style="color: #333;">Hi {user_name}! Your OTP Code</h3>
-                    <p>Use the following code to verify your email:</p>
+                    <p>Use this code to verify your email:</p>
                     <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
                         <h1 style="color: #4B7BE5; font-size: 36px; margin: 0; letter-spacing: 5px;">{otp}</h1>
                     </div>
@@ -622,14 +630,14 @@ def user_login():
                 </div>
             </div>
             """
-            send_email_async("Your OTP Code - Trading Engine", [email], f"Your OTP code is: {otp}", html_body)
+            send_email_async("Your OTP Code - Trading Engine", [email], f"Your OTP: {otp}", html_body)
 
             session["pending_email"] = email
             flash("OTP sent to your email.", "success")
             return redirect(url_for("verify_otp"))
 
         except Exception as e:
-            logger.error(f"OTP generation failed: {e}")
+            logger.error(f"OTP failed: {e}")
             flash("Failed to send OTP. Please try again.", "error")
 
     return render_template("user/login.html")
@@ -675,7 +683,7 @@ def admin_password():
             db.session.commit()
 
             if Config.ENVIRONMENT == "development":
-                print(f"\nADMIN OTP for {admin_email}: {otp}\n")
+                print(f"\nADMIN OTP: {otp}\n")
 
             html_body = f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -738,18 +746,18 @@ def verify_otp():
         otp_token = OTPToken.query.filter_by(user_id=user.id, used=False).order_by(OTPToken.created_at.desc()).first()
 
         if not otp_token:
-            flash("No OTP found. Please request a new one.", "error")
+            flash("No OTP found. Request a new one.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin_login)
 
         if otp_token.attempts >= 3:
             otp_token.used = True
             db.session.commit()
-            flash("Too many attempts. Please request a new OTP.", "error")
+            flash("Too many attempts. Request a new OTP.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin_login)
 
         if otp_token.token == otp_code:
             if not otp_token.is_valid():
-                flash("OTP has expired. Please request a new one.", "error")
+                flash("OTP expired. Request a new one.", "error")
                 return render_template("user/verify_otp.html", email=email, is_admin=is_admin_login)
 
             otp_token.used = True
@@ -777,7 +785,6 @@ def verify_otp():
         else:
             otp_token.attempts += 1
             user.login_attempts += 1
-
             if user.login_attempts >= Config.MAX_LOGIN_ATTEMPTS:
                 user.locked_until = datetime.utcnow() + timedelta(minutes=30)
                 flash("Account locked for 30 minutes.", "error")
@@ -850,7 +857,7 @@ def generate_license():
         db.session.commit()
 
         threading.Thread(target=add_to_discord, args=(current_user.id,)).start()
-        log_audit(current_user.id, "license_generated", f"License {license.mask_license_key()} generated | {duration_days} days", request.remote_addr)
+        log_audit(current_user.id, "license_generated", f"License {license.mask_license_key()} | {duration_days}d", request.remote_addr)
 
         html_body = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -858,7 +865,7 @@ def generate_license():
                 <h2 style="color: white; margin: 0;">Your License Key</h2>
             </div>
             <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
-                <h3 style="color: #3FBFB3;">Hi {current_user.get_full_name()}!</h3>
+                <h3>Hi {current_user.get_full_name()}!</h3>
                 <p>Your license key:</p>
                 <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
                     <h2 style="color: #4B7BE5; font-family: monospace;">{license_key}</h2>
@@ -867,7 +874,7 @@ def generate_license():
             </div>
         </div>
         """
-        send_email_async("Your License Key - Trading Engine", [current_user.email], f"Your license key: {license_key}", html_body)
+        send_email_async("Your License Key", [current_user.email], f"License key: {license_key}", html_body)
 
         return jsonify({
             "success": True,
@@ -895,7 +902,6 @@ def download_ea(file_id):
 
     ea_file.download_count += 1
     db.session.commit()
-
     log_audit(current_user.id, "ea_download", f"Downloaded {ea_file.filename} v{ea_file.version}", request.remote_addr)
     return send_from_directory(Config.UPLOAD_FOLDER, ea_file.file_path, as_attachment=True, download_name=ea_file.filename)
 
@@ -969,14 +975,14 @@ def admin_orders():
 @app.route("/admin/revoke-license/<int:license_id>", methods=["POST"])
 @admin_required
 def revoke_license(license_id):
-    license = db.session.get(License, license_id)
-    if not license:
+    lic = db.session.get(License, license_id)
+    if not lic:
         abort(404)
-    license.status = "revoked"
-    license.revoked_at = datetime.utcnow()
+    lic.status = "revoked"
+    lic.revoked_at = datetime.utcnow()
     db.session.commit()
-    threading.Thread(target=remove_from_discord, args=(license.user.id,)).start()
-    log_audit(current_user.id, "license_revoked", f"Revoked license {license.license_key}", request.remote_addr)
+    threading.Thread(target=remove_from_discord, args=(lic.user.id,)).start()
+    log_audit(current_user.id, "license_revoked", f"Revoked license {lic.license_key}", request.remote_addr)
     flash("License revoked.", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -1011,7 +1017,7 @@ def extend_membership(user_id):
         user.membership_end = datetime.utcnow() + timedelta(days=days)
     user.membership_status = "active"
     db.session.commit()
-    log_audit(current_user.id, "membership_extended", f"Extended {user.email} by {days} days", request.remote_addr)
+    log_audit(current_user.id, "membership_extended", f"Extended {user.email} by {days}d", request.remote_addr)
     flash(f"Membership extended by {days} days.", "success")
     return redirect(url_for("admin_user_detail", user_id=user_id))
 
@@ -1072,28 +1078,28 @@ def api_validate_license():
         if not license_key:
             return jsonify({"valid": False, "error": "License key required"}), 400
 
-        license = License.query.filter_by(license_key=license_key).first()
-        if not license:
+        lic = License.query.filter_by(license_key=license_key).first()
+        if not lic:
             return jsonify({"valid": False, "error": "Invalid license key"}), 404
-        if not license.is_valid():
+        if not lic.is_valid():
             return jsonify({"valid": False, "error": "License not active"}), 403
-        if license.machine_id and license.machine_id != machine_id:
+        if lic.machine_id and lic.machine_id != machine_id:
             return jsonify({"valid": False, "error": "License bound to different machine"}), 403
 
-        if not license.machine_id and machine_id:
-            license.machine_id = encrypt_data(machine_id)
+        if not lic.machine_id and machine_id:
+            lic.machine_id = encrypt_data(machine_id)
 
-        license.last_validated = datetime.utcnow()
-        license.validation_count += 1
+        lic.last_validated = datetime.utcnow()
+        lic.validation_count += 1
         db.session.commit()
 
         return jsonify({
             "valid": True,
-            "expires_at": license.expires_at.isoformat(),
-            "ea_version": license.ea_version,
-            "user_email": license.user.email,
-            "license_type": license.license_type,
-            "validation_count": license.validation_count,
+            "expires_at": lic.expires_at.isoformat(),
+            "ea_version": lic.ea_version,
+            "user_email": lic.user.email,
+            "license_type": lic.license_type,
+            "validation_count": lic.validation_count,
         })
     except Exception as e:
         logger.error(f"License validation failed: {e}")
@@ -1123,9 +1129,17 @@ def api_admin_user_detail(user_id):
 @app.route("/webhook/wix/payment", methods=["POST"])
 @limiter.limit("60 per minute")
 def wix_payment_webhook():
-    """Handle Wix Plan Ordered webhook with flat fields"""
+    """Handle Wix Plan Ordered webhook"""
     try:
-        data = request.get_json()
+        # Wix sends data wrapped in a "data" object
+        if request.is_json:
+            raw_data = request.get_json()
+        else:
+            raw_data = request.form.to_dict() or request.get_json(force=True, silent=True) or {}
+        
+        # Extract the actual data from Wix wrapper
+        data = raw_data.get("data", raw_data)
+        
         logger.info(f"Wix Webhook received: {json.dumps(data, indent=2)}")
 
         event_type = data.get("eventType", "")
@@ -1135,7 +1149,7 @@ def wix_payment_webhook():
             logger.info(f"Ignoring event type: {event_type}")
             return jsonify({"status": "ignored"}), 200
 
-        # Extract fields from Wix flat format
+        # Extract fields from Wix
         email = data.get("contact_email", "").strip().lower()
         contact_id = data.get("contact_id", "")
         first_name = data.get("contact_first_name", "")
@@ -1157,28 +1171,25 @@ def wix_payment_webhook():
             logger.error("No email in webhook")
             return jsonify({"error": "Email required"}), 400
 
-        # Calculate duration and subscription type
+        # Parse duration (supports Dutch)
         duration_days, subscription_type = parse_duration_to_days(plan_duration)
 
-        # Also check plan name for subscription hints
+        # Check plan name for hints
         if subscription_type == "one_time":
             plan_lower = plan_name.lower()
-            if "monthly" in plan_lower:
+            if "monthly" in plan_lower or "maand" in plan_lower:
                 duration_days, subscription_type = 30, "monthly"
-            elif "yearly" in plan_lower or "annual" in plan_lower:
+            elif "yearly" in plan_lower or "jaar" in plan_lower or "annual" in plan_lower:
                 duration_days, subscription_type = 365, "yearly"
-            elif "lifetime" in plan_lower:
+            elif "lifetime" in plan_lower or "levenslang" in plan_lower:
                 duration_days, subscription_type = 36500, "lifetime"
 
         # Parse dates
-        try:
-            membership_start = dateparser.parse(plan_start) if plan_start else datetime.utcnow()
-        except:
-            membership_start = datetime.utcnow()
-
-        try:
-            membership_end = dateparser.parse(plan_end) if plan_end else membership_start + timedelta(days=duration_days)
-        except:
+        membership_start = parse_wix_date(plan_start) or datetime.utcnow()
+        membership_end = parse_wix_date(plan_end)
+        
+        # If no end date (cancellation-based), calculate from duration
+        if not membership_end:
             membership_end = membership_start + timedelta(days=duration_days)
 
         # Find or create user
@@ -1262,10 +1273,10 @@ def wix_payment_webhook():
             </div>
         </div>
         """
-        send_email_async("Welcome to Trading Engine! 🎉", [email], f"Your {plan_name} subscription is active.", welcome_html)
+        send_email_async("Welcome to Trading Engine! 🎉", [email], f"Your {plan_name} is active.", welcome_html)
 
-        log_audit(user.id, "wix_plan_ordered", f"{'New' if is_new_user else 'Existing'} | Plan: {plan_name} | Duration: {plan_duration}", request.remote_addr)
-        logger.info(f"✅ Plan ordered: {email} | {plan_name} | {plan_duration}")
+        log_audit(user.id, "wix_plan_ordered", f"{'New' if is_new_user else 'Existing'} | {plan_name} | {subscription_type}", request.remote_addr)
+        logger.info(f"✅ Plan ordered: {email} | {plan_name} | {subscription_type}")
 
         return jsonify({"status": "success"}), 200
 
@@ -1292,7 +1303,7 @@ def add_to_discord(user_id: int):
                 db.session.commit()
                 log_audit(user_id, "discord_add", f"User {user.email} added to Discord", "system")
     except Exception as e:
-        logger.error(f"Failed to add user to Discord: {e}")
+        logger.error(f"Discord add failed: {e}")
 
 
 def remove_from_discord(user_id: int):
@@ -1307,11 +1318,11 @@ def remove_from_discord(user_id: int):
                 db.session.commit()
                 log_audit(user_id, "discord_remove", f"User {user.email} removed from Discord", "system")
     except Exception as e:
-        logger.error(f"Failed to remove user from Discord: {e}")
+        logger.error(f"Discord remove failed: {e}")
 
 
 # ============================================================================
-# DATABASE INITIALIZATION
+# AUTO-INIT DATABASE ON RAILWAY
 # ============================================================================
 
 
@@ -1323,7 +1334,7 @@ def auto_init_db():
     except Exception:
         try:
             db.create_all()
-            logger.info("✅ Database tables created automatically!")
+            logger.info("✅ Database tables created!")
             
             # Create admin user
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
@@ -1341,7 +1352,7 @@ def auto_init_db():
                 db.session.commit()
                 logger.info(f"✅ Admin created: {admin_email}")
         except Exception as e:
-            logger.error(f"Database init failed: {e}")
+            logger.error(f"DB init failed: {e}")
 
 
 # ============================================================================
@@ -1354,12 +1365,8 @@ if __name__ == "__main__":
     print("=" * 60)
 
     if Config.ENVIRONMENT == "development":
-        admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
-        admin_password = os.getenv("ADMIN_PASSWORD", "admin123").strip()
-        print(f"Admin Email: {admin_email}")
-        print(f"Admin Password: {admin_password}")
-    
-    print("=" * 60)
+        print(f"Admin Email: {os.getenv('ADMIN_EMAIL', 'admin@example.com').strip().lower()}")
+        print(f"Admin Password: {os.getenv('ADMIN_PASSWORD', 'admin123').strip()}")
 
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
