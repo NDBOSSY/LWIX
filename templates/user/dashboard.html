@@ -63,19 +63,30 @@
     }
 
     @keyframes wave {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(15deg); }
+        75% { transform: rotate(-15deg); }
+    }
 
-        0%,
-        100% {
-            transform: rotate(0deg);
-        }
+    /* Countdown timer styles */
+    .countdown-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: rgba(255,255,255,0.2);
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.78rem;
+    }
 
-        25% {
-            transform: rotate(15deg);
-        }
+    .countdown-badge.urgent {
+        background: rgba(239, 68, 68, 0.3);
+        animation: pulse 2s ease-in-out infinite;
+    }
 
-        75% {
-            transform: rotate(-15deg);
-        }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
     }
 
     .stats-grid {
@@ -116,21 +127,10 @@
         opacity: 0.08;
     }
 
-    .stat-card.license::after {
-        background: #4B7BE5;
-    }
-
-    .stat-card.downloads::after {
-        background: #3FBFB3;
-    }
-
-    .stat-card.status::after {
-        background: #A85CF9;
-    }
-
-    .stat-card.expiry::after {
-        background: #5534A5;
-    }
+    .stat-card.license::after { background: #4B7BE5; }
+    .stat-card.downloads::after { background: #3FBFB3; }
+    .stat-card.status::after { background: #A85CF9; }
+    .stat-card.expiry::after { background: #5534A5; }
 
     .stat-icon {
         width: 38px;
@@ -143,29 +143,12 @@
         flex-shrink: 0;
     }
 
-    .stat-icon.blue {
-        background: rgba(75, 123, 229, 0.1);
-        color: #4B7BE5;
-    }
+    .stat-icon.blue { background: rgba(75, 123, 229, 0.1); color: #4B7BE5; }
+    .stat-icon.teal { background: rgba(63, 191, 179, 0.1); color: #3FBFB3; }
+    .stat-icon.purple { background: rgba(168, 92, 249, 0.1); color: #A85CF9; }
+    .stat-icon.dark-purple { background: rgba(85, 52, 165, 0.1); color: #5534A5; }
 
-    .stat-icon.teal {
-        background: rgba(63, 191, 179, 0.1);
-        color: #3FBFB3;
-    }
-
-    .stat-icon.purple {
-        background: rgba(168, 92, 249, 0.1);
-        color: #A85CF9;
-    }
-
-    .stat-icon.dark-purple {
-        background: rgba(85, 52, 165, 0.1);
-        color: #5534A5;
-    }
-
-    .stat-info {
-        flex: 1;
-    }
+    .stat-info { flex: 1; }
 
     .stat-value {
         font-size: 1.3rem;
@@ -189,34 +172,58 @@
     }
 
     @media (max-width: 1024px) {
-        .main-content {
-            grid-template-columns: 1fr;
-        }
-
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
+        .main-content { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (max-width: 600px) {
-        .stats-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 0.6rem;
-        }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+        .stat-card { padding: 0.6rem 0.8rem; }
+        .stat-icon { width: 32px; height: 32px; font-size: 0.9rem; }
+        .stat-value { font-size: 1.1rem; }
+    }
 
-        .stat-card {
-            padding: 0.6rem 0.8rem;
-        }
+    /* Membership info card */
+    .membership-info-card {
+        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
+        border-radius: 20px;
+        border: 1px solid #E5E7EB;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
 
-        .stat-icon {
-            width: 32px;
-            height: 32px;
-            font-size: 0.9rem;
-        }
+    .membership-info-header {
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
+        padding: 1rem 1.5rem;
+        color: white;
+    }
 
-        .stat-value {
-            font-size: 1.1rem;
-        }
+    .membership-info-body {
+        padding: 1.2rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.8rem;
+    }
+
+    .membership-item {
+        background: white;
+        padding: 0.8rem;
+        border-radius: 10px;
+        border: 1px solid #E5E7EB;
+    }
+
+    .membership-item .m-label {
+        font-size: 0.7rem;
+        color: #807F80;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.2rem;
+    }
+
+    .membership-item .m-value {
+        font-weight: 600;
+        color: #2D2D2D;
+        font-size: 0.9rem;
     }
 
     .license-card {
@@ -232,9 +239,7 @@
         color: white;
     }
 
-    .license-body {
-        padding: 1.5rem;
-    }
+    .license-body { padding: 1.5rem; }
 
     .license-key-display {
         background: #FEFAF3;
@@ -265,9 +270,7 @@
         transition: all 0.3s;
     }
 
-    .copy-key-btn:hover {
-        background: #5534A5;
-    }
+    .copy-key-btn:hover { background: #5534A5; }
 
     .license-info-grid {
         display: grid;
@@ -351,10 +354,7 @@
         transform: translateY(-2px);
     }
 
-    .ea-card.locked {
-        opacity: 0.7;
-        filter: grayscale(20%);
-    }
+    .ea-card.locked { opacity: 0.7; filter: grayscale(20%); }
 
     .ea-card-header {
         display: flex;
@@ -382,10 +382,7 @@
         font-size: 0.9rem;
     }
 
-    .ea-info small {
-        color: #807F80;
-        font-size: 0.78rem;
-    }
+    .ea-info small { color: #807F80; font-size: 0.78rem; }
 
     .ea-meta {
         display: flex;
@@ -459,10 +456,7 @@
         gap: 1rem;
     }
 
-    .discord-body {
-        padding: 1.2rem;
-        text-align: center;
-    }
+    .discord-body { padding: 1.2rem; text-align: center; }
 
     .download-all-section {
         background: linear-gradient(135deg, #F8F9FA 0%, #FFFFFF 100%);
@@ -496,13 +490,30 @@
         animation: spin 0.8s linear infinite;
     }
 
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Badges */
+    .badge-active {
+        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
     }
 
-    /* ========== LICENSE MODAL ========== */
+    .badge-expired {
+        background: #807F80;
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+
+    .badge-monthly { background: #4B7BE5; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+
+    /* Modals */
     .custom-modal-overlay {
         display: none;
         position: fixed;
@@ -518,9 +529,7 @@
         animation: fadeIn 0.25s ease;
     }
 
-    .custom-modal-overlay.show {
-        display: flex;
-    }
+    .custom-modal-overlay.show { display: flex; }
 
     .custom-modal {
         background: white;
@@ -564,11 +573,7 @@
         background: #FFF8ED;
     }
 
-    .benefit-list {
-        list-style: none;
-        padding: 0;
-        margin: 0 0 0.8rem 0;
-    }
+    .benefit-list { list-style: none; padding: 0; margin: 0 0 0.8rem 0; }
 
     .benefit-item {
         display: flex;
@@ -599,23 +604,11 @@
         color: white;
     }
 
-    .benefit-icon.unlock {
-        background: linear-gradient(135deg, #4B7BE5 0%, #6FDFDF 100%);
-    }
+    .benefit-icon.unlock { background: linear-gradient(135deg, #4B7BE5 0%, #6FDFDF 100%); }
+    .benefit-icon.discord { background: linear-gradient(135deg, #5865F2 0%, #A85CF9 100%); }
+    .benefit-icon.activate { background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%); }
 
-    .benefit-icon.discord {
-        background: linear-gradient(135deg, #5865F2 0%, #A85CF9 100%);
-    }
-
-    .benefit-icon.activate {
-        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
-    }
-
-    .benefit-text {
-        font-weight: 500;
-        color: #2D2D2D;
-        font-size: 0.82rem;
-    }
+    .benefit-text { font-weight: 500; color: #2D2D2D; font-size: 0.82rem; }
 
     .security-note {
         display: flex;
@@ -665,12 +658,8 @@
         border: 1.5px solid #E5E7EB;
     }
 
-    .btn-modal-cancel:hover {
-        border-color: #807F80;
-        color: #2D2D2D;
-    }
+    .btn-modal-cancel:hover { border-color: #807F80; color: #2D2D2D; }
 
-    /* ========== DOWNLOAD ALL MODAL ========== */
     .download-modal-overlay {
         display: none;
         position: fixed;
@@ -686,9 +675,7 @@
         animation: fadeIn 0.25s ease;
     }
 
-    .download-modal-overlay.show {
-        display: flex;
-    }
+    .download-modal-overlay.show { display: flex; }
 
     .download-modal {
         background: white;
@@ -720,18 +707,8 @@
         border: 2px solid rgba(255, 255, 255, 0.3);
     }
 
-    .download-modal-header h3 {
-        color: white;
-        font-weight: 700;
-        margin: 0;
-        font-size: 1.15rem;
-    }
-
-    .download-modal-header p {
-        color: rgba(255, 255, 255, 0.9);
-        margin: 0.2rem 0 0;
-        font-size: 0.8rem;
-    }
+    .download-modal-header h3 { color: white; font-weight: 700; margin: 0; font-size: 1.15rem; }
+    .download-modal-header p { color: rgba(255, 255, 255, 0.9); margin: 0.2rem 0 0; font-size: 0.8rem; }
 
     .download-modal-body {
         padding: 1.5rem 1.5rem 1rem;
@@ -750,24 +727,10 @@
         margin-bottom: 0.8rem;
     }
 
-    .download-count-badge .count {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #3FBFB3;
-        line-height: 1;
-    }
+    .download-count-badge .count { font-size: 2rem; font-weight: 800; color: #3FBFB3; line-height: 1; }
+    .download-count-badge .label { font-size: 0.85rem; color: #807F80; font-weight: 500; }
 
-    .download-count-badge .label {
-        font-size: 0.85rem;
-        color: #807F80;
-        font-weight: 500;
-    }
-
-    .download-info {
-        color: #807F80;
-        font-size: 0.8rem;
-        margin-bottom: 0.5rem;
-    }
+    .download-info { color: #807F80; font-size: 0.8rem; margin-bottom: 0.5rem; }
 
     .download-modal-footer {
         padding: 0.8rem 1.5rem 1.5rem;
@@ -793,43 +756,12 @@
         box-shadow: 0 4px 12px rgba(63, 191, 179, 0.25);
     }
 
-    .btn-download-confirm:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(63, 191, 179, 0.35);
-    }
+    .btn-download-confirm:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(63, 191, 179, 0.35); }
+    .btn-download-cancel { background: white; color: #807F80; border: 1.5px solid #E5E7EB; }
+    .btn-download-cancel:hover { border-color: #807F80; color: #2D2D2D; }
 
-    .btn-download-cancel {
-        background: white;
-        color: #807F80;
-        border: 1.5px solid #E5E7EB;
-    }
-
-    .btn-download-cancel:hover {
-        border-color: #807F80;
-        color: #2D2D2D;
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
-
-        to {
-            opacity: 1;
-        }
-    }
-
-    @keyframes slideUp {
-        from {
-            transform: translateY(40px) scale(0.96);
-            opacity: 0;
-        }
-
-        to {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-        }
-    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(40px) scale(0.96); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
 </style>
 {% endblock %}
 
@@ -845,31 +777,111 @@
                             <i class="fas fa-hand-wave"></i>
                         </div>
                         <div>
-                            <h2 class="fw-bold mb-1">Welcome back!</h2>
-                            <p class="mb-0 opacity-75">{{ user.email }}</p>
+                            <h2 class="fw-bold mb-1">
+                                {% if user.first_name %}
+                                Welcome back, {{ user.first_name }}!
+                                {% else %}
+                                Welcome back!
+                                {% endif %}
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {% if user.get_full_name() and user.get_full_name() != user.email %}
+                                {{ user.get_full_name() }} · {{ user.email }}
+                                {% else %}
+                                {{ user.email }}
+                                {% endif %}
+                            </p>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 mt-2">
-                        <span class="badge"
-                            style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
+                    <div class="d-flex gap-2 mt-2 flex-wrap">
+                        <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
                             <i class="fas fa-calendar me-1"></i>
                             Member since {{ user.created_at.strftime('%B %Y') }}
                         </span>
-                        <span class="badge"
-                            style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
+                        <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
                             <i class="fas fa-key me-1"></i>
                             {{ user.licenses.count() }} License(s)
                         </span>
+                        {% if user.subscription_type %}
+                        <span class="badge 
+                            {% if user.subscription_type == 'monthly' %}badge-monthly
+                            {% elif user.subscription_type == 'yearly' %}badge-yearly
+                            {% elif user.subscription_type == 'lifetime' %}badge-lifetime
+                            {% endif %}" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
+                            <i class="fas fa-crown me-1"></i>
+                            {{ user.subscription_type|title }}
+                        </span>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="col-md-4 text-end mt-2 mt-md-0">
-                    <span
-                        class="badge {% if user.membership_status == 'active' %}badge-active{% else %}badge-expired{% endif %} fs-6">
-                        <i
-                            class="fas fa-{{ 'check-circle' if user.membership_status == 'active' else 'times-circle' }} me-1"></i>
+                    <span class="badge {% if user.membership_status == 'active' %}badge-active{% else %}badge-expired{% endif %} fs-6">
+                        <i class="fas fa-{{ 'check-circle' if user.membership_status == 'active' else 'times-circle' }} me-1"></i>
                         {{ user.membership_status|title }}
                     </span>
+                    {% if user.membership_end and user.membership_status == 'active' %}
+                    {% set days_left = (user.membership_end - now).days %}
+                    <br>
+                    <span class="countdown-badge mt-2 {{ 'urgent' if days_left <= 7 else '' }}" 
+                          id="membershipCountdown"
+                          data-end-date="{{ user.membership_end.isoformat() }}"
+                          style="margin-top: 0.5rem;">
+                        <i class="fas fa-hourglass-half me-1"></i>
+                        <span id="countdownText">{{ days_left }} days remaining</span>
+                    </span>
+                    {% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Membership Info Card -->
+    <div class="membership-info-card">
+        <div class="membership-info-header">
+            <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Membership Details</h5>
+        </div>
+        <div class="membership-info-body">
+            <div class="membership-item">
+                <div class="m-label">Plan</div>
+                <div class="m-value">{{ user.plan_name or 'Free Tier' }}</div>
+            </div>
+            <div class="membership-item">
+                <div class="m-label">Subscription Type</div>
+                <div class="m-value">
+                    {% if user.subscription_type %}
+                    <span class="badge 
+                        {% if user.subscription_type == 'monthly' %}badge-monthly
+                        {% elif user.subscription_type == 'yearly' %}badge-yearly
+                        {% elif user.subscription_type == 'lifetime' %}badge-lifetime
+                        {% endif %}">
+                        {{ user.subscription_type|title }}
+                    </span>
+                    {% else %}
+                    Standard
+                    {% endif %}
+                </div>
+            </div>
+            <div class="membership-item">
+                <div class="m-label">Price</div>
+                <div class="m-value">
+                    {% if user.plan_price %}
+                    {{ user.currency or 'EUR' }} {{ "%.2f"|format(user.plan_price) }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </div>
+            </div>
+            <div class="membership-item">
+                <div class="m-label">Duration</div>
+                <div class="m-value">{{ user.get_membership_duration_display() }}</div>
+            </div>
+            <div class="membership-item">
+                <div class="m-label">Start Date</div>
+                <div class="m-value">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</div>
+            </div>
+            <div class="membership-item">
+                <div class="m-label">End Date</div>
+                <div class="m-value">{{ user.membership_end.strftime('%b %d, %Y') if user.membership_end else 'N/A' }}</div>
             </div>
         </div>
     </div>
@@ -877,41 +889,30 @@
     <!-- Stats Grid -->
     <div class="stats-grid">
         <div class="stat-card license">
-            <div class="stat-icon blue">
-                <i class="fas fa-key"></i>
-            </div>
+            <div class="stat-icon blue"><i class="fas fa-key"></i></div>
             <div class="stat-info">
                 <div class="stat-value">{{ user.licenses.count() }}</div>
                 <div class="stat-label">Active Licenses</div>
             </div>
         </div>
-
         <div class="stat-card downloads">
-            <div class="stat-icon teal">
-                <i class="fas fa-download"></i>
-            </div>
+            <div class="stat-icon teal"><i class="fas fa-download"></i></div>
             <div class="stat-info">
                 <div class="stat-value" id="totalDownloads">0</div>
                 <div class="stat-label">Total Downloads</div>
             </div>
         </div>
-
         <div class="stat-card status">
-            <div class="stat-icon purple">
-                <i class="fas fa-shield-alt"></i>
-            </div>
+            <div class="stat-icon purple"><i class="fas fa-shield-alt"></i></div>
             <div class="stat-info">
                 <div class="stat-value">{{ user.membership_status|title }}</div>
                 <div class="stat-label">Membership Status</div>
             </div>
         </div>
-
         <div class="stat-card expiry">
-            <div class="stat-icon dark-purple">
-                <i class="fas fa-clock"></i>
-            </div>
+            <div class="stat-icon dark-purple"><i class="fas fa-clock"></i></div>
             <div class="stat-info">
-                <div class="stat-value">
+                <div class="stat-value" id="daysRemaining">
                     {% if user.membership_end %}
                     {{ (user.membership_end - now).days if user.membership_end > now else 0 }}d
                     {% else %}
@@ -928,10 +929,7 @@
         <!-- License Section -->
         <div class="license-card">
             <div class="license-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-key me-2"></i>
-                    License Details
-                </h5>
+                <h5 class="mb-0"><i class="fas fa-key me-2"></i>License Details</h5>
             </div>
             <div class="license-body">
                 {% if license %}
@@ -941,13 +939,11 @@
                         <i class="fas fa-copy me-1"></i>Copy
                     </button>
                 </div>
-
                 <div class="license-info-grid">
                     <div class="license-info-item">
                         <div class="label">Status</div>
                         <div class="value">
-                            <span
-                                class="badge {% if license.status == 'active' %}badge-active{% else %}badge-expired{% endif %}">
+                            <span class="badge {% if license.status == 'active' %}badge-active{% else %}badge-expired{% endif %}">
                                 {{ license.status|title }}
                             </span>
                         </div>
@@ -975,9 +971,7 @@
                 </div>
                 {% else %}
                 <div class="no-license-state">
-                    <div class="no-license-icon">
-                        <i class="fas fa-lock"></i>
-                    </div>
+                    <div class="no-license-icon"><i class="fas fa-lock"></i></div>
                     <h5 class="mb-2">No License Generated</h5>
                     <p class="text-muted mb-3">Generate your license key to unlock all features and downloads</p>
                     <button class="btn btn-primary btn-lg px-5" onclick="showLicenseModal()">
@@ -991,73 +985,50 @@
         <!-- EA Downloads Section -->
         <div class="ea-section">
             <div class="ea-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-robot me-2" style="color: #A85CF9;"></i>
-                    Expert Advisors
-                </h5>
+                <h5 class="mb-0"><i class="fas fa-robot me-2" style="color: #A85CF9;"></i>Expert Advisors</h5>
                 {% if ea_files %}
-                <span class="badge"
-                    style="background: rgba(75, 123, 229, 0.1); color: #4B7BE5; padding: 0.4rem 0.8rem;">
+                <span class="badge" style="background: rgba(75, 123, 229, 0.1); color: #4B7BE5; padding: 0.4rem 0.8rem;">
                     {{ ea_files|length }} Available
                 </span>
                 {% endif %}
             </div>
-
             {% if ea_files %}
             <div class="ea-grid">
                 {% for ea in ea_files %}
                 <div class="ea-card {% if not license %}locked{% endif %}">
                     <div class="ea-card-header">
-                        <div class="ea-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
+                        <div class="ea-icon"><i class="fas fa-chart-line"></i></div>
                         <div class="ea-info">
                             <h6>{{ ea.filename }}</h6>
                             <small>{{ ea.description or 'Expert Advisor' }}</small>
                         </div>
                     </div>
-
                     <div class="ea-meta">
-                        <span class="ea-badge version">
-                            <i class="fas fa-code-branch me-1"></i>v{{ ea.version }}
-                        </span>
+                        <span class="ea-badge version"><i class="fas fa-code-branch me-1"></i>v{{ ea.version }}</span>
                         {% if ea.file_size %}
-                        <span class="ea-badge size">
-                            <i class="fas fa-hdd me-1"></i>{{ (ea.file_size / 1024)|round(1) }} KB
-                        </span>
+                        <span class="ea-badge size"><i class="fas fa-hdd me-1"></i>{{ (ea.file_size / 1024)|round(1) }} KB</span>
                         {% endif %}
-                        <span class="ea-badge">
-                            <i class="fas fa-download me-1"></i>{{ ea.download_count }}
-                        </span>
+                        <span class="ea-badge"><i class="fas fa-download me-1"></i>{{ ea.download_count }}</span>
                     </div>
-
                     {% if license %}
-                    <a href="{{ url_for('download_ea', file_id=ea.id) }}" class="download-btn active"
-                        onclick="trackDownload()">
+                    <a href="{{ url_for('download_ea', file_id=ea.id) }}" class="download-btn active" onclick="trackDownload()">
                         <i class="fas fa-download me-2"></i>Download EA
                     </a>
                     {% else %}
-                    <button class="download-btn locked" disabled>
-                        <i class="fas fa-lock me-2"></i>License Required
-                    </button>
+                    <button class="download-btn locked" disabled><i class="fas fa-lock me-2"></i>License Required</button>
                     {% endif %}
                 </div>
                 {% endfor %}
             </div>
-
             {% if license and ea_files|length > 1 %}
             <div class="download-all-section">
-                <h6 class="mb-2">
-                    <i class="fas fa-layer-group me-2" style="color: #4B7BE5;"></i>
-                    Want all EAs?
-                </h6>
+                <h6 class="mb-2"><i class="fas fa-layer-group me-2" style="color: #4B7BE5;"></i>Want all EAs?</h6>
                 <p class="text-muted small mb-3">Download all Expert Advisors at once</p>
                 <button class="btn btn-primary" onclick="showDownloadAllModal()">
                     <i class="fas fa-download me-2"></i>Download All EAs ({{ ea_files|length }})
                 </button>
             </div>
             {% endif %}
-
             {% else %}
             <div class="text-center py-5">
                 <i class="fas fa-box-open fa-3x mb-3" style="color: #807F80;"></i>
@@ -1104,39 +1075,31 @@
     </div>
 </div>
 
-<!-- ========== LICENSE MODAL ========== -->
+<!-- License Modal -->
 <div class="custom-modal-overlay" id="licenseModal">
     <div class="custom-modal">
         <div class="custom-modal-header">
-            <div class="modal-icon-circle">
-                <i class="fas fa-key"></i>
-            </div>
+            <div class="modal-icon-circle"><i class="fas fa-key"></i></div>
             <h3>Generate License Key</h3>
         </div>
         <div class="custom-modal-body">
             <ul class="benefit-list">
                 <li class="benefit-item">
-                    <div class="benefit-icon unlock">
-                        <i class="fas fa-lock-open"></i>
-                    </div>
+                    <div class="benefit-icon unlock"><i class="fas fa-lock-open"></i></div>
                     <span class="benefit-text">Unlock all EA downloads</span>
                 </li>
                 <li class="benefit-item">
-                    <div class="benefit-icon discord">
-                        <i class="fab fa-discord"></i>
-                    </div>
+                    <div class="benefit-icon discord"><i class="fab fa-discord"></i></div>
                     <span class="benefit-text">Discord community access</span>
                 </li>
                 <li class="benefit-item">
-                    <div class="benefit-icon activate">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
+                    <div class="benefit-icon activate"><i class="fas fa-check-circle"></i></div>
                     <span class="benefit-text">Activate membership</span>
                 </li>
             </ul>
             <div class="security-note">
                 <i class="fas fa-shield-alt"></i>
-                <span>License valid for 365 days</span>
+                <span>License valid for {{ user.subscription_duration_days or 365 }} days</span>
             </div>
         </div>
         <div class="custom-modal-footer">
@@ -1146,13 +1109,11 @@
     </div>
 </div>
 
-<!-- ========== DOWNLOAD ALL MODAL ========== -->
+<!-- Download All Modal -->
 <div class="download-modal-overlay" id="downloadAllModal">
     <div class="download-modal">
         <div class="download-modal-header">
-            <div class="download-modal-icon">
-                <i class="fas fa-layer-group"></i>
-            </div>
+            <div class="download-modal-icon"><i class="fas fa-layer-group"></i></div>
             <h3>Download All EAs</h3>
             <p>Get all Expert Advisors at once</p>
         </div>
@@ -1161,10 +1122,7 @@
                 <span class="count" id="downloadCountBadge">{{ ea_files|length }}</span>
                 <span class="label">Expert<br>Advisors</span>
             </div>
-            <p class="download-info">
-                <i class="fas fa-info-circle me-1"></i>
-                Downloads will start one by one
-            </p>
+            <p class="download-info"><i class="fas fa-info-circle me-1"></i>Downloads will start one by one</p>
         </div>
         <div class="download-modal-footer">
             <button class="btn-download-modal btn-download-cancel" onclick="closeDownloadAllModal()">Cancel</button>
@@ -1181,6 +1139,42 @@
 </div>
 
 <script>
+    // Countdown timer
+    function updateCountdown() {
+        const countdownEl = document.getElementById('membershipCountdown');
+        const countdownText = document.getElementById('countdownText');
+        const daysRemainingEl = document.getElementById('daysRemaining');
+        
+        if (!countdownEl) return;
+        
+        const endDate = new Date(countdownEl.dataset.endDate);
+        const now = new Date();
+        const diffTime = endDate - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays <= 0) {
+            countdownText.textContent = 'Expired';
+            countdownEl.classList.add('urgent');
+            if (daysRemainingEl) daysRemainingEl.textContent = '0d';
+            return;
+        }
+        
+        if (diffDays === 1) {
+            const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+            countdownText.textContent = diffHours + ' hours remaining';
+        } else if (diffDays <= 7) {
+            countdownText.textContent = diffDays + ' days remaining';
+            countdownEl.classList.add('urgent');
+        } else {
+            countdownText.textContent = diffDays + ' days remaining';
+        }
+        
+        if (daysRemainingEl) daysRemainingEl.textContent = diffDays + 'd';
+    }
+    
+    updateCountdown();
+    setInterval(updateCountdown, 60000); // Update every minute
+
     function showLicenseModal() {
         document.getElementById('licenseModal').classList.add('show');
         document.body.style.overflow = 'hidden';
@@ -1239,15 +1233,15 @@
         });
     }
 
-    document.getElementById('licenseModal').addEventListener('click', function (e) {
+    document.getElementById('licenseModal').addEventListener('click', function(e) {
         if (e.target === this) closeLicenseModal();
     });
 
-    document.getElementById('downloadAllModal').addEventListener('click', function (e) {
+    document.getElementById('downloadAllModal').addEventListener('click', function(e) {
         if (e.target === this) closeDownloadAllModal();
     });
 
-    document.addEventListener('keydown', function (e) {
+    document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeLicenseModal();
             closeDownloadAllModal();
