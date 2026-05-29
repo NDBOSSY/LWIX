@@ -100,6 +100,7 @@ class Config:
     ADMIN_OTP_EXPIRY_MINUTES = 5
     MAX_LOGIN_ATTEMPTS = int(os.getenv("MAX_LOGIN_ATTEMPTS", 5))
     LICENSE_EXPIRY_DAYS = int(os.getenv("LICENSE_EXPIRY_DAYS", 365))
+    DEFAULT_SUBSCRIPTION_DURATION_DAYS = int(os.getenv("DEFAULT_SUBSCRIPTION_DURATION_DAYS", 365))
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 50 * 1024 * 1024))
 
@@ -181,27 +182,66 @@ class User(UserMixin, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    
+    # Customer information
+    first_name = db.Column(db.String(100), nullable=True)
+    last_name = db.Column(db.String(100), nullable=True)
+    phone = db.Column(db.String(30), nullable=True)
+    country = db.Column(db.String(100), nullable=True)
+    address_line1 = db.Column(db.String(200), nullable=True)
+    address_city = db.Column(db.String(100), nullable=True)
+    address_state = db.Column(db.String(100), nullable=True)
+    address_zip = db.Column(db.String(20), nullable=True)
+    
+    # Verification and roles
     email_verified = db.Column(db.Boolean, default=False)
     is_admin = db.Column(db.Boolean, default=False)
+    
+    # Wix integration
+    wix_contact_id = db.Column(db.String(100), nullable=True)
     wix_payment_id = db.Column(db.String(100), unique=True, nullable=True)
+    wix_order_id = db.Column(db.String(100), nullable=True)
+    wix_invoice_id = db.Column(db.String(100), nullable=True)
+    
+    # Membership/Subscription
     membership_status = db.Column(db.String(20), default="pending", index=True)
     membership_start = db.Column(db.DateTime, nullable=True)
     membership_end = db.Column(db.DateTime, nullable=True)
+    subscription_duration_days = db.Column(db.Integer, nullable=True)
+    plan_name = db.Column(db.String(100), nullable=True)
+    plan_price = db.Column(db.Float, nullable=True)
+    currency = db.Column(db.String(10), nullable=True)
+    payment_method = db.Column(db.String(50), nullable=True)
+    subscription_type = db.Column(db.String(50), nullable=True)  # monthly, yearly, lifetime
+    
+    # Discord
     discord_user_id = db.Column(db.String(100), nullable=True)
     discord_joined = db.Column(db.Boolean, default=False)
+    
+    # Timestamps and security
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
     login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
+    
+    # Additional metadata
+    notes = db.Column(db.Text, nullable=True)
+    tags = db.Column(db.String(500), nullable=True)
+    referral_source = db.Column(db.String(200), nullable=True)
 
+    # Relationships
     otp_tokens = db.relationship(
         "OTPToken", backref="user", lazy="dynamic", cascade="all, delete-orphan"
     )
     licenses = db.relationship(
         "License", backref="user", lazy="dynamic", cascade="all, delete-orphan"
     )
+    orders = db.relationship(
+        "Order", backref="user", lazy="dynamic", cascade="all, delete-orphan"
+    )
 
     def is_membership_active(self):
+        """Check if user's membership is currently active"""
         if self.membership_status != "active":
             return False
         if self.membership_end and self.membership_end < datetime.utcnow():
@@ -211,7 +251,51 @@ class User(UserMixin, db.Model):
         return True
 
     def get_active_license(self):
+        """Get user's active license"""
         return self.licenses.filter_by(status="active").first()
+    
+    def get_full_name(self):
+        """Return full name or email if name not set"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
+        return self.email
+    
+    def get_membership_duration_display(self):
+        """Return human-readable subscription duration"""
+        if not self.subscription_duration_days:
+            return "Default"
+        if self.subscription_type == "lifetime":
+            return "Lifetime"
+        if self.subscription_duration_days >= 365:
+            years = self.subscription_duration_days / 365
+            return f"{years:.0f} Year{'s' if years > 1 else ''}"
+        if self.subscription_duration_days >= 30:
+            months = self.subscription_duration_days / 30
+            return f"{months:.0f} Month{'s' if months > 1 else ''}"
+        return f"{self.subscription_duration_days} Days"
+    
+    def to_dict(self):
+        """Convert user to dictionary for API responses"""
+        return {
+            "id": self.id,
+            "email": self.email,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "full_name": self.get_full_name(),
+            "phone": self.phone,
+            "country": self.country,
+            "membership_status": self.membership_status,
+            "membership_start": self.membership_start.isoformat() if self.membership_start else None,
+            "membership_end": self.membership_end.isoformat() if self.membership_end else None,
+            "plan_name": self.plan_name,
+            "plan_price": self.plan_price,
+            "currency": self.currency,
+            "subscription_type": self.subscription_type,
+            "is_active": self.is_membership_active(),
+            "created_at": self.created_at.isoformat(),
+        }
 
 
 class OTPToken(db.Model):
@@ -224,6 +308,7 @@ class OTPToken(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     used = db.Column(db.Boolean, default=False)
     attempts = db.Column(db.Integer, default=0)
+    purpose = db.Column(db.String(50), default="login")  # login, admin, verification
 
     def is_valid(self):
         return (
@@ -238,27 +323,104 @@ class License(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     license_key = db.Column(db.String(100), unique=True, nullable=False, index=True)
     machine_id = db.Column(db.String(200), nullable=True)
+    machine_name = db.Column(db.String(200), nullable=True)
     status = db.Column(db.String(20), default="active", index=True)
+    license_type = db.Column(db.String(50), default="standard")  # standard, trial, extended
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_validated = db.Column(db.DateTime, nullable=True)
     expires_at = db.Column(db.DateTime, nullable=False)
     revoked_at = db.Column(db.DateTime, nullable=True)
     validation_count = db.Column(db.Integer, default=0)
+    max_validations = db.Column(db.Integer, default=10000)
     ea_version = db.Column(db.String(20), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
 
     def is_valid(self):
+        """Check if license is currently valid"""
         if self.status != "active":
             return False
         if self.expires_at < datetime.utcnow():
             self.status = "expired"
             db.session.commit()
             return False
+        if self.validation_count >= self.max_validations:
+            return False
         return True
 
     def mask_license_key(self):
+        """Mask license key for display"""
         if len(self.license_key) > 8:
             return f"{self.license_key[:4]}...{self.license_key[-4:]}"
         return self.license_key
+    
+    def to_dict(self):
+        """Convert license to dictionary"""
+        return {
+            "id": self.id,
+            "license_key": self.mask_license_key(),
+            "status": self.status,
+            "license_type": self.license_type,
+            "created_at": self.created_at.isoformat(),
+            "expires_at": self.expires_at.isoformat(),
+            "last_validated": self.last_validated.isoformat() if self.last_validated else None,
+            "validation_count": self.validation_count,
+            "ea_version": self.ea_version,
+        }
+
+
+class Order(db.Model):
+    __tablename__ = "orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    
+    # Wix order details
+    wix_order_id = db.Column(db.String(100), unique=True, nullable=True)
+    wix_payment_id = db.Column(db.String(100), nullable=True)
+    wix_invoice_id = db.Column(db.String(100), nullable=True)
+    wix_checkout_id = db.Column(db.String(100), nullable=True)
+    
+    # Order details
+    plan_name = db.Column(db.String(200), nullable=True)
+    plan_price = db.Column(db.Float, nullable=True)
+    currency = db.Column(db.String(10), nullable=True)
+    discount_amount = db.Column(db.Float, default=0.0)
+    tax_amount = db.Column(db.Float, default=0.0)
+    total_amount = db.Column(db.Float, nullable=True)
+    
+    # Subscription details
+    subscription_type = db.Column(db.String(50), nullable=True)  # monthly, yearly, lifetime
+    subscription_duration_days = db.Column(db.Integer, nullable=True)
+    
+    # Status and timestamps
+    status = db.Column(db.String(20), default="completed")
+    payment_status = db.Column(db.String(20), default="paid")
+    fulfillment_status = db.Column(db.String(20), default="fulfilled")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Additional metadata
+    coupon_code = db.Column(db.String(100), nullable=True)
+    payment_method = db.Column(db.String(50), nullable=True)
+    ip_address = db.Column(db.String(45), nullable=True)
+    user_agent = db.Column(db.String(500), nullable=True)
+    raw_data = db.Column(db.Text, nullable=True)  # Store full webhook data
+    
+    def to_dict(self):
+        """Convert order to dictionary"""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "wix_order_id": self.wix_order_id,
+            "plan_name": self.plan_name,
+            "plan_price": self.plan_price,
+            "currency": self.currency,
+            "total_amount": self.total_amount,
+            "subscription_type": self.subscription_type,
+            "subscription_duration_days": self.subscription_duration_days,
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+        }
 
 
 class AuditLog(db.Model):
@@ -269,6 +431,7 @@ class AuditLog(db.Model):
     action = db.Column(db.String(50), nullable=False)
     details = db.Column(db.Text, nullable=True)
     ip_address = db.Column(db.String(45), nullable=True)
+    user_agent = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", backref="audit_logs")
@@ -283,10 +446,31 @@ class EAFile(db.Model):
     version = db.Column(db.String(20), nullable=False)
     file_size = db.Column(db.Integer, nullable=True)
     description = db.Column(db.Text, nullable=True)
+    changelog = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    is_beta = db.Column(db.Boolean, default=False)
+    min_license_type = db.Column(db.String(50), default="standard")
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     download_count = db.Column(db.Integer, default=0)
     checksum = db.Column(db.String(64), nullable=True)
+    uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+
+class SubscriptionPlan(db.Model):
+    __tablename__ = "subscription_plans"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    price = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(10), default="EUR")
+    duration_days = db.Column(db.Integer, nullable=False)
+    subscription_type = db.Column(db.String(50), nullable=False)  # monthly, yearly, lifetime
+    is_active = db.Column(db.Boolean, default=True)
+    features = db.Column(db.Text, nullable=True)  # JSON string of features
+    max_licenses = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 # ============================================================================
@@ -295,6 +479,7 @@ class EAFile(db.Model):
 
 
 def encrypt_data(data: str) -> str:
+    """Encrypt sensitive data"""
     try:
         return cipher_suite.encrypt(data.encode()).decode()
     except Exception as e:
@@ -303,6 +488,7 @@ def encrypt_data(data: str) -> str:
 
 
 def decrypt_data(encrypted_data: str) -> str:
+    """Decrypt sensitive data"""
     try:
         return cipher_suite.decrypt(encrypted_data.encode()).decode()
     except Exception as e:
@@ -311,6 +497,7 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 def generate_license_key() -> str:
+    """Generate a unique license key"""
     segments = []
     for _ in range(3):
         segment = secrets.token_hex(2).upper()
@@ -319,10 +506,24 @@ def generate_license_key() -> str:
 
 
 def generate_otp() -> str:
+    """Generate a 6-digit OTP"""
     return "".join([str(secrets.randbelow(10)) for _ in range(6)])
 
 
+def calculate_subscription_duration(subscription_type: str, duration_days: int = None) -> int:
+    """Calculate subscription duration in days"""
+    if subscription_type == "lifetime":
+        return 36500  # ~100 years
+    elif subscription_type == "yearly":
+        return duration_days or 365
+    elif subscription_type == "monthly":
+        return duration_days or 30
+    else:
+        return duration_days or Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS
+
+
 def send_email_async(subject: str, recipients: list, body: str, html_body: str = None):
+    """Send email asynchronously"""
     def send():
         try:
             with app.app_context():
@@ -345,12 +546,13 @@ def send_email_async(subject: str, recipients: list, body: str, html_body: str =
 
 
 def log_audit(user_id: int, action: str, details: str = None, ip_address: str = None):
+    """Log audit trail"""
     try:
         log = AuditLog(
             user_id=user_id,
             action=action,
             details=details,
-            ip_address=ip_address or "system",
+            ip_address=ip_address or request.remote_addr if request else "system",
         )
         db.session.add(log)
         db.session.commit()
@@ -359,6 +561,7 @@ def log_audit(user_id: int, action: str, details: str = None, ip_address: str = 
 
 
 def allowed_file(filename: str) -> bool:
+    """Check if file extension is allowed"""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in {
         "ex4",
         "ex5",
@@ -373,6 +576,7 @@ def allowed_file(filename: str) -> bool:
 
 
 def admin_required(f):
+    """Decorator for admin-only routes"""
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
@@ -435,6 +639,7 @@ def health_check():
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
             "environment": Config.ENVIRONMENT,
+            "database": "connected" if db.session.is_active else "disconnected",
         }
     )
 
@@ -462,7 +667,7 @@ def user_login():
             flash("Invalid email address.", "error")
             return render_template("user/login.html")
 
-        # Check if this is admin email - FIXED: added .strip().lower()
+        # Check if this is admin email
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
 
         if Config.ENVIRONMENT == "development":
@@ -499,7 +704,12 @@ def user_login():
                 minutes=Config.OTP_EXPIRY_MINUTES
             )
 
-            otp_token = OTPToken(user_id=user.id, token=otp, expires_at=expires_at)
+            otp_token = OTPToken(
+                user_id=user.id, 
+                token=otp, 
+                expires_at=expires_at,
+                purpose="login"
+            )
             db.session.add(otp_token)
             db.session.commit()
 
@@ -511,24 +721,26 @@ def user_login():
                 print(f"{'='*50}\n")
 
             # Send OTP email
+            user_name = user.get_full_name() if user.first_name else "there"
             html_body = f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-                    <h2 style="color: white; margin: 0;">EALicense Platform</h2>
+                    <h2 style="color: white; margin: 0;">Trading Engine Platform</h2>
                 </div>
                 <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
-                    <h3 style="color: #333;">Your OTP Code</h3>
-                    <p>Use the following code to verify your email:</p>
+                    <h3 style="color: #333;">Hi {user_name}! Your OTP Code</h3>
+                    <p>Use the following code to verify your email and access your dashboard:</p>
                     <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
                         <h1 style="color: #4B7BE5; font-size: 36px; margin: 0; letter-spacing: 5px;">{otp}</h1>
                     </div>
                     <p style="color: #666;">This code will expire in {Config.OTP_EXPIRY_MINUTES} minutes.</p>
+                    <p style="color: #999; font-size: 12px;">If you didn't request this code, please ignore this email.</p>
                 </div>
             </div>
             """
 
             send_email_async(
-                "Your OTP Code - EALicense Platform",
+                "Your OTP Code - Trading Engine Platform",
                 [email],
                 f"Your OTP code is: {otp}",
                 html_body,
@@ -585,11 +797,15 @@ def admin_password():
             if not admin_user:
                 admin_user = User(
                     email=admin_email,
+                    first_name="Admin",
                     is_admin=True,
                     email_verified=True,
                     membership_status="active",
                     membership_start=datetime.utcnow(),
                     membership_end=datetime.utcnow() + timedelta(days=3650),
+                    plan_name="Admin",
+                    subscription_type="lifetime",
+                    subscription_duration_days=36500,
                 )
                 db.session.add(admin_user)
             else:
@@ -613,7 +829,10 @@ def admin_password():
                 )
 
                 otp_token = OTPToken(
-                    user_id=admin_user.id, token=otp, expires_at=expires_at
+                    user_id=admin_user.id, 
+                    token=otp, 
+                    expires_at=expires_at,
+                    purpose="admin"
                 )
                 db.session.add(otp_token)
                 db.session.commit()
@@ -629,7 +848,7 @@ def admin_password():
                 html_body = f"""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                     <div style="background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-                        <h2 style="color: white; margin: 0;">Admin Verification - EALicense</h2>
+                        <h2 style="color: white; margin: 0;">Admin Verification - Trading Engine</h2>
                     </div>
                     <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
                         <h3 style="color: #333;">Admin OTP Code</h3>
@@ -643,7 +862,7 @@ def admin_password():
                 """
 
                 send_email_async(
-                    "Admin OTP - EALicense Platform",
+                    "Admin OTP - Trading Engine Platform",
                     [admin_email],
                     f"Admin OTP: {otp}",
                     html_body,
@@ -737,14 +956,13 @@ def verify_otp():
             user.last_login = datetime.utcnow()
             user.locked_until = None
 
-            # Set membership for non-admin users
-            if not user.is_admin:
-                if not user.membership_status or user.membership_status == "pending":
-                    user.membership_status = "active"
-                    user.membership_start = datetime.utcnow()
-                    user.membership_end = datetime.utcnow() + timedelta(
-                        days=Config.LICENSE_EXPIRY_DAYS
-                    )
+            # Set membership for non-admin users if not set
+            if not user.is_admin and (not user.membership_status or user.membership_status == "pending"):
+                user.membership_status = "active"
+                user.membership_start = datetime.utcnow()
+                user.membership_end = datetime.utcnow() + timedelta(
+                    days=Config.LICENSE_EXPIRY_DAYS
+                )
 
             db.session.commit()
 
@@ -759,11 +977,11 @@ def verify_otp():
             log_audit(
                 user.id,
                 "login",
-                f"{'Admin' if user.is_admin else 'User'} login successful",
+                f"{'Admin' if user.is_admin else 'User'} login successful | Email: {user.email}",
                 request.remote_addr,
             )
 
-            flash("Login successful!", "success")
+            flash(f"Welcome back, {user.get_full_name()}!", "success")
 
             # Redirect based on user type
             if user.is_admin:
@@ -791,7 +1009,7 @@ def verify_otp():
 @app.route("/logout")
 @login_required
 def logout():
-    log_audit(current_user.id, "logout", "User logged out", request.remote_addr)
+    log_audit(current_user.id, "logout", f"User {current_user.email} logged out", request.remote_addr)
     logout_user()
     flash("You have been logged out.", "success")
     return redirect(url_for("user_login"))
@@ -810,6 +1028,7 @@ def user_dashboard():
 
     user = current_user
     license = user.get_active_license()
+    orders = user.orders.order_by(Order.created_at.desc()).limit(5).all()
     ea_files = (
         EAFile.query.filter_by(is_active=True).order_by(EAFile.upload_date.desc()).all()
     )
@@ -818,6 +1037,7 @@ def user_dashboard():
         "user/dashboard.html",
         user=user,
         license=license,
+        orders=orders,
         ea_files=ea_files,
         discord_invite=Config.DISCORD_INVITE_LINK,
         now=datetime.utcnow(),
@@ -845,12 +1065,16 @@ def generate_license():
 
     try:
         license_key = generate_license_key()
+        
+        # Calculate license duration based on subscription
+        duration_days = current_user.subscription_duration_days or Config.LICENSE_EXPIRY_DAYS
 
         license = License(
             user_id=current_user.id,
             license_key=license_key,
-            expires_at=datetime.utcnow() + timedelta(days=Config.LICENSE_EXPIRY_DAYS),
+            expires_at=datetime.utcnow() + timedelta(days=duration_days),
             ea_version="1.0.0",
+            license_type=current_user.subscription_type or "standard",
         )
 
         db.session.add(license)
@@ -862,8 +1086,33 @@ def generate_license():
         log_audit(
             current_user.id,
             "license_generated",
-            f"License {license.mask_license_key()} generated",
+            f"License {license.mask_license_key()} generated | Duration: {duration_days} days",
             request.remote_addr,
+        )
+
+        # Send license email
+        html_body = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); padding: 20px; border-radius: 10px 10px 0 0;">
+                <h2 style="color: white; margin: 0;">Your License Key</h2>
+            </div>
+            <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
+                <h3 style="color: #3FBFB3;">Hi {current_user.get_full_name()}!</h3>
+                <p>Your license key has been generated successfully:</p>
+                <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+                    <h2 style="color: #4B7BE5; font-family: monospace;">{license_key}</h2>
+                </div>
+                <p><strong>Valid until:</strong> {license.expires_at.strftime('%B %d, %Y')}</p>
+                <p>Keep this key safe and do not share it with anyone.</p>
+            </div>
+        </div>
+        """
+        
+        send_email_async(
+            "Your License Key - Trading Engine Platform",
+            [current_user.email],
+            f"Your license key: {license_key}",
+            html_body,
         )
 
         return jsonify(
@@ -872,6 +1121,7 @@ def generate_license():
                 "message": "License generated successfully",
                 "license_key": license_key,
                 "masked_key": license.mask_license_key(),
+                "expires_at": license.expires_at.isoformat(),
             }
         )
 
@@ -879,6 +1129,25 @@ def generate_license():
         logger.error(f"License generation failed: {e}")
         db.session.rollback()
         return jsonify({"error": "Failed to generate license"}), 500
+
+
+@app.route("/profile")
+@login_required
+def user_profile():
+    """User profile page"""
+    if current_user.is_admin:
+        return redirect(url_for("admin_dashboard"))
+    
+    user = current_user
+    orders = user.orders.order_by(Order.created_at.desc()).all()
+    licenses = user.licenses.order_by(License.created_at.desc()).all()
+    
+    return render_template(
+        "user/profile.html",
+        user=user,
+        orders=orders,
+        licenses=licenses,
+    )
 
 
 @app.route("/download-ea/<int:file_id>")
@@ -922,23 +1191,35 @@ def download_ea(file_id):
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
+    # Statistics
     total_users = User.query.filter_by(is_admin=False).count()
     active_users = User.query.filter_by(
         membership_status="active", is_admin=False
     ).count()
     total_licenses = License.query.count()
     active_licenses = License.query.filter_by(status="active").count()
+    total_orders = Order.query.count()
+    total_revenue = db.session.query(db.func.sum(Order.total_amount)).scalar() or 0
     total_downloads = db.session.query(db.func.sum(EAFile.download_count)).scalar() or 0
 
+    # Recent data
     recent_users = (
         User.query.filter_by(is_admin=False)
         .order_by(User.created_at.desc())
         .limit(10)
         .all()
     )
+    recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
     recent_licenses = License.query.order_by(License.created_at.desc()).limit(10).all()
     recent_logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(20).all()
     ea_files = EAFile.query.order_by(EAFile.upload_date.desc()).all()
+
+    # Subscription breakdown
+    subscription_stats = db.session.query(
+        User.subscription_type,
+        db.func.count(User.id),
+        db.func.sum(User.plan_price)
+    ).filter(User.is_admin == False).group_by(User.subscription_type).all()
 
     return render_template(
         "admin/dashboard.html",
@@ -946,11 +1227,16 @@ def admin_dashboard():
         active_users=active_users,
         total_licenses=total_licenses,
         active_licenses=active_licenses,
+        total_orders=total_orders,
+        total_revenue=total_revenue,
         total_downloads=total_downloads,
         recent_users=recent_users,
+        recent_orders=recent_orders,
         recent_licenses=recent_licenses,
         recent_logs=recent_logs,
         ea_files=ea_files,
+        subscription_stats=subscription_stats,
+        now=datetime.utcnow(),
     )
 
 
@@ -959,6 +1245,49 @@ def admin_dashboard():
 def admin_users():
     users = User.query.filter_by(is_admin=False).order_by(User.created_at.desc()).all()
     return render_template("admin/users.html", users=users)
+
+
+@app.route("/admin/user/<int:user_id>")
+@admin_required
+def admin_user_detail(user_id):
+    """View detailed user information"""
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+    
+    orders = user.orders.order_by(Order.created_at.desc()).all()
+    licenses = user.licenses.order_by(License.created_at.desc()).all()
+    audit_logs = AuditLog.query.filter_by(user_id=user.id).order_by(AuditLog.created_at.desc()).limit(50).all()
+    
+    return render_template(
+        "admin/user_detail.html",
+        user=user,
+        orders=orders,
+        licenses=licenses,
+        audit_logs=audit_logs,
+    )
+
+
+@app.route("/admin/orders")
+@admin_required
+def admin_orders():
+    """View all orders"""
+    orders = Order.query.order_by(Order.created_at.desc()).all()
+    total_revenue = db.session.query(db.func.sum(Order.total_amount)).scalar() or 0
+    
+    # Revenue by plan
+    revenue_by_plan = db.session.query(
+        Order.plan_name,
+        db.func.count(Order.id),
+        db.func.sum(Order.total_amount)
+    ).group_by(Order.plan_name).all()
+    
+    return render_template(
+        "admin/orders.html",
+        orders=orders,
+        total_revenue=total_revenue,
+        revenue_by_plan=revenue_by_plan,
+    )
 
 
 @app.route("/admin/revoke-license/<int:license_id>", methods=["POST"])
@@ -977,7 +1306,7 @@ def revoke_license(license_id):
     log_audit(
         current_user.id,
         "license_revoked",
-        f"Revoked license {license.license_key}",
+        f"Revoked license {license.license_key} for user {license.user.email}",
         request.remote_addr,
     )
     flash("License revoked successfully.", "success")
@@ -992,6 +1321,7 @@ def revoke_membership(user_id):
         abort(404)
 
     user.membership_status = "revoked"
+    user.membership_end = datetime.utcnow()
 
     License.query.filter_by(user_id=user.id, status="active").update(
         {"status": "revoked", "revoked_at": datetime.utcnow()}
@@ -1011,6 +1341,36 @@ def revoke_membership(user_id):
     return redirect(url_for("admin_users"))
 
 
+@app.route("/admin/extend-membership/<int:user_id>", methods=["POST"])
+@admin_required
+def extend_membership(user_id):
+    """Extend user's membership"""
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+    
+    days = int(request.form.get("days", 30))
+    
+    if user.membership_end and user.membership_end > datetime.utcnow():
+        user.membership_end += timedelta(days=days)
+    else:
+        user.membership_start = datetime.utcnow()
+        user.membership_end = datetime.utcnow() + timedelta(days=days)
+    
+    user.membership_status = "active"
+    db.session.commit()
+    
+    log_audit(
+        current_user.id,
+        "membership_extended",
+        f"Extended membership for {user.email} by {days} days",
+        request.remote_addr,
+    )
+    
+    flash(f"Membership extended by {days} days for {user.email}.", "success")
+    return redirect(url_for("admin_user_detail", user_id=user_id))
+
+
 @app.route("/admin/upload-ea", methods=["POST"])
 @admin_required
 def upload_ea():
@@ -1027,6 +1387,8 @@ def upload_ea():
         filename = secure_filename(file.filename)
         version = request.form.get("version", "1.0.0")
         description = request.form.get("description", "")
+        changelog = request.form.get("changelog", "")
+        is_beta = request.form.get("is_beta") == "on"
 
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         saved_filename = f"{timestamp}_{filename}"
@@ -1044,7 +1406,10 @@ def upload_ea():
             version=version,
             file_size=os.path.getsize(file_path),
             description=description,
+            changelog=changelog,
+            is_beta=is_beta,
             checksum=sha256_hash.hexdigest(),
+            uploaded_by=current_user.id,
         )
 
         db.session.add(ea_file)
@@ -1071,6 +1436,7 @@ def upload_ea():
 @app.route("/api/validate-license", methods=["POST"])
 @limiter.limit("30 per minute")
 def api_validate_license():
+    """API endpoint for license validation from EA"""
     try:
         data = request.get_json()
         license_key = data.get("license_key", "")
@@ -1105,7 +1471,7 @@ def api_validate_license():
         log_audit(
             license.user_id,
             "license_validated",
-            f"License {license.mask_license_key()} validated",
+            f"License {license.mask_license_key()} validated from {request.remote_addr}",
             request.remote_addr,
         )
 
@@ -1115,6 +1481,8 @@ def api_validate_license():
                 "expires_at": license.expires_at.isoformat(),
                 "ea_version": license.ea_version,
                 "user_email": license.user.email,
+                "license_type": license.license_type,
+                "validation_count": license.validation_count,
             }
         )
 
@@ -1123,82 +1491,384 @@ def api_validate_license():
         return jsonify({"valid": False, "error": "Validation failed"}), 500
 
 
+@app.route("/api/user/info", methods=["GET"])
+@login_required
+def api_user_info():
+    """Get current user information"""
+    return jsonify(current_user.to_dict())
+
+
+@app.route("/api/admin/users", methods=["GET"])
+@admin_required
+def api_admin_users():
+    """Get all users (admin only)"""
+    users = User.query.filter_by(is_admin=False).all()
+    return jsonify([user.to_dict() for user in users])
+
+
+@app.route("/api/admin/statistics", methods=["GET"])
+@admin_required
+def api_admin_statistics():
+    """Get platform statistics"""
+    stats = {
+        "total_users": User.query.filter_by(is_admin=False).count(),
+        "active_users": User.query.filter_by(membership_status="active", is_admin=False).count(),
+        "total_licenses": License.query.count(),
+        "active_licenses": License.query.filter_by(status="active").count(),
+        "total_orders": Order.query.count(),
+        "total_revenue": db.session.query(db.func.sum(Order.total_amount)).scalar() or 0,
+        "total_downloads": db.session.query(db.func.sum(EAFile.download_count)).scalar() or 0,
+        "subscription_breakdown": [
+            {
+                "type": row[0] or "Unknown",
+                "count": row[1],
+                "revenue": float(row[2] or 0)
+            }
+            for row in db.session.query(
+                User.subscription_type,
+                db.func.count(User.id),
+                db.func.sum(User.plan_price)
+            ).filter(User.is_admin == False).group_by(User.subscription_type).all()
+        ],
+        "recent_signups": [
+            user.to_dict()
+            for user in User.query.filter_by(is_admin=False)
+            .order_by(User.created_at.desc())
+            .limit(10)
+            .all()
+        ],
+    }
+    return jsonify(stats)
+
+
+# ============================================================================
+# WIX WEBHOOK - EXPANDED DATA CAPTURE
+# ============================================================================
+
+
 @app.route("/webhook/wix/payment", methods=["POST"])
 @limiter.limit("60 per minute")
 def wix_payment_webhook():
+    """
+    Handle Wix payment webhooks with expanded data capture.
+    Captures: customer info, plan details, subscription duration, payment info
+    """
     try:
         data = request.get_json()
+        logger.info(f"Wix Webhook received: {json.dumps(data, indent=2)}")  # Log full payload
+
+        # ── Signature verification ──────────────────────────────
         signature = request.headers.get("X-Wix-Signature", "")
+        if Config.WIX_WEBHOOK_SECRET:
+            expected = hashlib.sha256(
+                (json.dumps(data, sort_keys=True) + Config.WIX_WEBHOOK_SECRET).encode()
+            ).hexdigest()
+            if not secrets.compare_digest(expected, signature):
+                logger.warning("Invalid Wix webhook signature")
+                return jsonify({"error": "Invalid signature"}), 403
 
-        expected = hashlib.sha256(
-            (json.dumps(data, sort_keys=True) + Config.WIX_WEBHOOK_SECRET).encode()
-        ).hexdigest()
-
-        if not secrets.compare_digest(expected, signature):
-            logger.warning("Invalid Wix webhook signature")
-            return jsonify({"error": "Invalid signature"}), 403
-
-        event_type = data.get("eventType")
+        event_type = data.get("eventType", "")
         payment_data = data.get("data", {})
 
-        if event_type == "payment.completed":
-            email = payment_data.get("customerEmail", "").lower()
-            payment_id = payment_data.get("paymentId", "")
+        if event_type in ("payment.completed", "wix.payments.v1.payment_completed",
+                         "order.paid", "wix.stores.v1.order_paid"):
+
+            # ── Extract customer info ───────────────────────────
+            buyer = payment_data.get("buyerInfo", {}) or payment_data.get("buyer", {})
+            billing_info = payment_data.get("billingInfo", {}) or payment_data.get("billing", {})
+            
+            email = (
+                buyer.get("email")
+                or payment_data.get("customerEmail", "")
+                or billing_info.get("email", "")
+            ).strip().lower()
+
+            first_name = (
+                buyer.get("firstName", "")
+                or billing_info.get("firstName", "")
+                or payment_data.get("customerName", "").split()[0] if payment_data.get("customerName") else ""
+            )
+            last_name = (
+                buyer.get("lastName", "")
+                or billing_info.get("lastName", "")
+                or " ".join(payment_data.get("customerName", "").split()[1:]) if payment_data.get("customerName") else ""
+            )
+            phone = (
+                buyer.get("phone", "")
+                or billing_info.get("phone", "")
+                or payment_data.get("customerPhone", "")
+            )
+            
+            # Address extraction
+            address = buyer.get("address", {}) or billing_info.get("address", {})
+            country = address.get("country", "") or payment_data.get("customerCountry", "")
+            city = address.get("city", "")
+            state = address.get("subdivision", "") or address.get("state", "")
+            zip_code = address.get("zipCode", "") or address.get("postalCode", "")
+            address_line = address.get("addressLine1", "") or address.get("streetAddress", "")
+
+            # IDs
+            payment_id = (
+                payment_data.get("paymentId")
+                or payment_data.get("id", "")
+                or data.get("instanceId", "")
+            )
+            order_id = (
+                payment_data.get("orderId", "")
+                or data.get("orderId", "")
+                or payment_data.get("order", {}).get("id", "")
+            )
+            invoice_id = payment_data.get("invoiceId", "") or data.get("invoiceId", "")
+            checkout_id = payment_data.get("checkoutId", "")
+
+            # ── Extract plan/product info ───────────────────────
+            line_items = (
+                payment_data.get("lineItems", [])
+                or payment_data.get("items", [])
+                or payment_data.get("order", {}).get("lineItems", [])
+            )
+            
+            plan_name = ""
+            plan_price = 0.0
+            subscription_type = "one_time"
+            subscription_duration_days = None
+            
+            if line_items:
+                first_item = line_items[0]
+                # Plan name extraction (multiple possible paths)
+                plan_name = (
+                    first_item.get("name", "")
+                    or first_item.get("productName", {}).get("original", "")
+                    or first_item.get("description", "")
+                    or "Unknown Plan"
+                )
+                
+                # Price extraction
+                price_info = first_item.get("price", {}) or first_item.get("total", {})
+                plan_price = float(price_info.get("amount", 0))
+                
+                # Subscription/Variant info
+                variant = first_item.get("catalogReference", {}) or first_item.get("variant", {})
+                if variant:
+                    options = variant.get("options", {}) or variant.get("choices", {})
+                    # Check for subscription type in variant options
+                    for key, value in options.items():
+                        key_lower = key.lower()
+                        if "subscription" in key_lower or "plan" in key_lower or "duration" in key_lower:
+                            if isinstance(value, str):
+                                if "monthly" in value.lower():
+                                    subscription_type = "monthly"
+                                    subscription_duration_days = 30
+                                elif "yearly" in value.lower() or "annual" in value.lower():
+                                    subscription_type = "yearly"
+                                    subscription_duration_days = 365
+                                elif "lifetime" in value.lower():
+                                    subscription_type = "lifetime"
+                                    subscription_duration_days = 36500
+                
+                # Check item name/description for subscription hints
+                if subscription_type == "one_time":
+                    name_lower = plan_name.lower()
+                    desc_lower = first_item.get("description", "").lower()
+                    combined = name_lower + " " + desc_lower
+                    
+                    if "monthly" in combined or "/month" in combined:
+                        subscription_type = "monthly"
+                        subscription_duration_days = 30
+                    elif "yearly" in combined or "annual" in combined or "/year" in combined:
+                        subscription_type = "yearly"
+                        subscription_duration_days = 365
+                    elif "lifetime" in combined:
+                        subscription_type = "lifetime"
+                        subscription_duration_days = 36500
+
+            # Fallback: total amount
+            if not plan_price:
+                totals = payment_data.get("totals", {}) or payment_data.get("total", {})
+                plan_price = float(totals.get("total", 0))
+                if not plan_price:
+                    plan_price = float(payment_data.get("amount", 0))
+
+            # Currency
+            currency = (
+                payment_data.get("currency", "")
+                or payment_data.get("totals", {}).get("currency", "EUR")
+            ).upper()
+
+            # Payment method
+            payment_method = (
+                payment_data.get("paymentMethod", "")
+                or payment_data.get("paymentMethodType", "")
+            )
+
+            # Discount and tax
+            discount_amount = float(payment_data.get("totals", {}).get("discount", 0))
+            tax_amount = float(payment_data.get("totals", {}).get("tax", 0))
+            total_amount = plan_price - discount_amount + tax_amount
 
             if not email:
+                logger.error("No email in webhook payload")
                 return jsonify({"error": "Email required"}), 400
 
+            # Calculate subscription end date
+            if not subscription_duration_days:
+                subscription_duration_days = calculate_subscription_duration(subscription_type)
+            
+            subscription_end = datetime.utcnow() + timedelta(days=subscription_duration_days)
+
+            # ── Create or update user ───────────────────────────
             user = User.query.filter_by(email=email).first()
 
             if not user:
                 user = User(
                     email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    country=country,
+                    address_line1=address_line,
+                    address_city=city,
+                    address_state=state,
+                    address_zip=zip_code,
                     wix_payment_id=payment_id,
+                    wix_order_id=order_id,
+                    wix_invoice_id=invoice_id,
                     membership_status="active",
                     membership_start=datetime.utcnow(),
-                    membership_end=datetime.utcnow()
-                    + timedelta(days=Config.LICENSE_EXPIRY_DAYS),
+                    membership_end=subscription_end,
+                    subscription_duration_days=subscription_duration_days,
+                    plan_name=plan_name,
+                    plan_price=plan_price,
+                    currency=currency,
+                    payment_method=payment_method,
+                    subscription_type=subscription_type,
                 )
                 db.session.add(user)
+                db.session.flush()
+                is_new_user = True
             else:
+                # Update existing user
+                user.first_name = first_name or user.first_name
+                user.last_name = last_name or user.last_name
+                user.phone = phone or user.phone
+                user.country = country or user.country
+                if address_line:
+                    user.address_line1 = address_line
+                if city:
+                    user.address_city = city
+                if state:
+                    user.address_state = state
+                if zip_code:
+                    user.address_zip = zip_code
                 user.wix_payment_id = payment_id
+                user.wix_order_id = order_id
+                user.wix_invoice_id = invoice_id or user.wix_invoice_id
                 user.membership_status = "active"
                 user.membership_start = datetime.utcnow()
-                user.membership_end = datetime.utcnow() + timedelta(
-                    days=Config.LICENSE_EXPIRY_DAYS
+                user.membership_end = subscription_end
+                user.subscription_duration_days = subscription_duration_days
+                user.plan_name = plan_name
+                user.plan_price = plan_price
+                user.currency = currency
+                user.payment_method = payment_method or user.payment_method
+                user.subscription_type = subscription_type
+                db.session.flush()
+                is_new_user = False
+
+            # ── Save order record ───────────────────────────────
+            existing_order = Order.query.filter_by(wix_payment_id=payment_id).first()
+            if not existing_order:
+                order = Order(
+                    user_id=user.id,
+                    wix_order_id=order_id,
+                    wix_payment_id=payment_id,
+                    wix_invoice_id=invoice_id,
+                    wix_checkout_id=checkout_id,
+                    plan_name=plan_name,
+                    plan_price=plan_price,
+                    currency=currency,
+                    discount_amount=discount_amount,
+                    tax_amount=tax_amount,
+                    total_amount=total_amount,
+                    subscription_type=subscription_type,
+                    subscription_duration_days=subscription_duration_days,
+                    status="completed",
+                    payment_status="paid",
+                    fulfillment_status="fulfilled",
+                    payment_method=payment_method,
+                    ip_address=request.remote_addr,
+                    user_agent=request.user_agent.string if request.user_agent else None,
+                    raw_data=json.dumps(data) if Config.ENVIRONMENT == "development" else None,
                 )
+                db.session.add(order)
 
             db.session.commit()
 
+            # ── Send welcome email ──────────────────────────────
+            user_name = f"{first_name} {last_name}".strip() or "there"
+            duration_display = user.get_membership_duration_display()
+            
             welcome_html = f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); padding: 20px; border-radius: 10px 10px 0 0;">
-                    <h2 style="color: white; margin: 0;">Welcome to EALicense Platform!</h2>
+                    <h2 style="color: white; margin: 0;">Welcome to Trading Engine!</h2>
                 </div>
                 <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;">
-                    <h3 style="color: #3FBFB3;">Payment Confirmed!</h3>
-                    <p>Your payment has been processed successfully.</p>
+                    <h3 style="color: #3FBFB3;">Hi {user_name}, payment confirmed! 🎉</h3>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <h4 style="margin-top: 0; color: #333;">Order Summary</h4>
+                        <p><strong>Plan:</strong> {plan_name}</p>
+                        <p><strong>Duration:</strong> {duration_display}</p>
+                        <p><strong>Amount:</strong> {currency} {total_amount:.2f}</p>
+                        <p><strong>Order ID:</strong> {order_id or payment_id}</p>
+                    </div>
+                    
+                    <p>Your subscription is active until <strong>{subscription_end.strftime('%B %d, %Y')}</strong>.</p>
+                    
+                    <p>Click below to access your dashboard and generate your license key:</p>
                     <a href="{Config.APP_URL}/login" style="display: inline-block; padding: 12px 30px; background: #4B7BE5; color: white; text-decoration: none; border-radius: 8px; margin-top: 20px;">
-                        Login to Your Account
+                        Access Dashboard →
                     </a>
+                    
+                    <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                        If you have any questions, please reply to this email.
+                    </p>
                 </div>
             </div>
             """
-
+            
             send_email_async(
-                "Welcome - Payment Confirmed!",
+                f"Welcome to Trading Engine - {plan_name} Activated! 🎉",
                 [email],
-                "Your payment has been processed.",
+                f"Payment confirmed. Your {plan_name} subscription is now active.",
                 welcome_html,
             )
 
-            log_audit(user.id, "wix_payment", f"Payment {payment_id} processed")
+            log_audit(
+                user.id,
+                "wix_payment",
+                f"{'New' if is_new_user else 'Existing'} user | Payment: {payment_id} | "
+                f"Plan: {plan_name} | Type: {subscription_type} | "
+                f"Duration: {subscription_duration_days} days | {currency} {total_amount}",
+                request.remote_addr,
+            )
+            
+            logger.info(
+                f"Payment processed successfully - User: {email} | "
+                f"Plan: {plan_name} | Type: {subscription_type} | "
+                f"Amount: {currency} {total_amount}"
+            )
 
-        return jsonify({"status": "success"}), 200
+        else:
+            logger.info(f"Received non-payment webhook event: {event_type}")
+
+        return jsonify({"status": "success", "message": "Webhook processed successfully"}), 200
 
     except Exception as e:
-        logger.error(f"Webhook processing failed: {e}")
-        return jsonify({"error": "Webhook processing failed"}), 500
+        logger.error(f"Webhook processing failed: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({"error": "Webhook processing failed", "details": str(e)}), 500
 
 
 # ============================================================================
@@ -1207,6 +1877,7 @@ def wix_payment_webhook():
 
 
 def add_to_discord(user_id: int):
+    """Add user to Discord guild and assign role"""
     if not Config.DISCORD_BOT_TOKEN or not Config.DISCORD_GUILD_ID:
         return
 
@@ -1217,18 +1888,23 @@ def add_to_discord(user_id: int):
                 return
 
             logger.info(f"Adding {user.email} to Discord guild")
-
+            
+            # Here you would implement Discord API calls
+            # headers = {"Authorization": f"Bot {Config.DISCORD_BOT_TOKEN}"}
+            # Add to guild, assign role, etc.
+            
             user.discord_joined = True
-            user.discord_user_id = "pending"
+            user.discord_user_id = "pending"  # Update with actual Discord ID
             db.session.commit()
 
-            log_audit(user_id, "discord_add", "User added to Discord", "system")
+            log_audit(user_id, "discord_add", f"User {user.email} added to Discord", "system")
 
     except Exception as e:
         logger.error(f"Failed to add user to Discord: {e}")
 
 
 def remove_from_discord(user_id: int):
+    """Remove user from Discord guild"""
     if not Config.DISCORD_BOT_TOKEN:
         return
 
@@ -1239,12 +1915,15 @@ def remove_from_discord(user_id: int):
                 return
 
             logger.info(f"Removing {user.email} from Discord guild")
-
+            
+            # Here you would implement Discord API calls
+            # Remove from guild, etc.
+            
             user.discord_joined = False
             user.discord_user_id = None
             db.session.commit()
 
-            log_audit(user_id, "discord_remove", "User removed from Discord", "system")
+            log_audit(user_id, "discord_remove", f"User {user.email} removed from Discord", "system")
 
     except Exception as e:
         logger.error(f"Failed to remove user from Discord: {e}")
@@ -1256,20 +1935,84 @@ def remove_from_discord(user_id: int):
 
 
 def init_db():
+    """Initialize database and create default admin user"""
     with app.app_context():
         db.create_all()
 
+        # Create default subscription plans if none exist
+        if SubscriptionPlan.query.count() == 0:
+            plans = [
+                SubscriptionPlan(
+                    name="Monthly Standard",
+                    description="Monthly subscription to Trading Engine",
+                    price=29.99,
+                    currency="EUR",
+                    duration_days=30,
+                    subscription_type="monthly",
+                    features=json.dumps([
+                        "Full access to trading algorithms",
+                        "Monthly updates",
+                        "Email support",
+                        "1 license key"
+                    ]),
+                    max_licenses=1,
+                ),
+                SubscriptionPlan(
+                    name="Yearly Premium",
+                    description="Annual subscription with premium features",
+                    price=299.99,
+                    currency="EUR",
+                    duration_days=365,
+                    subscription_type="yearly",
+                    features=json.dumps([
+                        "Full access to trading algorithms",
+                        "Priority updates",
+                        "Priority support",
+                        "3 license keys",
+                        "Discord community access",
+                        "Early access to new features"
+                    ]),
+                    max_licenses=3,
+                ),
+                SubscriptionPlan(
+                    name="Lifetime",
+                    description="One-time payment for lifetime access",
+                    price=999.99,
+                    currency="EUR",
+                    duration_days=36500,
+                    subscription_type="lifetime",
+                    features=json.dumps([
+                        "Lifetime access to all trading algorithms",
+                        "All future updates included",
+                        "VIP support",
+                        "Unlimited license keys",
+                        "Discord VIP access",
+                        "Beta features access"
+                    ]),
+                    max_licenses=10,
+                ),
+            ]
+            for plan in plans:
+                db.session.add(plan)
+            db.session.commit()
+            logger.info("Default subscription plans created")
+
+        # Create admin user
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
         admin = User.query.filter_by(email=admin_email).first()
 
         if not admin:
             admin = User(
                 email=admin_email,
+                first_name="Admin",
                 is_admin=True,
                 email_verified=True,
                 membership_status="active",
                 membership_start=datetime.utcnow(),
                 membership_end=datetime.utcnow() + timedelta(days=3650),
+                plan_name="Admin",
+                subscription_type="lifetime",
+                subscription_duration_days=36500,
             )
             db.session.add(admin)
             db.session.commit()
@@ -1279,8 +2022,11 @@ def init_db():
             # Ensure admin flag is set
             if not admin.is_admin:
                 admin.is_admin = True
-                db.session.commit()
-                print(f"Admin user updated: {admin_email}")
+            if not admin.membership_status == "active":
+                admin.membership_status = "active"
+                admin.membership_end = datetime.utcnow() + timedelta(days=3650)
+            db.session.commit()
+            print(f"Admin user updated: {admin_email}")
 
 
 # ============================================================================
@@ -1288,17 +2034,17 @@ def init_db():
 # ============================================================================
 
 if __name__ == "__main__":
-    print("=" * 50)
+    print("=" * 60)
+    print("Trading Engine - Subscription & Licensing Platform")
+    print("=" * 60)
     print("Initializing database...")
     init_db()
     print("Database created successfully!")
     print(f"Server starting at: http://localhost:5000")
     if Config.ENVIRONMENT == "development":
-        print(
-            f"Admin Email: {os.getenv('ADMIN_EMAIL', 'admin@example.com').strip().lower()}"
-        )
-    print("=" * 50)
+        print(f"Admin Email: {os.getenv('ADMIN_EMAIL', 'admin@example.com').strip().lower()}")
+        print(f"Admin Password: {os.getenv('ADMIN_PASSWORD', 'admin123').strip()}")
+    print("=" * 60)
 
     port = int(os.getenv("PORT", 5000))
-
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
