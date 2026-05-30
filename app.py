@@ -19,7 +19,7 @@ from pathlib import Path
 
 from flask import (
     Flask, request, jsonify, render_template, redirect,
-    url_for, session, flash, send_from_directory, abort,
+    url_for, session, flash, send_from_directory, abort, make_response,
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
@@ -89,12 +89,6 @@ class Config:
 
 app = Flask(__name__)
 app.config.from_object(Config)
-
-# ============================================================================
-# SESSION SECURITY
-# ============================================================================
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
-app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
 if Config.is_railway():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -370,29 +364,6 @@ def internal_error(e):
 
 
 # ============================================================================
-# SESSION TIMEOUT ENFORCEMENT
-# ============================================================================
-
-
-@app.before_request
-def enforce_session_timeout():
-    """Auto-logout after 30 minutes of inactivity"""
-    if current_user.is_authenticated:
-        last_activity = session.get('last_activity')
-        if last_activity:
-            try:
-                last_activity = datetime.fromisoformat(last_activity)
-                if datetime.utcnow() - last_activity > timedelta(minutes=30):
-                    logout_user()
-                    session.clear()
-                    flash("Session expired due to inactivity. Please login again.", "warning")
-                    return redirect(url_for('user_login'))
-            except:
-                pass
-        session['last_activity'] = datetime.utcnow().isoformat()
-
-
-# ============================================================================
 # ROUTES - MAIN
 # ============================================================================
 
@@ -502,8 +473,7 @@ def verify_otp():
             if not otp_token.is_valid(): flash("OTP expired.", "error"); return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
             otp_token.used = True; user.email_verified = True; user.login_attempts = 0; user.last_login = datetime.utcnow(); user.locked_until = None
             db.session.commit()
-            login_user(user, remember=False)  # Session expires when browser closes
-            session['last_activity'] = datetime.utcnow().isoformat()
+            login_user(user, remember=True)
             session.pop("pending_email", None); session.pop("is_admin_login", None)
             log_audit(user.id, "login", f"{'Admin' if user.is_admin else 'User'} login", request.remote_addr)
             flash(f"Welcome back, {user.first_name or 'there'}!", "success")
@@ -517,12 +487,16 @@ def verify_otp():
 
 
 @app.route("/logout")
-@login_required
 def logout():
-    log_audit(current_user.id, "logout", request.remote_addr); logout_user()
+    if current_user.is_authenticated:
+        log_audit(current_user.id, "logout", request.remote_addr)
+    logout_user()
     session.clear()
-    flash("Logged out.", "success")
-    return redirect(url_for("user_login"))
+    resp = make_response(redirect(url_for("user_login")))
+    resp.delete_cookie('session')
+    resp.delete_cookie('remember_token')
+    flash("You have been logged out.", "success")
+    return resp
 
 
 # ============================================================================
@@ -566,7 +540,7 @@ def download_ea(file_id):
     if not ea or not ea.is_active: flash("EA not found.", "error"); return redirect(url_for("user_dashboard"))
     if ea.plan_level > current_user.get_plan_level(): flash("Requires higher plan level.", "error"); return redirect(url_for("user_dashboard"))
     file_path = os.path.join(Config.UPLOAD_FOLDER, ea.file_path)
-    if not os.path.exists(file_path): flash("File missing. Contact support.", "error"); return redirect(url_for("user_dashboard"))
+    if not os.path.exists(file_path): flash("File missing. Please re-upload EA.", "error"); return redirect(url_for("user_dashboard"))
     ea.download_count += 1; db.session.commit()
     log_audit(current_user.id, "ea_download", ea.filename, request.remote_addr)
     return send_from_directory(Config.UPLOAD_FOLDER, ea.file_path, as_attachment=True, download_name=ea.filename)
@@ -795,23 +769,18 @@ def wix_payment_webhook():
 
 
 def assign_discord_role(discord_id: str):
-    """Assign the member role to a Discord user via bot."""
     try:
         role_url = f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{discord_id}/roles/{Config.DISCORD_ROLE_ID}"
         role_req = urllib.request.Request(role_url, method="PUT")
         role_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
         role_req.add_header("Content-Type", "application/json")
-        role_req.add_header("X-Audit-Log-Reason", "License activated")
         urllib.request.urlopen(role_req)
         logger.info(f"✅ Discord role assigned to {discord_id}")
         return True
-    except Exception as e:
-        logger.error(f"Discord role assignment failed: {e}")
-        return False
+    except Exception as e: logger.error(f"Discord role failed: {e}"); return False
 
 
 def add_to_discord(user_id: int):
-    """Legacy function - kept for compatibility."""
     if not Config.DISCORD_BOT_TOKEN: return
     try:
         with app.app_context():
@@ -830,7 +799,6 @@ def remove_from_discord(user_id: int):
                 role_url = f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{user.discord_user_id}/roles/{Config.DISCORD_ROLE_ID}"
                 role_req = urllib.request.Request(role_url, method="DELETE")
                 role_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
-                role_req.add_header("Content-Type", "application/json")
                 urllib.request.urlopen(role_req)
             user.discord_joined = False; user.discord_user_id = None; db.session.commit()
     except Exception as e: logger.error(f"Discord remove failed: {e}")
@@ -839,9 +807,8 @@ def remove_from_discord(user_id: int):
 @app.route("/connect-discord")
 @login_required
 def connect_discord():
-    """Redirect user to Discord OAuth2 authorization page."""
     if not current_user.is_membership_active():
-        flash("Active membership required to connect Discord.", "error")
+        flash("Active membership required.", "error")
         return redirect(url_for("user_dashboard"))
     params = urllib.parse.urlencode({
         "client_id": Config.DISCORD_CLIENT_ID,
@@ -855,15 +822,12 @@ def connect_discord():
 @app.route("/discord/callback")
 @login_required
 def discord_callback():
-    """Handle Discord OAuth2 callback, add user to server and assign role."""
     code = request.args.get("code")
     if not code: flash("Discord connection cancelled.", "error"); return redirect(url_for("user_dashboard"))
     try:
         token_data = urllib.parse.urlencode({
-            "client_id": Config.DISCORD_CLIENT_ID,
-            "client_secret": Config.DISCORD_CLIENT_SECRET,
-            "grant_type": "authorization_code",
-            "code": code,
+            "client_id": Config.DISCORD_CLIENT_ID, "client_secret": Config.DISCORD_CLIENT_SECRET,
+            "grant_type": "authorization_code", "code": code,
             "redirect_uri": Config.DISCORD_REDIRECT_URI
         }).encode()
         token_req = urllib.request.Request("https://discord.com/api/oauth2/token", data=token_data, method="POST")
@@ -890,12 +854,10 @@ def discord_callback():
 
         assign_discord_role(discord_id)
         current_user.discord_user_id = discord_id; current_user.discord_joined = True; db.session.commit()
-        log_audit(current_user.id, "discord_connected", f"Discord: {discord_username} ({discord_id})", request.remote_addr)
-        logger.info(f"✅ Discord connected: {current_user.email} → {discord_username}")
-        flash("Discord connected! You now have access to the private channel. 🎉", "success")
+        flash("Discord connected! 🎉", "success")
     except Exception as e:
         logger.error(f"Discord OAuth failed: {e}")
-        flash("Discord connection failed. Please try again.", "error")
+        flash("Discord connection failed.", "error")
     return redirect(url_for("user_dashboard"))
 
 
