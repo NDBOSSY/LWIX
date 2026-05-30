@@ -11,6 +11,8 @@ import hashlib
 import secrets
 import logging
 import threading
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -48,7 +50,7 @@ class Config:
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp-relay.brevo.com")
     MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
     MAIL_USE_SSL = False
@@ -61,6 +63,9 @@ class Config:
     DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "")
     DISCORD_ROLE_ID = os.getenv("DISCORD_ROLE_ID", "")
     DISCORD_INVITE_LINK = os.getenv("DISCORD_INVITE_LINK", "")
+    DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
+    DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
+    DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "")
 
     ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")
     RATELIMIT_STORAGE_URL = os.getenv("REDIS_URL", "memory://")
@@ -515,7 +520,6 @@ def generate_license():
         key = generate_license_key(); days = current_user.subscription_duration_days or Config.LICENSE_EXPIRY_DAYS
         lic = License(user_id=current_user.id, license_key=key, expires_at=datetime.utcnow() + timedelta(days=days), ea_version="1.0.0", license_type=current_user.subscription_type or "standard")
         db.session.add(lic); db.session.commit()
-        threading.Thread(target=add_to_discord, args=(current_user.id,)).start()
         log_audit(current_user.id, "license_generated", f"{lic.mask_license_key()} | {days}d", request.remote_addr)
         send_email_async("License Key", [current_user.email], f"License: {key}\nExpires: {lic.expires_at.strftime('%B %d, %Y')}")
         return jsonify({"success": True, "license_key": key, "masked_key": lic.mask_license_key(), "expires_at": lic.expires_at.isoformat()})
@@ -758,21 +762,140 @@ def wix_payment_webhook():
 # ============================================================================
 
 
+def assign_discord_role(discord_id: str):
+    """Assign the member role to a Discord user via bot."""
+    try:
+        role_url = f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{discord_id}/roles/{Config.DISCORD_ROLE_ID}"
+        role_req = urllib.request.Request(role_url, method="PUT")
+        role_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
+        role_req.add_header("Content-Type", "application/json")
+        role_req.add_header("X-Audit-Log-Reason", "License activated")
+        urllib.request.urlopen(role_req)
+        logger.info(f"✅ Discord role assigned to {discord_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Discord role assignment failed: {e}")
+        return False
+
+
 def add_to_discord(user_id: int):
-    if not Config.DISCORD_BOT_TOKEN: return
+    """Legacy function - kept for compatibility. Real Discord add happens via OAuth2."""
+    if not Config.DISCORD_BOT_TOKEN:
+        return
     try:
         with app.app_context():
             user = db.session.get(User, user_id)
-            if user and user.is_membership_active(): user.discord_joined = True; user.discord_user_id = "pending"; db.session.commit()
-    except Exception as e: logger.error(f"Discord add failed: {e}")
+            if user and user.is_membership_active() and user.discord_user_id and user.discord_user_id != "pending":
+                assign_discord_role(user.discord_user_id)
+    except Exception as e:
+        logger.error(f"Discord add failed: {e}")
+
 
 def remove_from_discord(user_id: int):
-    if not Config.DISCORD_BOT_TOKEN: return
+    if not Config.DISCORD_BOT_TOKEN:
+        return
     try:
         with app.app_context():
             user = db.session.get(User, user_id)
-            if user: user.discord_joined = False; user.discord_user_id = None; db.session.commit()
-    except Exception as e: logger.error(f"Discord remove failed: {e}")
+            if user and user.discord_user_id and user.discord_user_id != "pending":
+                # Remove role from user
+                role_url = f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{user.discord_user_id}/roles/{Config.DISCORD_ROLE_ID}"
+                role_req = urllib.request.Request(role_url, method="DELETE")
+                role_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
+                role_req.add_header("Content-Type", "application/json")
+                urllib.request.urlopen(role_req)
+            user.discord_joined = False
+            user.discord_user_id = None
+            db.session.commit()
+    except Exception as e:
+        logger.error(f"Discord remove failed: {e}")
+
+
+@app.route("/connect-discord")
+@login_required
+def connect_discord():
+    """Redirect user to Discord OAuth2 authorization page."""
+    if not current_user.is_membership_active():
+        flash("Active membership required to connect Discord.", "error")
+        return redirect(url_for("user_dashboard"))
+
+    params = urllib.parse.urlencode({
+        "client_id": Config.DISCORD_CLIENT_ID,
+        "redirect_uri": Config.DISCORD_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "identify guilds.join"
+    })
+    return redirect(f"https://discord.com/oauth2/authorize?{params}")
+
+
+@app.route("/discord/callback")
+@login_required
+def discord_callback():
+    """Handle Discord OAuth2 callback, add user to server and assign role."""
+    code = request.args.get("code")
+    if not code:
+        flash("Discord connection cancelled.", "error")
+        return redirect(url_for("user_dashboard"))
+
+    try:
+        # Step 1 — Exchange code for access token
+        token_data = urllib.parse.urlencode({
+            "client_id": Config.DISCORD_CLIENT_ID,
+            "client_secret": Config.DISCORD_CLIENT_SECRET,
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": Config.DISCORD_REDIRECT_URI
+        }).encode()
+
+        token_req = urllib.request.Request(
+            "https://discord.com/api/oauth2/token",
+            data=token_data,
+            method="POST"
+        )
+        token_req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        token_res = urllib.request.urlopen(token_req)
+        token_json = json.loads(token_res.read())
+        access_token = token_json["access_token"]
+
+        # Step 2 — Get Discord user info
+        user_req = urllib.request.Request("https://discord.com/api/users/@me")
+        user_req.add_header("Authorization", f"Bearer {access_token}")
+        user_res = urllib.request.urlopen(user_req)
+        discord_user = json.loads(user_res.read())
+        discord_id = discord_user["id"]
+        discord_username = discord_user.get("username", "unknown")
+
+        # Step 3 — Add user to server
+        join_data = json.dumps({"access_token": access_token}).encode()
+        join_req = urllib.request.Request(
+            f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{discord_id}",
+            data=join_data,
+            method="PUT"
+        )
+        join_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
+        join_req.add_header("Content-Type", "application/json")
+        try:
+            urllib.request.urlopen(join_req)
+        except Exception:
+            pass  # User may already be in the server — that's fine
+
+        # Step 4 — Assign member role
+        assign_discord_role(discord_id)
+
+        # Step 5 — Save to DB
+        current_user.discord_user_id = discord_id
+        current_user.discord_joined = True
+        db.session.commit()
+
+        log_audit(current_user.id, "discord_connected", f"Discord: {discord_username} ({discord_id})", request.remote_addr)
+        logger.info(f"✅ Discord connected: {current_user.email} → {discord_username}")
+        flash("Discord connected! You now have access to the private channel. 🎉", "success")
+
+    except Exception as e:
+        logger.error(f"Discord OAuth failed: {e}")
+        flash("Discord connection failed. Please try again.", "error")
+
+    return redirect(url_for("user_dashboard"))
 
 
 # ============================================================================
