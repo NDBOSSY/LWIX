@@ -90,6 +90,12 @@ class Config:
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# ============================================================================
+# SESSION SECURITY
+# ============================================================================
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+
 if Config.is_railway():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     app.config["SESSION_COOKIE_SECURE"] = True
@@ -364,6 +370,29 @@ def internal_error(e):
 
 
 # ============================================================================
+# SESSION TIMEOUT ENFORCEMENT
+# ============================================================================
+
+
+@app.before_request
+def enforce_session_timeout():
+    """Auto-logout after 30 minutes of inactivity"""
+    if current_user.is_authenticated:
+        last_activity = session.get('last_activity')
+        if last_activity:
+            try:
+                last_activity = datetime.fromisoformat(last_activity)
+                if datetime.utcnow() - last_activity > timedelta(minutes=30):
+                    logout_user()
+                    session.clear()
+                    flash("Session expired due to inactivity. Please login again.", "warning")
+                    return redirect(url_for('user_login'))
+            except:
+                pass
+        session['last_activity'] = datetime.utcnow().isoformat()
+
+
+# ============================================================================
 # ROUTES - MAIN
 # ============================================================================
 
@@ -473,7 +502,8 @@ def verify_otp():
             if not otp_token.is_valid(): flash("OTP expired.", "error"); return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
             otp_token.used = True; user.email_verified = True; user.login_attempts = 0; user.last_login = datetime.utcnow(); user.locked_until = None
             db.session.commit()
-            login_user(user, remember=True)
+            login_user(user, remember=False)  # Session expires when browser closes
+            session['last_activity'] = datetime.utcnow().isoformat()
             session.pop("pending_email", None); session.pop("is_admin_login", None)
             log_audit(user.id, "login", f"{'Admin' if user.is_admin else 'User'} login", request.remote_addr)
             flash(f"Welcome back, {user.first_name or 'there'}!", "success")
@@ -489,7 +519,9 @@ def verify_otp():
 @app.route("/logout")
 @login_required
 def logout():
-    log_audit(current_user.id, "logout", request.remote_addr); logout_user(); flash("Logged out.", "success")
+    log_audit(current_user.id, "logout", request.remote_addr); logout_user()
+    session.clear()
+    flash("Logged out.", "success")
     return redirect(url_for("user_login"))
 
 
@@ -779,36 +811,29 @@ def assign_discord_role(discord_id: str):
 
 
 def add_to_discord(user_id: int):
-    """Legacy function - kept for compatibility. Real Discord add happens via OAuth2."""
-    if not Config.DISCORD_BOT_TOKEN:
-        return
+    """Legacy function - kept for compatibility."""
+    if not Config.DISCORD_BOT_TOKEN: return
     try:
         with app.app_context():
             user = db.session.get(User, user_id)
             if user and user.is_membership_active() and user.discord_user_id and user.discord_user_id != "pending":
                 assign_discord_role(user.discord_user_id)
-    except Exception as e:
-        logger.error(f"Discord add failed: {e}")
+    except Exception as e: logger.error(f"Discord add failed: {e}")
 
 
 def remove_from_discord(user_id: int):
-    if not Config.DISCORD_BOT_TOKEN:
-        return
+    if not Config.DISCORD_BOT_TOKEN: return
     try:
         with app.app_context():
             user = db.session.get(User, user_id)
             if user and user.discord_user_id and user.discord_user_id != "pending":
-                # Remove role from user
                 role_url = f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{user.discord_user_id}/roles/{Config.DISCORD_ROLE_ID}"
                 role_req = urllib.request.Request(role_url, method="DELETE")
                 role_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
                 role_req.add_header("Content-Type", "application/json")
                 urllib.request.urlopen(role_req)
-            user.discord_joined = False
-            user.discord_user_id = None
-            db.session.commit()
-    except Exception as e:
-        logger.error(f"Discord remove failed: {e}")
+            user.discord_joined = False; user.discord_user_id = None; db.session.commit()
+    except Exception as e: logger.error(f"Discord remove failed: {e}")
 
 
 @app.route("/connect-discord")
@@ -818,7 +843,6 @@ def connect_discord():
     if not current_user.is_membership_active():
         flash("Active membership required to connect Discord.", "error")
         return redirect(url_for("user_dashboard"))
-
     params = urllib.parse.urlencode({
         "client_id": Config.DISCORD_CLIENT_ID,
         "redirect_uri": Config.DISCORD_REDIRECT_URI,
@@ -833,12 +857,8 @@ def connect_discord():
 def discord_callback():
     """Handle Discord OAuth2 callback, add user to server and assign role."""
     code = request.args.get("code")
-    if not code:
-        flash("Discord connection cancelled.", "error")
-        return redirect(url_for("user_dashboard"))
-
+    if not code: flash("Discord connection cancelled.", "error"); return redirect(url_for("user_dashboard"))
     try:
-        # Step 1 — Exchange code for access token
         token_data = urllib.parse.urlencode({
             "client_id": Config.DISCORD_CLIENT_ID,
             "client_secret": Config.DISCORD_CLIENT_SECRET,
@@ -846,18 +866,12 @@ def discord_callback():
             "code": code,
             "redirect_uri": Config.DISCORD_REDIRECT_URI
         }).encode()
-
-        token_req = urllib.request.Request(
-            "https://discord.com/api/oauth2/token",
-            data=token_data,
-            method="POST"
-        )
+        token_req = urllib.request.Request("https://discord.com/api/oauth2/token", data=token_data, method="POST")
         token_req.add_header("Content-Type", "application/x-www-form-urlencoded")
         token_res = urllib.request.urlopen(token_req)
         token_json = json.loads(token_res.read())
         access_token = token_json["access_token"]
 
-        # Step 2 — Get Discord user info
         user_req = urllib.request.Request("https://discord.com/api/users/@me")
         user_req.add_header("Authorization", f"Bearer {access_token}")
         user_res = urllib.request.urlopen(user_req)
@@ -865,36 +879,23 @@ def discord_callback():
         discord_id = discord_user["id"]
         discord_username = discord_user.get("username", "unknown")
 
-        # Step 3 — Add user to server
         join_data = json.dumps({"access_token": access_token}).encode()
         join_req = urllib.request.Request(
             f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{discord_id}",
-            data=join_data,
-            method="PUT"
-        )
+            data=join_data, method="PUT")
         join_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
         join_req.add_header("Content-Type", "application/json")
-        try:
-            urllib.request.urlopen(join_req)
-        except Exception:
-            pass  # User may already be in the server — that's fine
+        try: urllib.request.urlopen(join_req)
+        except: pass
 
-        # Step 4 — Assign member role
         assign_discord_role(discord_id)
-
-        # Step 5 — Save to DB
-        current_user.discord_user_id = discord_id
-        current_user.discord_joined = True
-        db.session.commit()
-
+        current_user.discord_user_id = discord_id; current_user.discord_joined = True; db.session.commit()
         log_audit(current_user.id, "discord_connected", f"Discord: {discord_username} ({discord_id})", request.remote_addr)
         logger.info(f"✅ Discord connected: {current_user.email} → {discord_username}")
         flash("Discord connected! You now have access to the private channel. 🎉", "success")
-
     except Exception as e:
         logger.error(f"Discord OAuth failed: {e}")
         flash("Discord connection failed. Please try again.", "error")
-
     return redirect(url_for("user_dashboard"))
 
 
