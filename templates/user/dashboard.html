@@ -439,7 +439,7 @@
     .badge-level1 { background: #6B7280; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-level2 { background: #8B5CF6; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
 
-    /* ====== BLUE THEMED MODALS ====== */
+    /* Modals */
     .custom-modal-overlay {
         display: none;
         position: fixed;
@@ -571,7 +571,6 @@
 
     .btn-modal-cancel:hover { border-color: #4B7BE5; color: #4B7BE5; }
 
-    /* Download modal */
     .download-modal-header {
         background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
         padding: 1.5rem 1.5rem 1.2rem;
@@ -646,6 +645,23 @@
     }
 
     .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(75, 123, 229, 0.3); }
+
+    .btn-outline-primary {
+        background: white;
+        color: #4B7BE5;
+        border: 1.5px solid #4B7BE5;
+        border-radius: 10px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-outline-primary:hover {
+        background: #4B7BE5;
+        color: white;
+    }
 </style>
 {% endblock %}
 
@@ -789,7 +805,26 @@
     <div class="discord-section">
         <div class="discord-header"><i class="fab fa-discord fa-2x"></i><div><h5 class="mb-0">Discord Community</h5><small class="opacity-75">Get support, updates, and connect with other traders</small></div></div>
         <div class="discord-body">
-            {% if user.discord_joined %}<i class="fas fa-check-circle fa-3x mb-3" style="color: #3FBFB3;"></i><h6>You're Connected!</h6>{% else %}<p class="text-muted mb-3">{% if license %}Join our exclusive Discord community{% else %}Generate a license to get Discord access{% endif %}</p>{% if discord_invite and license %}<a href="{{ discord_invite }}" target="_blank" class="btn btn-primary btn-lg"><i class="fab fa-discord me-2"></i>Join Discord</a>{% elif not license %}<button class="btn btn-outline-primary btn-lg" onclick="showLicenseModal()"><i class="fas fa-key me-2"></i>Get License First</button>{% endif %}{% endif %}
+            {% if user.discord_joined %}
+                <i class="fas fa-check-circle fa-3x mb-3" style="color: #3FBFB3;"></i>
+                <h6>You're Connected!</h6>
+                <p class="text-muted small">Your Discord account is linked and role assigned.</p>
+                <a href="{{ discord_invite }}" target="_blank" class="btn btn-primary mt-2">
+                    <i class="fab fa-discord me-2"></i>Open Discord Server
+                </a>
+            {% elif license %}
+                <i class="fab fa-discord fa-3x mb-3" style="color: #5865F2;"></i>
+                <p class="text-muted mb-3">Connect your Discord account to get access to the private members channel automatically.</p>
+                <a href="{{ url_for('connect_discord') }}" class="btn btn-primary btn-lg">
+                    <i class="fab fa-discord me-2"></i>Connect Discord
+                </a>
+            {% else %}
+                <i class="fas fa-lock fa-3x mb-3" style="color: #807F80;"></i>
+                <p class="text-muted mb-3">Generate a license first to unlock Discord access.</p>
+                <button class="btn btn-outline-primary btn-lg" onclick="showLicenseModal()">
+                    <i class="fas fa-key me-2"></i>Get License First
+                </button>
+            {% endif %}
         </div>
     </div>
 </div>
