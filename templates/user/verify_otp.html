@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Verify OTP - EALicense{% endblock %}
+{% block title %}Verify OTP - Trading Engine{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -24,7 +24,7 @@
     }
 
     .verify-visual {
-        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
         padding: 3rem 2.5rem;
         color: white;
         display: flex;
@@ -42,7 +42,7 @@
         right: -50px;
         width: 200px;
         height: 200px;
-        background: rgba(255, 255, 255, 0.15);
+        background: rgba(111, 223, 223, 0.15);
         border-radius: 50%;
     }
 
@@ -53,13 +53,19 @@
         left: -30px;
         width: 150px;
         height: 150px;
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(168, 92, 249, 0.2);
         border-radius: 50%;
     }
 
     .verify-visual-content {
         position: relative;
         z-index: 1;
+    }
+
+    .verify-visual .logo-text {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 1.5rem;
     }
 
     .verify-visual .icon-circle {
@@ -85,7 +91,7 @@
     .verify-visual p {
         opacity: 0.95;
         font-size: 0.95rem;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
         line-height: 1.6;
     }
 
@@ -98,10 +104,6 @@
         border-radius: 12px;
         font-size: 0.9rem;
         backdrop-filter: blur(10px);
-    }
-
-    .email-badge i {
-        font-size: 0.9rem;
     }
 
     .verify-form-section {
@@ -150,21 +152,21 @@
 
     .otp-input:focus {
         outline: none;
-        border-color: #3FBFB3;
+        border-color: #4B7BE5;
         background: white;
-        box-shadow: 0 0 0 4px rgba(63, 191, 179, 0.1);
+        box-shadow: 0 0 0 4px rgba(75, 123, 229, 0.1);
         transform: translateY(-2px);
     }
 
     .otp-input.filled {
-        border-color: #3FBFB3;
-        background: #F0FDF9;
+        border-color: #4B7BE5;
+        background: #EEF2FF;
     }
 
     .verify-btn {
         width: 100%;
         padding: 0.9rem;
-        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
         color: white;
         border: none;
         border-radius: 14px;
@@ -181,7 +183,7 @@
 
     .verify-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 15px 30px rgba(63, 191, 179, 0.3);
+        box-shadow: 0 15px 30px rgba(75, 123, 229, 0.3);
     }
 
     .verify-btn:active {
@@ -212,15 +214,8 @@
     }
 
     @keyframes pulse {
-
-        0%,
-        100% {
-            opacity: 1;
-        }
-
-        50% {
-            opacity: 0.5;
-        }
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
     }
 
     .timer-text {
@@ -241,7 +236,7 @@
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
-        color: #A85CF9;
+        color: #4B7BE5;
         text-decoration: none;
         font-size: 0.9rem;
         font-weight: 500;
@@ -251,19 +246,29 @@
     }
 
     .resend-link:hover {
-        background: rgba(168, 92, 249, 0.1);
+        background: rgba(75, 123, 229, 0.1);
         color: #5534A5;
         transform: translateY(-1px);
     }
 
-    .security-note {
+    .security-badges {
+        display: flex;
+        gap: 0.8rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+    }
+
+    .security-badge {
         display: flex;
         align-items: center;
-        justify-content: center;
         gap: 0.4rem;
-        margin-top: 1.5rem;
-        color: #3FBFB3;
-        font-size: 0.8rem;
+        background: #EEF2FF;
+        border: 1px solid #4B7BE5;
+        color: #4B7BE5;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
     }
 
     @media (max-width: 768px) {
@@ -293,6 +298,11 @@
         .otp-input-group {
             gap: 0.4rem;
         }
+
+        .security-badges {
+            flex-direction: column;
+            align-items: center;
+        }
     }
 </style>
 {% endblock %}
@@ -303,8 +313,11 @@
         <!-- Visual Side -->
         <div class="verify-visual">
             <div class="verify-visual-content">
+                <div class="logo-text">
+                    <i class="fas fa-shield-alt me-2"></i>Trading Engine
+                </div>
                 <div class="icon-circle">
-                    <i class="fas fa-shield-alt"></i>
+                    <i class="fas fa-lock"></i>
                 </div>
                 <h2>Secure Verification</h2>
                 <p>Enter the 6-digit code we sent to your email to complete the authentication process.</p>
@@ -326,8 +339,8 @@
             <form method="POST" id="otpForm">
                 <div class="otp-input-group">
                     {% for i in range(6) %}
-                    <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" required {% if i==0 %}autofocus{%
-                        endif %} data-index="{{ i }}">
+                    <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" required
+                        {% if i==0 %}autofocus{% endif %} data-index="{{ i }}">
                     {% endfor %}
                 </div>
                 <input type="hidden" name="otp" id="otpValue">
@@ -349,9 +362,15 @@
                     </a>
                 </div>
 
-                <div class="security-note">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>OTP expires in 10 minutes</span>
+                <div class="security-badges">
+                    <div class="security-badge">
+                        <i class="fas fa-lock"></i>
+                        <span>SSL Encrypted</span>
+                    </div>
+                    <div class="security-badge">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Secure OTP</span>
+                    </div>
                 </div>
             </form>
         </div>
@@ -395,20 +414,14 @@
                 }
             });
             updateOTP();
-            if (pasted.length === 6) {
-                inputs[5].focus();
-            }
+            if (pasted.length === 6) inputs[5].focus();
         });
     });
 
     function updateOTP() {
         const otp = Array.from(inputs).map(i => i.value).join('');
         document.getElementById('otpValue').value = otp;
-
-        // Auto-submit when all 6 digits entered
-        if (otp.length === 6) {
-            document.getElementById('verifyBtn').focus();
-        }
+        if (otp.length === 6) document.getElementById('verifyBtn').focus();
     }
 
     // Timer
@@ -422,8 +435,6 @@
             const mins = Math.floor(timeLeft / 60);
             const secs = timeLeft % 60;
             timerElement.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-
-            // Change color when less than 2 minutes
             if (timeLeft < 120) {
                 timerElement.classList.add('expired');
                 timerIcon.classList.add('expired');
@@ -436,14 +447,12 @@
         }
     }, 1000);
 
-    // Form submission
     document.getElementById('otpForm').addEventListener('submit', function () {
         const btn = document.getElementById('verifyBtn');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span><span>Verifying...</span>';
     });
 
-    // Allow Enter key to submit when all digits filled
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             const otp = document.getElementById('otpValue').value;
