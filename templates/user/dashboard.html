@@ -219,6 +219,7 @@
 
     .license-body { padding: 1.5rem; }
 
+    /* License Key Display - Blurred by default */
     .license-key-display {
         background: #FEFAF3;
         border: 2px dashed #6FDFDF;
@@ -232,22 +233,66 @@
         letter-spacing: 1px;
         position: relative;
         margin-bottom: 1.2rem;
+        cursor: pointer;
+        user-select: none;
     }
 
-    .copy-key-btn {
+    .license-key-display .key-text {
+        filter: blur(6px);
+        transition: filter 0.3s ease;
+    }
+
+    .license-key-display.revealed .key-text {
+        filter: blur(0);
+    }
+
+    .license-key-display .key-overlay {
         position: absolute;
-        top: 8px; right: 8px;
-        background: #4B7BE5;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        padding: 0.4rem 0.6rem;
-        font-size: 0.65rem;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: #807F80;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        font-weight: 500;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .license-key-display.revealed .key-overlay {
+        opacity: 0;
+    }
+
+    .license-key-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 0.8rem;
+    }
+
+    .key-action-btn {
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
         cursor: pointer;
         transition: all 0.3s;
+        border: 1.5px solid #E5E7EB;
+        background: white;
+        color: #4B7BE5;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
     }
 
-    .copy-key-btn:hover { background: #5534A5; }
+    .key-action-btn:hover {
+        background: #4B7BE5;
+        color: white;
+        border-color: #4B7BE5;
+    }
 
     .license-info-grid {
         display: grid;
@@ -261,7 +306,7 @@
         border-radius: 10px;
     }
 
-    .license-info-item .label { font-size: 0.7rem; color: #807F80; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem; }
+    .license-info-item .label { font-size: 0.7rem; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem; }
     .license-info-item .value { font-weight: 600; color: #2D2D2D; font-size: 0.85rem; }
 
     .no-license-state { text-align: center; padding: 2rem 1rem; }
@@ -562,13 +607,7 @@
     }
 
     .btn-modal-confirm:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(75, 123, 229, 0.4); }
-
-    .btn-modal-cancel {
-        background: white;
-        color: #807F80;
-        border: 1.5px solid #E5E7EB;
-    }
-
+    .btn-modal-cancel { background: white; color: #807F80; border: 1.5px solid #E5E7EB; }
     .btn-modal-cancel:hover { border-color: #4B7BE5; color: #4B7BE5; }
 
     .download-modal-header {
@@ -658,10 +697,7 @@
         transition: all 0.3s;
     }
 
-    .btn-outline-primary:hover {
-        background: #4B7BE5;
-        color: white;
-    }
+    .btn-outline-primary:hover { background: #4B7BE5; color: white; }
 </style>
 {% endblock %}
 
@@ -673,49 +709,23 @@
             <div class="row align-items-center">
                 <div class="col-md-8">
                     <div class="d-flex align-items-center gap-3 mb-2">
-                        <div class="welcome-icon-circle">
-                            <i class="fas fa-hand-wave"></i>
-                        </div>
+                        <div class="welcome-icon-circle"><i class="fas fa-hand-wave"></i></div>
                         <div>
-                            <h2 class="fw-bold mb-1">
-                                {% if user.first_name %}Welcome back, {{ user.first_name }}!{% else %}Welcome back!{% endif %}
-                            </h2>
-                            <p class="mb-0 opacity-75">
-                                {% if user.get_full_name() and user.get_full_name() != user.email %}
-                                {{ user.get_full_name() }} · {{ user.email }}
-                                {% else %}{{ user.email }}{% endif %}
-                            </p>
+                            <h2 class="fw-bold mb-1">{% if user.first_name %}Welcome back, {{ user.first_name }}!{% else %}Welcome back!{% endif %}</h2>
+                            <p class="mb-0 opacity-75">{% if user.get_full_name() and user.get_full_name() != user.email %}{{ user.get_full_name() }} · {{ user.email }}{% else %}{{ user.email }}{% endif %}</p>
                         </div>
                     </div>
                     <div class="d-flex gap-2 mt-2 flex-wrap align-items-center">
                         <span class="user-id-badge"><i class="fas fa-id-card me-1"></i>ID: {{ user.id }}</span>
-                        <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
-                            <i class="fas fa-calendar me-1"></i>Member since {{ user.created_at.strftime('%B %Y') }}
-                        </span>
-                        <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
-                            <i class="fas fa-key me-1"></i>{{ user.licenses.count() }} License(s)
-                        </span>
-                        {% if user.subscription_type %}
-                        <span class="badge {% if user.subscription_type == 'monthly' %}badge-monthly{% elif user.subscription_type == 'yearly' %}badge-yearly{% elif user.subscription_type == 'lifetime' %}badge-lifetime{% endif %}" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
-                            <i class="fas fa-crown me-1"></i>{{ user.subscription_type|title }}
-                        </span>
-                        {% endif %}
-                        <span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;">
-                            <i class="fas fa-layer-group me-1"></i>Level {{ user.get_plan_level() }}
-                        </span>
+                        <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-calendar me-1"></i>Member since {{ user.created_at.strftime('%B %Y') }}</span>
+                        <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-key me-1"></i>{{ user.licenses.count() }} License(s)</span>
+                        {% if user.subscription_type %}<span class="badge {% if user.subscription_type == 'monthly' %}badge-monthly{% elif user.subscription_type == 'yearly' %}badge-yearly{% elif user.subscription_type == 'lifetime' %}badge-lifetime{% endif %}" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-crown me-1"></i>{{ user.subscription_type|title }}</span>{% endif %}
+                        <span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-layer-group me-1"></i>Level {{ user.get_plan_level() }}</span>
                     </div>
                 </div>
                 <div class="col-md-4 text-end mt-2 mt-md-0">
-                    <span class="badge {% if user.membership_status == 'active' %}badge-active{% else %}badge-expired{% endif %} fs-6">
-                        <i class="fas fa-{{ 'check-circle' if user.membership_status == 'active' else 'times-circle' }} me-1"></i>{{ user.membership_status|title }}
-                    </span>
-                    {% if user.membership_end and user.membership_status == 'active' %}
-                    {% set days_left = (user.membership_end - now).days %}
-                    <br>
-                    <span class="countdown-badge mt-2 {{ 'urgent' if days_left <= 7 else '' }}" id="membershipCountdown" data-end-date="{{ user.membership_end.isoformat() }}" style="margin-top: 0.5rem;">
-                        <i class="fas fa-hourglass-half me-1"></i><span id="countdownText">{{ days_left }} days remaining</span>
-                    </span>
-                    {% endif %}
+                    <span class="badge {% if user.membership_status == 'active' %}badge-active{% else %}badge-expired{% endif %} fs-6"><i class="fas fa-{{ 'check-circle' if user.membership_status == 'active' else 'times-circle' }} me-1"></i>{{ user.membership_status|title }}</span>
+                    {% if user.membership_end and user.membership_status == 'active' %}{% set days_left = (user.membership_end - now).days %}<br><span class="countdown-badge mt-2 {{ 'urgent' if days_left <= 7 else '' }}" id="membershipCountdown" data-end-date="{{ user.membership_end.isoformat() }}" style="margin-top: 0.5rem;"><i class="fas fa-hourglass-half me-1"></i><span id="countdownText">{{ days_left }} days remaining</span></span>{% endif %}
                 </div>
             </div>
         </div>
@@ -751,14 +761,31 @@
             <div class="license-header"><h5 class="mb-0"><i class="fas fa-key me-2"></i>License Details</h5></div>
             <div class="license-body">
                 {% if license %}
-                <div class="license-key-display">{{ license.license_key }}<button class="copy-key-btn" onclick="copyToClipboard('{{ license.license_key }}')"><i class="fas fa-copy me-1"></i>Copy</button></div>
+                <!-- Hidden License Key -->
+                <div class="license-key-display" id="licenseKeyDisplay" onclick="toggleLicenseVisibility()">
+                    <span class="key-text">{{ license.license_key }}</span>
+                    <div class="key-overlay">
+                        <i class="fas fa-eye-slash"></i> Click to reveal license key
+                    </div>
+                </div>
+                <div class="license-key-actions">
+                    <button class="key-action-btn" onclick="event.stopPropagation(); toggleLicenseVisibility()">
+                        <i class="fas fa-eye" id="eyeIcon"></i> <span id="eyeText">Show Key</span>
+                    </button>
+                    <button class="key-action-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')">
+                        <i class="fas fa-copy"></i> Copy Key
+                    </button>
+                </div>
+
                 <div class="license-info-grid">
                     <div class="license-info-item"><div class="label">Status</div><div class="value"><span class="badge {% if license.status == 'active' %}badge-active{% else %}badge-expired{% endif %}">{{ license.status|title }}</span></div></div>
-                    <div class="license-info-item"><div class="label">Version</div><div class="value">{{ license.ea_version or '1.0.0' }}</div></div>
+                    <div class="license-info-item"><div class="label">License Type</div><div class="value">{{ license.license_type|title or 'Standard' }}</div></div>
+                    <div class="license-info-item"><div class="label">EA Version</div><div class="value">{{ license.ea_version or '1.0.0' }}</div></div>
+                    <div class="license-info-item"><div class="label">Max Validations</div><div class="value">{{ license.max_validations }}</div></div>
                     <div class="license-info-item"><div class="label">Created</div><div class="value">{{ license.created_at.strftime('%b %d, %Y') }}</div></div>
                     <div class="license-info-item"><div class="label">Expires</div><div class="value">{{ license.expires_at.strftime('%b %d, %Y') }}</div></div>
-                    <div class="license-info-item"><div class="label">Validations</div><div class="value">{{ license.validation_count }}</div></div>
-                    <div class="license-info-item"><div class="label">Machine</div><div class="value">{{ 'Bound' if license.machine_id else 'Not Bound' }}</div></div>
+                    <div class="license-info-item"><div class="label">Times Validated</div><div class="value">{{ license.validation_count }}</div></div>
+                    <div class="license-info-item"><div class="label">Machine Status</div><div class="value">{{ 'Bound' if license.machine_id else 'Not Bound' }}</div></div>
                 </div>
                 {% else %}
                 <div class="no-license-state"><div class="no-license-icon"><i class="fas fa-lock"></i></div><h5 class="mb-2">No License Generated</h5><p class="text-muted mb-3">Generate your license key to unlock all features</p><button class="btn btn-primary btn-lg px-5" onclick="showLicenseModal()"><i class="fas fa-plus me-2"></i>Generate License</button></div>
@@ -806,30 +833,22 @@
         <div class="discord-header"><i class="fab fa-discord fa-2x"></i><div><h5 class="mb-0">Discord Community</h5><small class="opacity-75">Get support, updates, and connect with other traders</small></div></div>
         <div class="discord-body">
             {% if user.discord_joined %}
-                <i class="fas fa-check-circle fa-3x mb-3" style="color: #3FBFB3;"></i>
-                <h6>You're Connected!</h6>
-                <p class="text-muted small">Your Discord account is linked and role assigned.</p>
-                <a href="{{ discord_invite }}" target="_blank" class="btn btn-primary mt-2">
-                    <i class="fab fa-discord me-2"></i>Open Discord Server
-                </a>
+                <i class="fas fa-check-circle fa-3x mb-3" style="color: #3FBFB3;"></i><h6>You're Connected!</h6>
+                <a href="{{ discord_invite }}" target="_blank" class="btn btn-primary mt-2"><i class="fab fa-discord me-2"></i>Open Discord Server</a>
             {% elif license %}
                 <i class="fab fa-discord fa-3x mb-3" style="color: #5865F2;"></i>
-                <p class="text-muted mb-3">Connect your Discord account to get access to the private members channel automatically.</p>
-                <a href="{{ url_for('connect_discord') }}" class="btn btn-primary btn-lg">
-                    <i class="fab fa-discord me-2"></i>Connect Discord
-                </a>
+                <p class="text-muted mb-3">Connect your Discord account to get access to the private members channel.</p>
+                <a href="{{ url_for('connect_discord') }}" class="btn btn-primary btn-lg"><i class="fab fa-discord me-2"></i>Connect Discord</a>
             {% else %}
                 <i class="fas fa-lock fa-3x mb-3" style="color: #807F80;"></i>
                 <p class="text-muted mb-3">Generate a license first to unlock Discord access.</p>
-                <button class="btn btn-outline-primary btn-lg" onclick="showLicenseModal()">
-                    <i class="fas fa-key me-2"></i>Get License First
-                </button>
+                <button class="btn btn-outline-primary btn-lg" onclick="showLicenseModal()"><i class="fas fa-key me-2"></i>Get License First</button>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- License Modal -->
+<!-- Modals -->
 <div class="custom-modal-overlay" id="licenseModal">
     <div class="custom-modal">
         <div class="custom-modal-header"><div class="modal-icon-circle"><i class="fas fa-key"></i></div><h3>Generate License Key</h3><p>Unlock all features and downloads</p></div>
@@ -845,7 +864,6 @@
     </div>
 </div>
 
-<!-- Download All Modal -->
 <div class="custom-modal-overlay" id="downloadAllModal">
     <div class="custom-modal">
         <div class="download-modal-header"><div class="download-modal-icon"><i class="fas fa-layer-group"></i></div><h3>Download All EAs</h3><p>Get all available Expert Advisors at once</p></div>
@@ -857,10 +875,27 @@
     </div>
 </div>
 
-<!-- Loading -->
 <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner mb-3"></div><p style="color: #4B7BE5; font-weight: 600;">Generating your license key...</p></div>
 
 <script>
+    // License key visibility toggle
+    let licenseVisible = false;
+    function toggleLicenseVisibility() {
+        const display = document.getElementById('licenseKeyDisplay');
+        const icon = document.getElementById('eyeIcon');
+        const text = document.getElementById('eyeText');
+        licenseVisible = !licenseVisible;
+        if (licenseVisible) {
+            display.classList.add('revealed');
+            icon.className = 'fas fa-eye-slash';
+            text.textContent = 'Hide Key';
+        } else {
+            display.classList.remove('revealed');
+            icon.className = 'fas fa-eye';
+            text.textContent = 'Show Key';
+        }
+    }
+
     function updateCountdown() {
         const el = document.getElementById('membershipCountdown');
         const txt = document.getElementById('countdownText');
