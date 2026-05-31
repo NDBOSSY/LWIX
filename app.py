@@ -1178,15 +1178,6 @@ def auto_init_db():
 # MAIN
 # ============================================================================
 
-
-@app.route("/clear-accounts")
-def clear_accounts():
-    from sqlalchemy import text
-    db.session.execute(text("DELETE FROM license_accounts"))
-    db.session.commit()
-    return "✅ Cleared. Delete this route now."
-
-
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
