@@ -1178,6 +1178,13 @@ def auto_init_db():
 # MAIN
 # ============================================================================
 
+@app.route("/reset-all-accounts")
+def reset_all_accounts():
+    """Reset all license accounts - DELETE AFTER USE"""
+    from sqlalchemy import text
+    db.session.execute(text("DELETE FROM license_accounts"))
+    db.session.commit()
+    return "All accounts reset! Now DELETE this route."
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
