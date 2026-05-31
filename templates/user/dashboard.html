@@ -219,12 +219,12 @@
 
     .license-body { padding: 1.5rem; }
 
-    /* License Key - Blurred with icons on right */
+    /* License Key Display */
     .license-key-display {
         background: #FEFAF3;
         border: 2px dashed #6FDFDF;
         border-radius: 12px;
-        padding: 1.2rem 3.5rem 1.2rem 1.2rem;
+        padding: 1.2rem 3.2rem 1.2rem 1.2rem;
         font-family: 'Courier New', monospace;
         font-size: 1.1rem;
         font-weight: 700;
@@ -265,39 +265,36 @@
         font-weight: 500;
         pointer-events: none;
         transition: opacity 0.3s ease;
+        background: rgba(254, 250, 243, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
     }
 
     .license-key-display.revealed .key-overlay {
         opacity: 0;
     }
 
-    .key-icons {
+    .key-copy-btn {
         position: absolute;
         right: 8px;
         top: 50%;
         transform: translateY(-50%);
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        z-index: 2;
-    }
-
-    .key-icon-btn {
-        width: 30px;
-        height: 30px;
-        border-radius: 6px;
-        border: 1px solid #E5E7EB;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        border: 1.5px solid #E5E7EB;
         background: white;
-        color: #4B7BE5;
+        color: #6B7280;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.75rem;
+        font-size: 0.85rem;
         transition: all 0.2s;
+        z-index: 2;
     }
 
-    .key-icon-btn:hover {
+    .key-copy-btn:hover {
         background: #4B7BE5;
         color: white;
         border-color: #4B7BE5;
@@ -770,20 +767,15 @@
             <div class="license-header"><h5 class="mb-0"><i class="fas fa-key me-2"></i>License Details</h5></div>
             <div class="license-body">
                 {% if license %}
-                <!-- License Key Display - Blurred, icons on right -->
+                <!-- License Key Display -->
                 <div class="license-key-display" id="licenseKeyDisplay" onclick="toggleLicenseVisibility()">
                     <span class="key-text">{{ license.license_key }}</span>
                     <div class="key-overlay">
                         <i class="fas fa-eye-slash"></i> Click to reveal license key
                     </div>
-                    <div class="key-icons">
-                        <button class="key-icon-btn" onclick="event.stopPropagation(); toggleLicenseVisibility()" title="Show/Hide Key">
-                            <i class="fas fa-eye" id="eyeIcon"></i>
-                        </button>
-                        <button class="key-icon-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="Copy Key">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                    </div>
+                    <button class="key-copy-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="Copy Key">
+                        <i class="fas fa-copy"></i>
+                    </button>
                 </div>
 
                 <div class="license-info-grid">
@@ -891,15 +883,9 @@
     let licenseVisible = false;
     function toggleLicenseVisibility() {
         const display = document.getElementById('licenseKeyDisplay');
-        const icon = document.getElementById('eyeIcon');
         licenseVisible = !licenseVisible;
-        if (licenseVisible) {
-            display.classList.add('revealed');
-            icon.className = 'fas fa-eye-slash';
-        } else {
-            display.classList.remove('revealed');
-            icon.className = 'fas fa-eye';
-        }
+        if (licenseVisible) { display.classList.add('revealed'); }
+        else { display.classList.remove('revealed'); }
     }
 
     function updateCountdown() {
