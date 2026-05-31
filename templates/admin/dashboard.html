@@ -444,6 +444,16 @@
         align-items: center;
         gap: 0.5rem;
     }
+    
+    .account-list {
+        font-size: 0.7rem;
+        color: #807F80;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: inline-block;
+    }
 </style>
 {% endblock %}
 
@@ -673,6 +683,7 @@
                                 <th>License</th>
                                 <th>User</th>
                                 <th>Type</th>
+                                <th>Accounts</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -683,6 +694,18 @@
                                 <td><code>{{ lic.mask_license_key() }}</code></td>
                                 <td>{{ lic.user.email }}</td>
                                 <td><small>{{ lic.license_type or 'standard' }}</small></td>
+                                <td>
+                                    <span class="badge {% if lic.accounts.count() >= lic.max_accounts %}badge-expired{% else %}badge-active{% endif %}">
+                                        {{ lic.accounts.count() }}/{{ lic.max_accounts }}
+                                    </span>
+                                    {% if lic.accounts.count() > 0 %}
+                                    <br><span class="account-list">
+                                        {% for acc in lic.accounts %}
+                                            {{ acc.account_number[-20:] }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <span class="badge 
                                         {% if lic.status == 'active' %}badge-active
