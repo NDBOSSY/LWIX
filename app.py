@@ -1057,7 +1057,7 @@ def discord_callback():
 @app.before_request
 def auto_init_db():
     try: db.session.execute(db.text("SELECT 1 FROM users LIMIT 1"))
-    except Exception:
+    except Exception: 
         try:
             db.create_all(); logger.info("✅ DB created!")
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
