@@ -1072,7 +1072,17 @@ def auto_init_db():
                 logger.info(f"✅ Admin created: {admin_email}")
         except Exception as e: logger.error(f"DB init failed: {e}")
 
+@app.route("/fix-session-token")
+def fix_session_token():
+    from sqlalchemy import text
+    try:
+        db.session.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(64)'))
+        db.session.commit()
+        return "✅ session_token column added!"
+    except Exception as e:
+        return f"Error: {e}"
 
+        
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
