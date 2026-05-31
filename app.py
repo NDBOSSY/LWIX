@@ -1174,30 +1174,6 @@ def auto_init_db():
         except Exception as e:
             logger.error(f"DB init failed: {e}")
 
-
-# ============================================================================
-# DB SETUP ROUTE (Run once then delete)
-# ============================================================================
-
-
-@app.route("/setup-accounts-db")
-def setup_accounts_db():
-    from sqlalchemy import text
-    results = []
-    try:
-        db.session.execute(text('ALTER TABLE licenses ADD COLUMN IF NOT EXISTS max_accounts INTEGER DEFAULT 4'))
-        db.session.commit()
-        results.append("✅ max_accounts column added")
-    except Exception as e:
-        results.append(f"Column: {e}")
-    try:
-        db.create_all()
-        results.append("✅ All tables created")
-    except Exception as e:
-        results.append(f"Tables: {e}")
-    return "<br>".join(results) + "<br><br>Now DELETE this route from app.py!"
-
-
 # ============================================================================
 # MAIN
 # ============================================================================
