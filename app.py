@@ -34,6 +34,12 @@ from cryptography.fernet import Fernet
 from email_validator import validate_email, EmailNotValidError
 from dotenv import load_dotenv
 
+# Try to import stripe for webhook verification
+try:
+    import stripe
+except ImportError:
+    stripe = None
+
 load_dotenv()
 
 # ============================================================================
@@ -52,6 +58,7 @@ class Config:
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp-relay.brevo.com")
     MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
+    MAIL_USE_SSL = False  # ✅ FIXED: Added back
     MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", "noreply@tradingengine.nl")
@@ -771,7 +778,7 @@ def wix_payment_webhook():
 
 
 # ============================================================================
-# STRIPE WEBHOOK
+# STRIPE WEBHOOK (FIXED)
 # ============================================================================
 
 @app.route("/webhook/stripe/payment", methods=["POST"])
@@ -780,23 +787,30 @@ def stripe_payment_webhook():
     try:
         payload = request.get_data(as_text=True)
         sig_header = request.headers.get("Stripe-Signature")
-        
+
+        # ✅ FIXED: Proper signature verification
         if Config.STRIPE_WEBHOOK_SECRET:
+            if stripe is None:
+                logger.error("Stripe library not installed")
+                return jsonify({"error": "Stripe not configured"}), 500
             try:
-                import stripe
                 event = stripe.Webhook.construct_event(payload, sig_header, Config.STRIPE_WEBHOOK_SECRET)
-            except Exception:
-                logger.warning("Stripe signature invalid - accepting anyway")
-                event = json.loads(payload)
+            except stripe.error.SignatureVerificationError as e:
+                logger.warning(f"Stripe signature invalid: {e}")
+                return jsonify({"error": "Invalid signature"}), 400
+            except Exception as e:
+                logger.error(f"Stripe webhook error: {e}")
+                return jsonify({"error": "Webhook error"}), 400
         else:
+            # No secret configured - accept unsigned (development only)
             event = json.loads(payload)
-        
+
         event_type = event["type"]
         logger.info(f"Stripe Webhook: {event_type}")
-        
+
         if event_type == "checkout.session.completed":
             session_data = event["data"]["object"]
-            
+
             customer_details = session_data.get("customer_details", {})
             email = customer_details.get("email", "").strip().lower()
             name = customer_details.get("name", "")
@@ -805,27 +819,27 @@ def stripe_payment_webhook():
             phone = customer_details.get("phone", "")
             address = customer_details.get("address", {})
             country = address.get("country", "")
-            
+
             metadata = session_data.get("metadata", {})
             plan_name = metadata.get("plan_name", "Unknown Plan")
             plan_duration = metadata.get("plan_duration", "")
-            
+
             amount_total = session_data.get("amount_total", 0) / 100
             currency = session_data.get("currency", "eur").upper()
             order_id = session_data.get("id", "")
-            
+
             if not email: return jsonify({"error": "Email required"}), 400
-            
+
             duration_days, subscription_type = parse_duration_to_days(plan_duration)
             if subscription_type == "one_time" and plan_name:
                 pl = plan_name.lower()
                 if "monthly" in pl or "maand" in pl: duration_days, subscription_type = 30, "monthly"
                 elif "yearly" in pl or "jaar" in pl: duration_days, subscription_type = 365, "yearly"
                 elif "lifetime" in pl: duration_days, subscription_type = 36500, "lifetime"
-            
+
             membership_start = datetime.utcnow()
             membership_end = membership_start + timedelta(days=duration_days)
-            
+
             user = User.query.filter_by(email=email).first(); is_new = False
             if not user:
                 user = User(email=email, first_name=first_name, last_name=last_name, phone=phone, country=country,
@@ -845,7 +859,7 @@ def stripe_payment_webhook():
                 user.currency = currency or user.currency
                 user.subscription_type = subscription_type; user.subscription_duration_days = duration_days
                 db.session.flush()
-            
+
             if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
                 order = Order(user_id=user.id, wix_order_id=order_id, wix_payment_id=order_id, plan_name=plan_name,
                               plan_price=amount_total, currency=currency, total_amount=amount_total,
@@ -853,19 +867,19 @@ def stripe_payment_webhook():
                               status="completed", payment_status="paid", ip_address=request.remote_addr,
                               raw_data=json.dumps(event))
                 db.session.add(order)
-            
+
             db.session.commit()
             send_email_async("Welcome to Trading Engine! 🎉", [email],
                              f"Your {plan_name} is active. Login at {Config.APP_URL}/login",
                              f"<h3>Hi {first_name or 'there'}!</h3><p>Plan: {plan_name}</p><p>Login: {Config.APP_URL}/login</p>")
             log_audit(user.id, "stripe_payment", f"{'New' if is_new else 'Updated'} | {plan_name} | {subscription_type}", request.remote_addr)
             logger.info(f"✅ Stripe: {email} | {plan_name} | {currency} {amount_total}")
-        
+
         elif event_type == "invoice.paid":
             invoice = event["data"]["object"]
             customer_email = invoice.get("customer_email", "").strip().lower()
             if not customer_email: return jsonify({"error": "Email required"}), 400
-            
+
             lines = invoice.get("lines", {}).get("data", [])
             plan_name = "Unknown Plan"; duration_days = Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS; subscription_type = "one_time"
             if lines:
@@ -879,11 +893,11 @@ def stripe_payment_webhook():
                     duration_days = (period_end - period_start).days
                     if duration_days <= 31: subscription_type = "monthly"
                     elif duration_days <= 366: subscription_type = "yearly"
-            
+
             amount_total = invoice.get("amount_paid", 0) / 100
             currency = invoice.get("currency", "eur").upper()
             order_id = invoice.get("id", "")
-            
+
             user = User.query.filter_by(email=customer_email).first()
             if user:
                 user.membership_status = "active"; user.membership_start = datetime.utcnow()
@@ -897,7 +911,7 @@ def stripe_payment_webhook():
                     db.session.add(order)
                 db.session.commit()
                 logger.info(f"✅ Stripe renewal: {customer_email} | {plan_name} | Extended to {user.membership_end}")
-        
+
         return jsonify({"status": "success"}), 200
     except Exception as e:
         logger.error(f"Stripe webhook failed: {e}", exc_info=True); db.session.rollback()
