@@ -219,7 +219,6 @@
 
     .license-body { padding: 1.5rem; }
 
-    /* License Key Display */
     .license-key-display {
         background: #FEFAF3;
         border: 2px dashed #6FDFDF;
@@ -744,11 +743,9 @@
             <div class="membership-item"><div class="m-label">Plan</div><div class="m-value">{{ user.plan_name or 'Free Tier' }}</div></div>
             <div class="membership-item"><div class="m-label">Plan Level</div><div class="m-value"><span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}">Level {{ user.get_plan_level() }} - {{ 'Full Access' if user.get_plan_level() >= 2 else 'Basic Access' }}</span></div></div>
             <div class="membership-item"><div class="m-label">Subscription Type</div><div class="m-value">{% if user.subscription_type %}<span class="badge {% if user.subscription_type == 'monthly' %}badge-monthly{% elif user.subscription_type == 'yearly' %}badge-yearly{% elif user.subscription_type == 'lifetime' %}badge-lifetime{% endif %}">{{ user.subscription_type|title }}</span>{% else %}Standard{% endif %}</div></div>
-            <div class="membership-item"><div class="m-label">Price</div><div class="m-value">{% if user.plan_price and user.plan_price > 0 %}{{ user.currency or 'EUR' }} {{ "%.2f"|format(user.plan_price) }}{% else %}<span style="color: #10B981;">Free</span>{% endif %}</div></div>
             <div class="membership-item"><div class="m-label">Duration</div><div class="m-value">{{ user.get_membership_duration_display() }}</div></div>
             <div class="membership-item"><div class="m-label">Start Date</div><div class="m-value">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</div></div>
             <div class="membership-item"><div class="m-label">End Date</div><div class="m-value">{{ user.membership_end.strftime('%b %d, %Y') if user.membership_end else 'N/A' }}</div></div>
-            <div class="membership-item"><div class="m-label">User ID</div><div class="m-value" style="font-family: monospace;">#{{ user.id }}</div></div>
         </div>
     </div>
 
@@ -767,7 +764,6 @@
             <div class="license-header"><h5 class="mb-0"><i class="fas fa-key me-2"></i>License Details</h5></div>
             <div class="license-body">
                 {% if license %}
-                <!-- License Key Display -->
                 <div class="license-key-display" id="licenseKeyDisplay" onclick="toggleLicenseVisibility()">
                     <span class="key-text">{{ license.license_key }}</span>
                     <div class="key-overlay">
