@@ -34,7 +34,6 @@ from cryptography.fernet import Fernet
 from email_validator import validate_email, EmailNotValidError
 from dotenv import load_dotenv
 
-# Try to import stripe for webhook verification
 try:
     import stripe
 except ImportError:
@@ -58,7 +57,7 @@ class Config:
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp-relay.brevo.com")
     MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
-    MAIL_USE_SSL = False  # ✅ FIXED: Added back
+    MAIL_USE_SSL = False
     MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", "noreply@tradingengine.nl")
@@ -778,7 +777,7 @@ def wix_payment_webhook():
 
 
 # ============================================================================
-# STRIPE WEBHOOK (FIXED)
+# STRIPE WEBHOOK (FULLY FIXED - dict() conversion throughout)
 # ============================================================================
 
 @app.route("/webhook/stripe/payment", methods=["POST"])
@@ -788,7 +787,6 @@ def stripe_payment_webhook():
         payload = request.get_data(as_text=True)
         sig_header = request.headers.get("Stripe-Signature")
 
-        # ✅ FIXED: Proper signature verification
         if Config.STRIPE_WEBHOOK_SECRET:
             if stripe is None:
                 logger.error("Stripe library not installed")
@@ -802,25 +800,25 @@ def stripe_payment_webhook():
                 logger.error(f"Stripe webhook error: {e}")
                 return jsonify({"error": "Webhook error"}), 400
         else:
-            # No secret configured - accept unsigned (development only)
             event = json.loads(payload)
 
         event_type = event["type"]
         logger.info(f"Stripe Webhook: {event_type}")
 
         if event_type == "checkout.session.completed":
-            session_data = event["data"]["object"]
-
-            customer_details = session_data.get("customer_details", {})
+            # ✅ Convert StripeObject to plain dict
+            session_data = dict(event["data"]["object"])
+            
+            customer_details = dict(session_data.get("customer_details", {}) or {})
             email = customer_details.get("email", "").strip().lower()
             name = customer_details.get("name", "")
             first_name = name.split()[0] if name else ""
             last_name = " ".join(name.split()[1:]) if name else ""
             phone = customer_details.get("phone", "")
-            address = customer_details.get("address", {})
+            address = dict(customer_details.get("address", {}) or {})
             country = address.get("country", "")
 
-            metadata = session_data.get("metadata", {})
+            metadata = dict(session_data.get("metadata", {}) or {})
             plan_name = metadata.get("plan_name", "Unknown Plan")
             plan_duration = metadata.get("plan_duration", "")
 
@@ -865,7 +863,7 @@ def stripe_payment_webhook():
                               plan_price=amount_total, currency=currency, total_amount=amount_total,
                               subscription_type=subscription_type, subscription_duration_days=duration_days,
                               status="completed", payment_status="paid", ip_address=request.remote_addr,
-                              raw_data=json.dumps(event))
+                              raw_data=json.dumps(session_data))
                 db.session.add(order)
 
             db.session.commit()
@@ -876,17 +874,18 @@ def stripe_payment_webhook():
             logger.info(f"✅ Stripe: {email} | {plan_name} | {currency} {amount_total}")
 
         elif event_type == "invoice.paid":
-            invoice = event["data"]["object"]
+            # ✅ Convert StripeObject to plain dict
+            invoice = dict(event["data"]["object"])
             customer_email = invoice.get("customer_email", "").strip().lower()
             if not customer_email: return jsonify({"error": "Email required"}), 400
 
             lines = invoice.get("lines", {}).get("data", [])
             plan_name = "Unknown Plan"; duration_days = Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS; subscription_type = "one_time"
             if lines:
-                first_line = lines[0]
-                plan_metadata = first_line.get("metadata", {})
+                first_line = dict(lines[0])
+                plan_metadata = dict(first_line.get("metadata", {}) or {})
                 plan_name = plan_metadata.get("plan_name", first_line.get("description", "Unknown Plan"))
-                period = first_line.get("period", {})
+                period = dict(first_line.get("period", {}) or {})
                 if period:
                     period_start = datetime.fromtimestamp(period.get("start", datetime.utcnow().timestamp()))
                     period_end = datetime.fromtimestamp(period.get("end", datetime.utcnow().timestamp() + 2592000))
