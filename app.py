@@ -777,7 +777,7 @@ def wix_payment_webhook():
 
 
 # ============================================================================
-# STRIPE WEBHOOK (FULLY FIXED - dict() conversion throughout)
+# STRIPE WEBHOOK (FIXED - using .to_dict_recursive())
 # ============================================================================
 
 @app.route("/webhook/stripe/payment", methods=["POST"])
@@ -806,24 +806,23 @@ def stripe_payment_webhook():
         logger.info(f"Stripe Webhook: {event_type}")
 
         if event_type == "checkout.session.completed":
-            # ✅ Convert StripeObject to plain dict
-            session_data = dict(event["data"]["object"])
-            
-            customer_details = dict(session_data.get("customer_details", {}) or {})
+            # ✅ Use to_dict_recursive() - proper Stripe SDK method
+            session_data = event["data"]["object"].to_dict_recursive()
+
+            customer_details = session_data.get("customer_details") or {}
             email = customer_details.get("email", "").strip().lower()
             name = customer_details.get("name", "")
             first_name = name.split()[0] if name else ""
             last_name = " ".join(name.split()[1:]) if name else ""
             phone = customer_details.get("phone", "")
-            address = dict(customer_details.get("address", {}) or {})
-            country = address.get("country", "")
+            country = (customer_details.get("address") or {}).get("country", "")
 
-            metadata = dict(session_data.get("metadata", {}) or {})
+            metadata = session_data.get("metadata") or {}
             plan_name = metadata.get("plan_name", "Unknown Plan")
             plan_duration = metadata.get("plan_duration", "")
 
-            amount_total = session_data.get("amount_total", 0) / 100
-            currency = session_data.get("currency", "eur").upper()
+            amount_total = (session_data.get("amount_total") or 0) / 100
+            currency = (session_data.get("currency") or "eur").upper()
             order_id = session_data.get("id", "")
 
             if not email: return jsonify({"error": "Email required"}), 400
@@ -874,27 +873,34 @@ def stripe_payment_webhook():
             logger.info(f"✅ Stripe: {email} | {plan_name} | {currency} {amount_total}")
 
         elif event_type == "invoice.paid":
-            # ✅ Convert StripeObject to plain dict
-            invoice = dict(event["data"]["object"])
+            # ✅ Use to_dict_recursive() - proper Stripe SDK method
+            invoice = event["data"]["object"].to_dict_recursive()
             customer_email = invoice.get("customer_email", "").strip().lower()
-            if not customer_email: return jsonify({"error": "Email required"}), 400
+            if not customer_email: return jsonify({"status": "ignored"}), 200
 
-            lines = invoice.get("lines", {}).get("data", [])
-            plan_name = "Unknown Plan"; duration_days = Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS; subscription_type = "one_time"
+            lines = (invoice.get("lines") or {}).get("data", [])
+            plan_name = "Unknown Plan"
+            duration_days = Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS
+            subscription_type = "one_time"
+
             if lines:
-                first_line = dict(lines[0])
-                plan_metadata = dict(first_line.get("metadata", {}) or {})
+                first_line = lines[0]
+                plan_metadata = first_line.get("metadata") or {}
                 plan_name = plan_metadata.get("plan_name", first_line.get("description", "Unknown Plan"))
-                period = dict(first_line.get("period", {}) or {})
+                period = first_line.get("period") or {}
                 if period:
-                    period_start = datetime.fromtimestamp(period.get("start", datetime.utcnow().timestamp()))
-                    period_end = datetime.fromtimestamp(period.get("end", datetime.utcnow().timestamp() + 2592000))
-                    duration_days = (period_end - period_start).days
-                    if duration_days <= 31: subscription_type = "monthly"
-                    elif duration_days <= 366: subscription_type = "yearly"
+                    try:
+                        period_start = datetime.fromtimestamp(period.get("start", datetime.utcnow().timestamp()))
+                        period_end = datetime.fromtimestamp(period.get("end", datetime.utcnow().timestamp() + 2592000))
+                        duration_days = max((period_end - period_start).days, 1)
+                        if duration_days <= 31: subscription_type = "monthly"
+                        elif duration_days <= 366: subscription_type = "yearly"
+                        else: subscription_type = "lifetime"
+                    except:
+                        pass
 
-            amount_total = invoice.get("amount_paid", 0) / 100
-            currency = invoice.get("currency", "eur").upper()
+            amount_total = (invoice.get("amount_paid") or 0) / 100
+            currency = (invoice.get("currency") or "eur").upper()
             order_id = invoice.get("id", "")
 
             user = User.query.filter_by(email=customer_email).first()
