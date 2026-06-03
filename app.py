@@ -807,7 +807,7 @@ def stripe_payment_webhook():
 
         if event_type == "checkout.session.completed":
             # ✅ Use to_dict_recursive() - proper Stripe SDK method
-            session_data = event["data"]["object"].to_dict_recursive()
+            session_data = event["data"]["object"]._to_dict_recursive()
 
             customer_details = session_data.get("customer_details") or {}
             email = customer_details.get("email", "").strip().lower()
@@ -874,7 +874,7 @@ def stripe_payment_webhook():
 
         elif event_type == "invoice.paid":
             # ✅ Use to_dict_recursive() - proper Stripe SDK method
-            invoice = event["data"]["object"].to_dict_recursive()
+            invoice = event["data"]["object"]._to_dict_recursive()
             customer_email = invoice.get("customer_email", "").strip().lower()
             if not customer_email: return jsonify({"status": "ignored"}), 200
 
