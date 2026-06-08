@@ -61,6 +61,71 @@
         flex-shrink: 0;
     }
 
+    /* Test Mode Toggle */
+    .test-mode-section {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-top: 1rem;
+        padding: 0.8rem 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        backdrop-filter: blur(5px);
+    }
+
+    .test-toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 28px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    .test-toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .test-toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #6B7280;
+        transition: 0.3s;
+        border-radius: 28px;
+    }
+
+    .test-toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 22px; width: 22px;
+        left: 3px; bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    input:checked + .test-toggle-slider {
+        background-color: #EF4444;
+    }
+
+    input:checked + .test-toggle-slider:before {
+        transform: translateX(24px);
+    }
+
+    .test-mode-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: white;
+    }
+
+    .test-mode-status {
+        font-size: 0.8rem;
+        opacity: 0.85;
+    }
+
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(6, 1fr);
@@ -462,13 +527,32 @@
     <!-- Admin Header -->
     <div class="admin-header">
         <div class="admin-header-content">
-            <div class="d-flex align-items-center gap-3">
-                <div class="admin-icon-circle">
-                    <i class="fas fa-user-shield"></i>
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="admin-icon-circle">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <div>
+                            <h2 class="fw-bold mb-1">Admin Dashboard</h2>
+                            <p class="mb-0 opacity-75">Manage users, licenses, orders, and EA files</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h2 class="fw-bold mb-1">Admin Dashboard</h2>
-                    <p class="mb-0 opacity-75">Manage users, licenses, orders, and EA files</p>
+                <div class="col-lg-4">
+                    <!-- Test Mode Toggle -->
+                    <div class="test-mode-section">
+                        <span class="test-mode-label">
+                            <i class="fas fa-flask me-1"></i>Test Mode:
+                        </span>
+                        <label class="test-toggle-switch">
+                            <input type="checkbox" id="testModeToggle" {% if is_test_mode %}checked{% endif %} onchange="toggleTestMode()">
+                            <span class="test-toggle-slider"></span>
+                        </label>
+                        <span id="testModeStatus" class="test-mode-status" style="color: {% if is_test_mode %}#FCA5A5{% else %}#6FDFDF{% endif %};">
+                            {{ '⚠️ 1-DAY LICENSES' if is_test_mode else '✅ NORMAL' }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -877,4 +961,32 @@
         </div>
     </div>
 </div>
+
+<script>
+function toggleTestMode() {
+    const toggle = document.getElementById('testModeToggle');
+    const status = document.getElementById('testModeStatus');
+    
+    fetch('/admin/toggle-test-mode', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.test_mode === 'on') {
+            status.textContent = '⚠️ 1-DAY LICENSES';
+            status.style.color = '#FCA5A5';
+            showToast('⚠️ Test mode ON - Licenses will expire in 1 day', 'warning');
+        } else {
+            status.textContent = '✅ NORMAL';
+            status.style.color = '#6FDFDF';
+            showToast('✅ Test mode OFF - Normal licensing restored', 'success');
+        }
+    })
+    .catch(err => {
+        toggle.checked = !toggle.checked;
+        showToast('Error toggling test mode', 'error');
+    });
+}
+</script>
 {% endblock %}
