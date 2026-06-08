@@ -297,6 +297,14 @@ class EAFile(db.Model):
     uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
 
+class Setting(db.Model):
+    __tablename__ = "settings"
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(50), unique=True, nullable=False)
+    value = db.Column(db.String(200), nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ============================================================================
 # HELPERS
 # ============================================================================
@@ -525,11 +533,15 @@ def generate_license():
     if not current_user.is_membership_active(): return jsonify({"error": "Active membership required"}), 403
     if current_user.get_active_license(): return jsonify({"error": "Already have active license"}), 400
     try:
-        key = generate_license_key(); days = current_user.subscription_duration_days or Config.LICENSE_EXPIRY_DAYS
+        test_mode = Setting.query.filter_by(key="test_mode").first()
+        is_test = test_mode and test_mode.value == "on"
+        key = generate_license_key()
+        days = 1 if is_test else (current_user.subscription_duration_days or Config.LICENSE_EXPIRY_DAYS)
+        license_type = "test" if is_test else (current_user.subscription_type or "standard")
         lic = License(user_id=current_user.id, license_key=key, expires_at=datetime.utcnow() + timedelta(days=days),
-                      ea_version="1.0.0", license_type=current_user.subscription_type or "standard", max_accounts=4)
+                      ea_version="1.0.0", license_type=license_type, max_accounts=4)
         db.session.add(lic); db.session.commit()
-        log_audit(current_user.id, "license_generated", f"{lic.mask_license_key()} | {days}d", request.remote_addr)
+        log_audit(current_user.id, "license_generated", f"{lic.mask_license_key()} | {days}d | test={is_test}", request.remote_addr)
         send_email_async("License Key", [current_user.email], f"License: {key}\nExpires: {lic.expires_at.strftime('%B %d, %Y')}")
         return jsonify({"success": True, "license_key": key, "masked_key": lic.mask_license_key(), "expires_at": lic.expires_at.isoformat()})
     except Exception as e: logger.error(f"License failed: {e}"); db.session.rollback(); return jsonify({"error": "Failed"}), 500
@@ -567,11 +579,27 @@ def admin_dashboard():
     recent_logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(20).all()
     ea_files = EAFile.query.order_by(EAFile.upload_date.desc()).all()
     subscription_stats = db.session.query(User.subscription_type, db.func.count(User.id), db.func.sum(User.plan_price)).filter(User.is_admin == False).group_by(User.subscription_type).all()
+    test_mode = Setting.query.filter_by(key="test_mode").first()
+    is_test_mode = test_mode.value == "on" if test_mode else False
     return render_template("admin/dashboard.html", total_users=total_users, active_users=active_users,
                            total_licenses=total_licenses, active_licenses=active_licenses, total_orders=total_orders,
                            total_revenue=total_revenue, total_downloads=total_downloads, recent_users=recent_users,
                            recent_orders=recent_orders, recent_licenses=recent_licenses, recent_logs=recent_logs,
-                           ea_files=ea_files, subscription_stats=subscription_stats, now=datetime.utcnow())
+                           ea_files=ea_files, subscription_stats=subscription_stats, now=datetime.utcnow(),
+                           is_test_mode=is_test_mode)
+
+
+@app.route("/admin/toggle-test-mode", methods=["POST"])
+@admin_required
+def toggle_test_mode():
+    setting = Setting.query.filter_by(key="test_mode").first()
+    if not setting:
+        setting = Setting(key="test_mode", value="off")
+        db.session.add(setting)
+    setting.value = "on" if setting.value == "off" else "off"
+    db.session.commit()
+    log_audit(current_user.id, "test_mode_toggle", f"Test mode: {setting.value}", request.remote_addr)
+    return jsonify({"status": "success", "test_mode": setting.value})
 
 
 @app.route("/admin/users")
@@ -777,7 +805,7 @@ def wix_payment_webhook():
 
 
 # ============================================================================
-# STRIPE WEBHOOK (FIXED - using .to_dict_recursive())
+# STRIPE WEBHOOK
 # ============================================================================
 
 @app.route("/webhook/stripe/payment", methods=["POST"])
@@ -786,7 +814,6 @@ def stripe_payment_webhook():
     try:
         payload = request.get_data(as_text=True)
         sig_header = request.headers.get("Stripe-Signature")
-
         if Config.STRIPE_WEBHOOK_SECRET:
             if stripe is None:
                 logger.error("Stripe library not installed")
@@ -801,14 +828,10 @@ def stripe_payment_webhook():
                 return jsonify({"error": "Webhook error"}), 400
         else:
             event = json.loads(payload)
-
         event_type = event["type"]
         logger.info(f"Stripe Webhook: {event_type}")
-
         if event_type == "checkout.session.completed":
-            # ✅ Use to_dict_recursive() - proper Stripe SDK method
             session_data = event["data"]["object"]._to_dict_recursive()
-
             customer_details = session_data.get("customer_details") or {}
             email = customer_details.get("email", "").strip().lower()
             name = customer_details.get("name", "")
@@ -816,27 +839,21 @@ def stripe_payment_webhook():
             last_name = " ".join(name.split()[1:]) if name else ""
             phone = customer_details.get("phone", "")
             country = (customer_details.get("address") or {}).get("country", "")
-
             metadata = session_data.get("metadata") or {}
             plan_name = metadata.get("plan_name", "Unknown Plan")
             plan_duration = metadata.get("plan_duration", "")
-
             amount_total = (session_data.get("amount_total") or 0) / 100
             currency = (session_data.get("currency") or "eur").upper()
             order_id = session_data.get("id", "")
-
             if not email: return jsonify({"error": "Email required"}), 400
-
             duration_days, subscription_type = parse_duration_to_days(plan_duration)
             if subscription_type == "one_time" and plan_name:
                 pl = plan_name.lower()
                 if "monthly" in pl or "maand" in pl: duration_days, subscription_type = 30, "monthly"
                 elif "yearly" in pl or "jaar" in pl: duration_days, subscription_type = 365, "yearly"
                 elif "lifetime" in pl: duration_days, subscription_type = 36500, "lifetime"
-
             membership_start = datetime.utcnow()
             membership_end = membership_start + timedelta(days=duration_days)
-
             user = User.query.filter_by(email=email).first(); is_new = False
             if not user:
                 user = User(email=email, first_name=first_name, last_name=last_name, phone=phone, country=country,
@@ -856,7 +873,6 @@ def stripe_payment_webhook():
                 user.currency = currency or user.currency
                 user.subscription_type = subscription_type; user.subscription_duration_days = duration_days
                 db.session.flush()
-
             if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
                 order = Order(user_id=user.id, wix_order_id=order_id, wix_payment_id=order_id, plan_name=plan_name,
                               plan_price=amount_total, currency=currency, total_amount=amount_total,
@@ -864,25 +880,18 @@ def stripe_payment_webhook():
                               status="completed", payment_status="paid", ip_address=request.remote_addr,
                               raw_data=json.dumps(session_data))
                 db.session.add(order)
-
             db.session.commit()
             send_email_async("Welcome to Trading Engine! 🎉", [email],
                              f"Your {plan_name} is active. Login at {Config.APP_URL}/login",
                              f"<h3>Hi {first_name or 'there'}!</h3><p>Plan: {plan_name}</p><p>Login: {Config.APP_URL}/login</p>")
             log_audit(user.id, "stripe_payment", f"{'New' if is_new else 'Updated'} | {plan_name} | {subscription_type}", request.remote_addr)
             logger.info(f"✅ Stripe: {email} | {plan_name} | {currency} {amount_total}")
-
         elif event_type == "invoice.paid":
-            # ✅ Use to_dict_recursive() - proper Stripe SDK method
             invoice = event["data"]["object"]._to_dict_recursive()
             customer_email = invoice.get("customer_email", "").strip().lower()
             if not customer_email: return jsonify({"status": "ignored"}), 200
-
             lines = (invoice.get("lines") or {}).get("data", [])
-            plan_name = "Unknown Plan"
-            duration_days = Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS
-            subscription_type = "one_time"
-
+            plan_name = "Unknown Plan"; duration_days = Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS; subscription_type = "one_time"
             if lines:
                 first_line = lines[0]
                 plan_metadata = first_line.get("metadata") or {}
@@ -896,13 +905,10 @@ def stripe_payment_webhook():
                         if duration_days <= 31: subscription_type = "monthly"
                         elif duration_days <= 366: subscription_type = "yearly"
                         else: subscription_type = "lifetime"
-                    except:
-                        pass
-
+                    except: pass
             amount_total = (invoice.get("amount_paid") or 0) / 100
             currency = (invoice.get("currency") or "eur").upper()
             order_id = invoice.get("id", "")
-
             user = User.query.filter_by(email=customer_email).first()
             if user:
                 user.membership_status = "active"; user.membership_start = datetime.utcnow()
@@ -916,7 +922,6 @@ def stripe_payment_webhook():
                     db.session.add(order)
                 db.session.commit()
                 logger.info(f"✅ Stripe renewal: {customer_email} | {plan_name} | Extended to {user.membership_end}")
-
         return jsonify({"status": "success"}), 200
     except Exception as e:
         logger.error(f"Stripe webhook failed: {e}", exc_info=True); db.session.rollback()
