@@ -1000,6 +1000,16 @@ def auto_init_db():
         except Exception as e: logger.error(f"DB init failed: {e}")
 
 
+@app.route("/create-settings-table")
+def create_settings_table():
+    """Create settings table - VISIT ONCE THEN DELETE"""
+    try:
+        db.create_all()
+        return "✅ Settings table created! Now DELETE this route."
+    except Exception as e:
+        return f"Error: {e}"
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
