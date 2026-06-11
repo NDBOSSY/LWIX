@@ -516,7 +516,8 @@ def user_dashboard():
     user = current_user; license = user.get_active_license(); user_level = user.get_plan_level()
     ea_files = EAFile.query.filter(EAFile.is_active == True, EAFile.plan_level <= user_level).order_by(EAFile.upload_date.desc()).all()
     all_ea_count = EAFile.query.filter_by(is_active=True).count()
-    license_accounts = []; account_count = 0; max_accounts = 4
+    default_max = 2 if user_level == 1 else 4
+    license_accounts = []; account_count = 0; max_accounts = default_max
     if license:
         license_accounts = [{"account": a.account_number, "activated": a.activated_at} for a in license.accounts]
         account_count = len(license_accounts); max_accounts = license.max_accounts
@@ -538,10 +539,12 @@ def generate_license():
         key = generate_license_key()
         days = 1 if is_test else (current_user.subscription_duration_days or Config.LICENSE_EXPIRY_DAYS)
         license_type = "test" if is_test else (current_user.subscription_type or "standard")
+        user_level = current_user.get_plan_level()
+        max_accounts = 2 if user_level == 1 else 4
         lic = License(user_id=current_user.id, license_key=key, expires_at=datetime.utcnow() + timedelta(days=days),
-                      ea_version="1.0.0", license_type=license_type, max_accounts=4)
+                      ea_version="1.0.0", license_type=license_type, max_accounts=max_accounts)
         db.session.add(lic); db.session.commit()
-        log_audit(current_user.id, "license_generated", f"{lic.mask_license_key()} | {days}d | test={is_test}", request.remote_addr)
+        log_audit(current_user.id, "license_generated", f"{lic.mask_license_key()} | {days}d | max_acc={max_accounts} | test={is_test}", request.remote_addr)
         send_email_async("License Key", [current_user.email], f"License: {key}\nExpires: {lic.expires_at.strftime('%B %d, %Y')}")
         return jsonify({"success": True, "license_key": key, "masked_key": lic.mask_license_key(), "expires_at": lic.expires_at.isoformat()})
     except Exception as e: logger.error(f"License failed: {e}"); db.session.rollback(); return jsonify({"error": "Failed"}), 500
