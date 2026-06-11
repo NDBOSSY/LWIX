@@ -857,7 +857,7 @@
             </div>
             {% endif %}
             {% if all_ea_count is defined and ea_files|length < all_ea_count %}
-            <div class="upgrade-hint"><i class="fas fa-lock me-1"></i>{{ all_ea_count - ea_files|length }} more EA(s) available on <strong>Level 2</strong>. <a href="#" style="color: #4B7BE5; font-weight: 600;">Upgrade your plan</a></div>
+            <div class="upgrade-hint"><i class="fas fa-lock me-1"></i>{{ all_ea_count - ea_files|length }} more EA(s) available on <strong>Level 2</strong>. <a href="https://www.tradingengine.nl/upgrade" target="_blank" style="color: #4B7BE5; font-weight: 600;">Upgrade your plan</a>
             {% endif %}
             {% else %}<div class="text-center py-5"><i class="fas fa-box-open fa-3x mb-3" style="color: #807F80;"></i><h6 class="text-muted">No EAs Available</h6></div>{% endif %}
         </div>
