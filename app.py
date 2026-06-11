@@ -1002,6 +1002,19 @@ def auto_init_db():
                 db.session.add(admin); db.session.commit()
         except Exception as e: logger.error(f"DB init failed: {e}")
 
+@app.route("/fix-existing-licenses")
+def fix_existing_licenses():
+    """Set Level 1 users to max 2 accounts - RUN ONCE THEN DELETE"""
+    count = 0
+    users = User.query.filter(User.is_admin == False).all()
+    for user in users:
+        if user.get_plan_level() == 1:
+            for lic in user.licenses.filter_by(status="active"):
+                lic.max_accounts = 2
+                count += 1
+    db.session.commit()
+    return f"✅ Updated {count} licenses. DELETE THIS ROUTE NOW!"
+    
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
