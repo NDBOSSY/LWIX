@@ -775,7 +775,7 @@
                         <tbody>
                             {% for lic in recent_licenses %}
                             <tr>
-                                <td><code>{{ lic.license_key() }}</code></td>
+                                <td><code>{{ lic.license_key }}</code></td>
                                 <td>{{ lic.user.email }}</td>
                                 <td><small>{{ lic.license_type or 'standard' }}</small></td>
                                 <td>
