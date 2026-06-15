@@ -99,103 +99,67 @@
         color: white;
     }
 
-    .user-detail-modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(4px);
-        z-index: 10000;
-        justify-content: center;
-        align-items: flex-start;
-        padding: 2rem;
-        overflow-y: auto;
+    .copy-btn {
+        padding: 0;
+        font-size: 0.65rem;
+        color: #4B7BE5;
+        border: none;
+        background: none;
+        cursor: pointer;
+        margin-left: 4px;
     }
 
-    .user-detail-modal.show {
-        display: flex;
+    .copy-btn:hover {
+        color: #5534A5;
     }
 
-    .modal-content-custom {
-        background: white;
+    .license-key-cell code {
+        font-size: 0.72rem;
+    }
+
+    .actions-cell {
+        white-space: nowrap;
+    }
+
+    .card {
+        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
         border-radius: 20px;
-        width: 100%;
-        max-width: 800px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
-        animation: slideUp 0.35s ease;
-    }
-
-    .modal-header-custom {
-        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
-        padding: 1.5rem;
-        border-radius: 20px 20px 0 0;
-        color: white;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .modal-body-custom {
-        padding: 1.5rem;
-        max-height: 60vh;
-        overflow-y: auto;
-    }
-
-    .detail-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-    }
-
-    @media (max-width: 600px) {
-        .detail-grid { grid-template-columns: 1fr; }
-    }
-
-    .detail-item {
-        background: #FFF8ED;
-        padding: 0.8rem;
-        border-radius: 10px;
         border: 1px solid #E5E7EB;
+        overflow: hidden;
     }
 
-    .detail-item .d-label {
-        font-size: 0.7rem;
-        color: #807F80;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.2rem;
+    .table {
+        margin-bottom: 0;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
     }
 
-    .detail-item .d-value {
+    .table thead th {
+        background: #5534A5;
+        color: white;
+        border: none;
+        padding: 0.6rem 0.8rem;
         font-weight: 600;
-        color: #2D2D2D;
-    }
-
-    @keyframes slideUp {
-        from { transform: translateY(40px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-
-    .extend-form {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-
-    .extend-form input {
-        width: 80px;
-        padding: 0.3rem 0.5rem;
-        border: 1.5px solid #E5E7EB;
-        border-radius: 8px;
-        font-size: 0.85rem;
-    }
-
-    .extend-form button {
-        padding: 0.3rem 0.8rem;
         font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .table tbody td {
+        padding: 0.6rem 0.8rem;
+        vertical-align: middle;
+        font-size: 0.85rem;
+        background: white;
+    }
+
+    .table tbody tr:hover td {
+        background: #FFF8ED;
+    }
+
+    @media (max-width: 768px) {
+        .search-bar {
+            width: 200px;
+        }
     }
 </style>
 {% endblock %}
@@ -224,7 +188,8 @@
                             <th>User</th>
                             <th>Plan</th>
                             <th>Status</th>
-                            <th>Membership</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
                             <th>Licenses</th>
                             <th>Discord</th>
                             <th>Actions</th>
@@ -232,9 +197,13 @@
                     </thead>
                     <tbody>
                         {% for user in users %}
-                        <tr data-user-id="{{ user.id }}">
+                        <tr>
+                            <!-- User Column -->
                             <td>
                                 <strong>{{ user.email }}</strong>
+                                <button class="copy-btn" onclick="copyToClipboard('{{ user.email }}')" title="Copy Email">
+                                    <i class="fas fa-copy"></i>
+                                </button>
                                 {% if user.get_full_name() and user.get_full_name() != user.email %}
                                 <br><small style="color: #807F80;">{{ user.get_full_name() }}</small>
                                 {% endif %}
@@ -245,6 +214,8 @@
                                 <i class="fas fa-check-circle text-success ms-1" title="Email verified"></i>
                                 {% endif %}
                             </td>
+
+                            <!-- Plan Column -->
                             <td>
                                 {% if user.plan_name %}
                                 <small>{{ user.plan_name }}</small>
@@ -257,13 +228,15 @@
                                     {{ user.subscription_type|title }}
                                 </span>
                                 {% endif %}
-                                {% if user.plan_price %}
-                                <br><small style="color: #807F80;">{{ user.currency }} {{ "%.2f"|format(user.plan_price) }}</small>
+                                {% if user.plan_price and user.plan_price > 0 %}
+                                <br><small style="color: #807F80;">{{ user.currency or 'EUR' }} {{ "%.2f"|format(user.plan_price) }}</small>
                                 {% endif %}
                                 {% else %}
                                 <small class="text-muted">-</small>
                                 {% endif %}
                             </td>
+
+                            <!-- Status Column -->
                             <td>
                                 <span class="badge 
                                     {% if user.membership_status == 'active' %}badge-active
@@ -272,6 +245,17 @@
                                     {{ user.membership_status|title }}
                                 </span>
                             </td>
+
+                            <!-- Start Date Column -->
+                            <td>
+                                {% if user.membership_start %}
+                                <small>{{ user.membership_start.strftime('%b %d, %Y') }}</small>
+                                {% else %}
+                                <small class="text-muted">N/A</small>
+                                {% endif %}
+                            </td>
+
+                            <!-- End Date Column -->
                             <td>
                                 {% if user.membership_end %}
                                 <small>{{ user.membership_end.strftime('%b %d, %Y') }}</small>
@@ -285,13 +269,20 @@
                                 <small class="text-muted">N/A</small>
                                 {% endif %}
                             </td>
-                            <td>
+
+                            <!-- Licenses Column -->
+                            <td class="license-key-cell">
                                 <span class="badge bg-primary">{{ user.licenses.count() }}</span>
                                 {% set active_lic = user.get_active_license() %}
                                 {% if active_lic %}
-                                <br><small><code>{{ active_lic.mask_license_key() }}</code></small>
+                                <br><code>{{ active_lic.license_key }}</code>
+                                <br><button class="copy-btn" onclick="copyToClipboard('{{ active_lic.license_key }}')" title="Copy License Key">
+                                    <i class="fas fa-copy me-1"></i>Copy Key
+                                </button>
                                 {% endif %}
                             </td>
+
+                            <!-- Discord Column -->
                             <td>
                                 {% if user.discord_joined %}
                                 <span style="color: #5865F2;">
@@ -303,17 +294,28 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td>
+
+                            <!-- Actions Column -->
+                            <td class="actions-cell">
                                 <div class="d-flex gap-1">
-                                    <button class="btn btn-outline-info btn-sm" onclick="viewUserDetail({{ user.id }})" title="View Details">
+                                    <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-outline-info btn-sm" title="View Details">
                                         <i class="fas fa-eye"></i>
-                                    </button>
+                                    </a>
                                     {% if user.membership_status == 'active' %}
                                     <form method="POST" action="{{ url_for('revoke_membership', user_id=user.id) }}" class="d-inline">
                                         <button type="submit" class="btn btn-outline-danger btn-sm"
                                             onclick="return confirm('Revoke membership for {{ user.email }}?\n\nThis will:\n- Revoke all active licenses\n- Remove from Discord\n- End membership immediately')"
                                             title="Revoke Membership">
                                             <i class="fas fa-ban"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if user.membership_status == 'revoked' %}
+                                    <form method="POST" action="{{ url_for('reactivate_membership', user_id=user.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-success btn-sm"
+                                            onclick="return confirm('Reactivate membership for {{ user.email }}?')"
+                                            title="Reactivate Membership">
+                                            <i class="fas fa-undo"></i>
                                         </button>
                                     </form>
                                     {% endif %}
@@ -328,24 +330,6 @@
     </div>
 </div>
 
-<!-- User Detail Modal -->
-<div class="user-detail-modal" id="userDetailModal">
-    <div class="modal-content-custom">
-        <div class="modal-header-custom">
-            <h5 class="mb-0"><i class="fas fa-user me-2"></i>User Details</h5>
-            <button type="button" class="btn-close btn-close-white" onclick="closeUserDetail()"></button>
-        </div>
-        <div class="modal-body-custom" id="userDetailContent">
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-3 text-muted">Loading user details...</p>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
     // Search functionality
     document.getElementById('searchUsers').addEventListener('keyup', function () {
@@ -353,173 +337,6 @@
         document.querySelectorAll('#usersTable tbody tr').forEach(row => {
             row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
         });
-    });
-
-    // User detail modal
-    function viewUserDetail(userId) {
-        const modal = document.getElementById('userDetailModal');
-        const content = document.getElementById('userDetailContent');
-        
-        modal.classList.add('show');
-        content.innerHTML = `
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-3 text-muted">Loading user details...</p>
-            </div>
-        `;
-
-        // Fetch user details from the row data
-        const row = document.querySelector(`tr[data-user-id="${userId}"]`);
-        
-        if (row) {
-            const cells = row.querySelectorAll('td');
-            const email = cells[0].querySelector('strong').textContent;
-            const fullName = cells[0].querySelector('small') ? cells[0].querySelector('small').textContent : '';
-            const country = cells[0].querySelectorAll('small')[1] ? cells[0].querySelectorAll('small')[1].textContent.trim() : '';
-            const planName = cells[1].querySelector('small') ? cells[1].querySelector('small').textContent : '';
-            const subType = cells[1].querySelector('.badge') ? cells[1].querySelector('.badge').textContent : '';
-            const planPrice = cells[1].querySelectorAll('small')[2] ? cells[1].querySelectorAll('small')[2].textContent : '';
-            const status = cells[2].querySelector('.badge').textContent;
-            const membershipEnd = cells[3].querySelector('small') ? cells[3].querySelector('small').textContent : '';
-            const daysLeft = cells[3].querySelectorAll('small')[1] ? cells[3].querySelectorAll('small')[1].textContent : '';
-            const licenseCount = cells[4].querySelector('.badge').textContent;
-            const activeLicense = cells[4].querySelector('code') ? cells[4].querySelector('code').textContent : '';
-            const discordStatus = cells[5].textContent.trim();
-
-            content.innerHTML = `
-                <div class="detail-grid mb-4">
-                    <div class="detail-item">
-                        <div class="d-label">Email</div>
-                        <div class="d-value">${email}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Full Name</div>
-                        <div class="d-value">${fullName || 'Not set'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Country</div>
-                        <div class="d-value">${country.replace('<i class="fas fa-globe me-1"></i>', '') || 'Not set'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Phone</div>
-                        <div class="d-value">Loading from server...</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Plan</div>
-                        <div class="d-value">${planName || 'N/A'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Subscription Type</div>
-                        <div class="d-value">${subType || 'N/A'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Price</div>
-                        <div class="d-value">${planPrice || 'N/A'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Status</div>
-                        <div class="d-value">${status}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Membership End</div>
-                        <div class="d-value">${membershipEnd || 'N/A'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Days Remaining</div>
-                        <div class="d-value">${daysLeft || 'N/A'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Active License</div>
-                        <div class="d-value"><code>${activeLicense || 'None'}</code></div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="d-label">Total Licenses</div>
-                        <div class="d-value">${licenseCount}</div>
-                    </div>
-                </div>
-
-                <hr>
-                <h6 class="fw-bold mb-3">Actions</h6>
-                <div class="d-flex gap-2 flex-wrap">
-                    <form method="POST" action="{{ url_for('extend_membership', user_id=0) }}" class="extend-form">
-                        <input type="hidden" name="user_id" value="${userId}">
-                    </form>
-                    <button class="btn btn-outline-success btn-sm" onclick="extendMembership(${userId})">
-                        <i class="fas fa-calendar-plus me-1"></i>Extend Membership
-                    </button>
-                    <button class="btn btn-outline-danger btn-sm" onclick="revokeUser(${userId}, '${email}')">
-                        <i class="fas fa-ban me-1"></i>Revoke Membership
-                    </button>
-                </div>
-            `;
-        }
-
-        // Also fetch from API for complete data
-        fetch(`/api/admin/user/${userId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && !data.error) {
-                    updateDetailModal(data);
-                }
-            })
-            .catch(err => console.log('API not available, using table data'));
-    }
-
-    function updateDetailModal(data) {
-        // Update phone and other fields from API
-        const phoneEl = document.querySelector('.detail-item .d-value');
-        // Find and update phone specifically
-        const detailItems = document.querySelectorAll('.detail-item');
-        detailItems.forEach(item => {
-            const label = item.querySelector('.d-label').textContent;
-            if (label === 'Phone' && data.phone) {
-                item.querySelector('.d-value').textContent = data.phone;
-            }
-        });
-    }
-
-    function closeUserDetail() {
-        document.getElementById('userDetailModal').classList.remove('show');
-    }
-
-    function extendMembership(userId) {
-        const days = prompt('Enter number of days to extend:', '30');
-        if (days && parseInt(days) > 0) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/admin/extend-membership/' + userId;
-            
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'days';
-            input.value = days;
-            form.appendChild(input);
-            
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
-
-    function revokeUser(userId, email) {
-        if (confirm(`Revoke membership for ${email}?\n\nThis will:\n- Revoke all active licenses\n- Remove from Discord\n- End membership immediately`)) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/admin/revoke-membership/' + userId;
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
-
-    // Close modal on backdrop click
-    document.getElementById('userDetailModal').addEventListener('click', function(e) {
-        if (e.target === this) closeUserDetail();
-    });
-
-    // Close modal on Escape
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeUserDetail();
     });
 </script>
 {% endblock %}
