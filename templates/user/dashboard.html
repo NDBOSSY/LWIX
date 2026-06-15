@@ -65,24 +65,57 @@
         75% { transform: rotate(-15deg); }
     }
 
-    .countdown-badge {
-        display: inline-flex;
+    .status-orb-container {
+        display: flex;
         align-items: center;
-        gap: 0.4rem;
-        background: rgba(255,255,255,0.2);
-        padding: 0.4rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.78rem;
+        gap: 0.6rem;
     }
 
-    .countdown-badge.urgent {
-        background: rgba(239, 68, 68, 0.3);
-        animation: pulse 2s ease-in-out infinite;
+    .status-orb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        position: relative;
+        flex-shrink: 0;
     }
 
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
+    .status-orb.active {
+        background: #10B981;
+        box-shadow: 0 0 12px #10B981;
+        animation: orbPulse 1.5s ease-in-out infinite;
+    }
+
+    .status-orb.active::after {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid rgba(16, 185, 129, 0.3);
+        animation: orbRipple 1.5s ease-in-out infinite;
+    }
+
+    .status-orb.expired {
+        background: #EF4444;
+        box-shadow: 0 0 8px #EF4444;
+    }
+
+    @keyframes orbPulse {
+        0%, 100% { box-shadow: 0 0 8px #10B981; transform: scale(1); }
+        50% { box-shadow: 0 0 20px #10B981, 0 0 30px rgba(16, 185, 129, 0.3); transform: scale(1.1); }
+    }
+
+    @keyframes orbRipple {
+        0%, 100% { transform: scale(1); opacity: 0.6; }
+        50% { transform: scale(1.5); opacity: 0; }
+    }
+
+    .status-text {
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
     }
 
     .user-id-badge {
@@ -96,7 +129,7 @@
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 1rem;
         margin-bottom: 1.5rem;
     }
@@ -133,7 +166,6 @@
     .stat-card.license::after { background: #4B7BE5; }
     .stat-card.downloads::after { background: #3FBFB3; }
     .stat-card.status::after { background: #A85CF9; }
-    .stat-card.expiry::after { background: #5534A5; }
 
     .stat-icon {
         width: 38px; height: 38px;
@@ -148,7 +180,6 @@
     .stat-icon.blue { background: rgba(75, 123, 229, 0.1); color: #4B7BE5; }
     .stat-icon.teal { background: rgba(63, 191, 179, 0.1); color: #3FBFB3; }
     .stat-icon.purple { background: rgba(168, 92, 249, 0.1); color: #A85CF9; }
-    .stat-icon.dark-purple { background: rgba(85, 52, 165, 0.1); color: #5534A5; }
 
     .stat-info { flex: 1; }
     .stat-value { font-size: 1.3rem; font-weight: 700; color: #2D2D2D; line-height: 1.2; }
@@ -192,7 +223,6 @@
     .membership-item .m-label { font-size: 0.7rem; color: #807F80; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem; }
     .membership-item .m-value { font-weight: 600; color: #2D2D2D; font-size: 0.9rem; }
 
-    /* AI Indicator Animation */
     .ai-indicator {
         width: 12px;
         height: 12px;
@@ -215,17 +245,6 @@
     @keyframes aiPulse {
         0%, 100% { box-shadow: 0 0 4px #10B981; }
         50% { box-shadow: 0 0 16px #10B981, 0 0 24px rgba(16, 185, 129, 0.4); }
-    }
-
-    .ai-brain-icon {
-        display: inline-block;
-        animation: brainPulse 2s ease-in-out infinite;
-        font-size: 1.1rem;
-    }
-
-    @keyframes brainPulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.15); opacity: 0.8; }
     }
 
     .license-card {
@@ -523,7 +542,6 @@
     .badge-level1 { background: #6B7280; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-level2 { background: #8B5CF6; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
 
-    /* Modals */
     .custom-modal-overlay {
         display: none;
         position: fixed;
@@ -792,7 +810,12 @@
                 </div>
                 <div class="col-md-4 text-end mt-2 mt-md-0">
                     <span class="badge {% if user.membership_status == 'active' %}badge-active{% else %}badge-expired{% endif %} fs-6"><i class="fas fa-{{ 'check-circle' if user.membership_status == 'active' else 'times-circle' }} me-1"></i>{{ user.membership_status|title }}</span>
-                    {% if user.membership_end and user.membership_status == 'active' %}{% set days_left = (user.membership_end - now).days %}<br><span class="countdown-badge mt-2 {{ 'urgent' if days_left <= 7 else '' }}" id="membershipCountdown" data-end-date="{{ user.membership_end.isoformat() }}" style="margin-top: 0.5rem;"><i class="fas fa-hourglass-half me-1"></i><span id="countdownText">{{ days_left }} days remaining</span></span>{% endif %}
+                    <div class="status-orb-container mt-2 justify-content-end">
+                        <div class="status-orb {% if user.membership_status == 'active' %}active{% else %}expired{% endif %}"></div>
+                        <span class="status-text" style="color: {% if user.membership_status == 'active' %}#6FDFDF{% else %}#FCA5A5{% endif %};">
+                            {{ 'Online' if user.membership_status == 'active' else 'Offline' }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -826,17 +849,15 @@
         </div>
     </div>
 
-    <!-- Stats Grid -->
+    <!-- Stats Grid - 3 cards only -->
     <div class="stats-grid">
         <div class="stat-card license"><div class="stat-icon blue"><i class="fas fa-key"></i></div><div class="stat-info"><div class="stat-value">{{ user.licenses.count() }}</div><div class="stat-label">Active Licenses</div></div></div>
         <div class="stat-card downloads"><div class="stat-icon teal"><i class="fas fa-download"></i></div><div class="stat-info"><div class="stat-value" id="totalDownloads">0</div><div class="stat-label">Total Downloads</div></div></div>
         <div class="stat-card status"><div class="stat-icon purple"><i class="fas fa-shield-alt"></i></div><div class="stat-info"><div class="stat-value">{{ user.membership_status|title }}</div><div class="stat-label">Membership Status</div></div></div>
-        <div class="stat-card expiry"><div class="stat-icon dark-purple"><i class="fas fa-clock"></i></div><div class="stat-info"><div class="stat-value" id="daysRemaining">{% if user.membership_end %}{{ (user.membership_end - now).days if user.membership_end > now else 0 }}d{% else %}N/A{% endif %}</div><div class="stat-label">Days Remaining</div></div></div>
     </div>
 
     <!-- Main Content -->
     <div class="main-content">
-        <!-- License -->
         <div class="license-card">
             <div class="license-header"><h5 class="mb-0"><i class="fas fa-key me-2"></i>License Details</h5></div>
             <div class="license-body">
@@ -873,7 +894,6 @@
             </div>
         </div>
 
-        <!-- EA Downloads -->
         <div class="ea-section">
             <div class="ea-header">
                 <h5 class="mb-0"><i class="fas fa-robot me-2" style="color: #A85CF9;"></i>Expert Advisors</h5>
@@ -908,7 +928,6 @@
         </div>
     </div>
 
-    <!-- Discord -->
     <div class="discord-section">
         <div class="discord-header"><i class="fab fa-discord fa-2x"></i><div><h5 class="mb-0">Discord Community</h5><small class="opacity-75">Get support, updates, and connect with other traders</small></div></div>
         <div class="discord-body">
@@ -944,7 +963,6 @@
     </div>
 </div>
 
-<!-- Download All Modal -->
 <div class="custom-modal-overlay" id="downloadAllModal">
     <div class="custom-modal">
         <div class="download-modal-header"><div class="download-modal-icon"><i class="fas fa-layer-group"></i></div><h3>Download All EAs</h3><p>Get all available Expert Advisors at once</p></div>
@@ -966,22 +984,6 @@
         if (licenseVisible) { display.classList.add('revealed'); }
         else { display.classList.remove('revealed'); }
     }
-
-    function updateCountdown() {
-        const el = document.getElementById('membershipCountdown');
-        const txt = document.getElementById('countdownText');
-        const daysEl = document.getElementById('daysRemaining');
-        if (!el) return;
-        const end = new Date(el.dataset.endDate);
-        const now = new Date();
-        const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
-        if (diff <= 0) { txt.textContent = 'Expired'; el.classList.add('urgent'); if (daysEl) daysEl.textContent = '0d'; return; }
-        if (diff === 1) { txt.textContent = Math.ceil((end - now) / (1000 * 60 * 60)) + ' hours remaining'; }
-        else if (diff <= 7) { txt.textContent = diff + ' days remaining'; el.classList.add('urgent'); }
-        else { txt.textContent = diff + ' days remaining'; }
-        if (daysEl) daysEl.textContent = diff + 'd';
-    }
-    updateCountdown(); setInterval(updateCountdown, 60000);
 
     function showLicenseModal() { document.getElementById('licenseModal').classList.add('show'); document.body.style.overflow = 'hidden'; }
     function closeLicenseModal() { document.getElementById('licenseModal').classList.remove('show'); document.body.style.overflow = ''; }
