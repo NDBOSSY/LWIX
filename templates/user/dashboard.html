@@ -808,7 +808,7 @@
             <div class="membership-item"><div class="m-label">Duration</div><div class="m-value">{{ user.get_membership_duration_display() }}</div></div>
             <div class="membership-item"><div class="m-label">Start Date</div><div class="m-value">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</div></div>
             <div class="membership-item">
-                <div class="m-label">AI Trading Status</div>
+                <div class="m-label">Service Status</div>
                 <div class="m-value">
                     {% if user.membership_status == 'active' %}
                     <span style="display: flex; align-items: center; gap: 0.5rem;">
