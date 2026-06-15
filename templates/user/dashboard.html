@@ -192,6 +192,42 @@
     .membership-item .m-label { font-size: 0.7rem; color: #807F80; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem; }
     .membership-item .m-value { font-weight: 600; color: #2D2D2D; font-size: 0.9rem; }
 
+    /* AI Indicator Animation */
+    .ai-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        position: relative;
+    }
+
+    .ai-indicator.active {
+        background: #10B981;
+        box-shadow: 0 0 8px #10B981;
+        animation: aiPulse 1.5s ease-in-out infinite;
+    }
+
+    .ai-indicator.inactive {
+        background: #EF4444;
+        box-shadow: 0 0 8px #EF4444;
+    }
+
+    @keyframes aiPulse {
+        0%, 100% { box-shadow: 0 0 4px #10B981; }
+        50% { box-shadow: 0 0 16px #10B981, 0 0 24px rgba(16, 185, 129, 0.4); }
+    }
+
+    .ai-brain-icon {
+        display: inline-block;
+        animation: brainPulse 2s ease-in-out infinite;
+        font-size: 1.1rem;
+    }
+
+    @keyframes brainPulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.15); opacity: 0.8; }
+    }
+
     .license-card {
         background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
         border-radius: 20px;
@@ -702,12 +738,7 @@
 
     .btn-outline-primary:hover { background: #4B7BE5; color: white; }
 
-    /* ============ MOBILE RESPONSIVENESS ============ */
-    @media (max-width: 1024px) {
-        .main-content { grid-template-columns: 1fr; }
-        .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
+    @media (max-width: 1024px) { .main-content { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 768px) {
         .dashboard-container { padding: 1rem 0.5rem; }
         .welcome-section { padding: 1.2rem; border-radius: 16px; }
@@ -726,7 +757,6 @@
         .ea-card { padding: 0.8rem; }
         .custom-modal { max-width: 300px; }
     }
-
     @media (max-width: 480px) {
         .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
         .stat-card { padding: 0.5rem 0.6rem; }
@@ -777,7 +807,22 @@
             <div class="membership-item"><div class="m-label">Subscription Type</div><div class="m-value">{% if user.subscription_type %}<span class="badge {% if user.subscription_type == 'monthly' %}badge-monthly{% elif user.subscription_type == 'yearly' %}badge-yearly{% elif user.subscription_type == 'lifetime' %}badge-lifetime{% endif %}">{{ user.subscription_type|title }}</span>{% else %}Standard{% endif %}</div></div>
             <div class="membership-item"><div class="m-label">Duration</div><div class="m-value">{{ user.get_membership_duration_display() }}</div></div>
             <div class="membership-item"><div class="m-label">Start Date</div><div class="m-value">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</div></div>
-            <div class="membership-item"><div class="m-label">End Date</div><div class="m-value">{{ user.membership_end.strftime('%b %d, %Y') if user.membership_end else 'N/A' }}</div></div>
+            <div class="membership-item">
+                <div class="m-label">AI Trading Status</div>
+                <div class="m-value">
+                    {% if user.membership_status == 'active' %}
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="ai-indicator active"></span>
+                        <span style="color: #10B981; font-weight: 600;">Active & Running</span>
+                    </span>
+                    {% else %}
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="ai-indicator inactive"></span>
+                        <span style="color: #EF4444; font-weight: 600;">Inactive</span>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -857,7 +902,7 @@
             </div>
             {% endif %}
             {% if all_ea_count is defined and ea_files|length < all_ea_count %}
-            <div class="upgrade-hint"><i class="fas fa-lock me-1"></i>{{ all_ea_count - ea_files|length }} more EA(s) available on <strong>Level 2</strong>. <a href="https://www.tradingengine.nl/upgrade" target="_blank" style="color: #4B7BE5; font-weight: 600;">Upgrade your plan</a>
+            <div class="upgrade-hint"><i class="fas fa-lock me-1"></i>{{ all_ea_count - ea_files|length }} more EA(s) available on <strong>Level 2</strong>. <a href="https://www.tradingengine.nl/upgrade" target="_blank" style="color: #4B7BE5; font-weight: 600;">Upgrade your plan</a></div>
             {% endif %}
             {% else %}<div class="text-center py-5"><i class="fas fa-box-open fa-3x mb-3" style="color: #807F80;"></i><h6 class="text-muted">No EAs Available</h6></div>{% endif %}
         </div>
