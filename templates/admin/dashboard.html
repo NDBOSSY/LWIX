@@ -4,547 +4,99 @@
 
 {% block extra_css %}
 <style>
-    .admin-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 2rem 1rem;
-    }
-
-    .admin-header {
-        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
-        border-radius: 20px;
-        padding: 2rem;
-        color: white;
-        position: relative;
-        overflow: hidden;
-        margin-bottom: 1.5rem;
-    }
-
-    .admin-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -10%;
-        width: 300px;
-        height: 300px;
-        background: rgba(111, 223, 223, 0.1);
-        border-radius: 50%;
-    }
-
-    .admin-header::after {
-        content: '';
-        position: absolute;
-        bottom: -30%;
-        left: 60%;
-        width: 200px;
-        height: 200px;
-        background: rgba(168, 92, 249, 0.15);
-        border-radius: 50%;
-    }
-
-    .admin-header-content {
-        position: relative;
-        z-index: 1;
-    }
-
-    .admin-icon-circle {
-        width: 55px;
-        height: 55px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.6rem;
-        backdrop-filter: blur(10px);
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        flex-shrink: 0;
-    }
-
-    /* Test Mode Toggle */
-    .test-mode-section {
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-        margin-top: 1rem;
-        padding: 0.8rem 1rem;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        backdrop-filter: blur(5px);
-    }
-
-    .test-toggle-switch {
-        position: relative;
-        display: inline-block;
-        width: 52px;
-        height: 28px;
-        margin: 0;
-        flex-shrink: 0;
-    }
-
-    .test-toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-
-    .test-toggle-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: #6B7280;
-        transition: 0.3s;
-        border-radius: 28px;
-    }
-
-    .test-toggle-slider:before {
-        position: absolute;
-        content: "";
-        height: 22px; width: 22px;
-        left: 3px; bottom: 3px;
-        background-color: white;
-        transition: 0.3s;
-        border-radius: 50%;
-    }
-
-    input:checked + .test-toggle-slider {
-        background-color: #EF4444;
-    }
-
-    input:checked + .test-toggle-slider:before {
-        transform: translateX(24px);
-    }
-
-    .test-mode-label {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: white;
-    }
-
-    .test-mode-status {
-        font-size: 0.8rem;
-        opacity: 0.85;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .stat-card {
-        background: linear-gradient(135deg, #CFF7F7 0%, #E8F6FF 100%);
-        border-radius: 14px;
-        padding: 0.8rem 1rem;
-        border: 1px solid #E5E7EB;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(75, 123, 229, 0.1);
-        border-color: #6FDFDF;
-    }
-
-    .stat-card::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 50px;
-        height: 50px;
-        border-radius: 0 0 0 50px;
-        opacity: 0.08;
-    }
-
-    .stat-card.users::after { background: #4B7BE5; }
-    .stat-card.active::after { background: #3FBFB3; }
-    .stat-card.licenses::after { background: #A85CF9; }
-    .stat-card.orders::after { background: #10B981; }
-    .stat-card.revenue::after { background: #F59E0B; }
-    .stat-card.downloads::after { background: #5534A5; }
-
-    .stat-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-        flex-shrink: 0;
-    }
-
-    .stat-icon.blue { background: rgba(75, 123, 229, 0.1); color: #4B7BE5; }
-    .stat-icon.teal { background: rgba(63, 191, 179, 0.1); color: #3FBFB3; }
-    .stat-icon.purple { background: rgba(168, 92, 249, 0.1); color: #A85CF9; }
-    .stat-icon.green { background: rgba(16, 185, 129, 0.1); color: #10B981; }
-    .stat-icon.gold { background: rgba(245, 158, 11, 0.1); color: #F59E0B; }
-    .stat-icon.dark-purple { background: rgba(85, 52, 165, 0.1); color: #5534A5; }
-
-    .stat-info { flex: 1; }
-
-    .stat-value {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: #2D2D2D;
-        line-height: 1.2;
-    }
-
-    .stat-label {
-        color: #807F80;
-        font-size: 0.75rem;
-        font-weight: 500;
-        line-height: 1.2;
-    }
-
-    .content-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    @media (max-width: 1200px) {
-        .stats-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-
-    @media (max-width: 1024px) {
-        .content-grid { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 600px) {
-        .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-        .stat-card { padding: 0.6rem 0.8rem; }
-        .stat-icon { width: 32px; height: 32px; font-size: 0.9rem; }
-        .stat-value { font-size: 1.1rem; }
-    }
-
-    .card {
-        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
-        border-radius: 20px;
-        border: 1px solid #E5E7EB;
-        overflow: hidden;
-    }
-
-    .card-header {
-        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
-        padding: 1rem 1.5rem;
-        color: white;
-        border: none;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .card-header h5 {
-        color: white;
-        font-weight: 600;
-        font-size: 1rem;
-        margin: 0;
-    }
-
-    .card-header .btn-outline-primary {
-        border-color: rgba(255, 255, 255, 0.5);
-        color: white;
-        padding: 0.3rem 0.8rem;
-        font-size: 0.8rem;
-    }
-
-    .card-header .btn-outline-primary:hover {
-        background: rgba(255, 255, 255, 0.2);
-        border-color: white;
-        color: white;
-    }
-
-    .card-body {
-        background: white;
-        padding: 1.2rem;
-    }
-
-    .card-body.p-0 { padding: 0; }
-
-    .table {
-        margin-bottom: 0;
-        background: white;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .table thead th {
-        background: #5534A5;
-        color: white;
-        border: none;
-        padding: 0.6rem 0.8rem;
-        font-weight: 600;
-        font-size: 0.8rem;
-        white-space: nowrap;
-    }
-
-    .table tbody td {
-        padding: 0.6rem 0.8rem;
-        vertical-align: middle;
-        font-size: 0.85rem;
-        background: white;
-    }
-
-    .table tbody tr:hover td { background: #FFF8ED; }
-
-    .upload-card {
-        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
-        border-radius: 20px;
-        border: 1px solid #E5E7EB;
-        overflow: hidden;
-    }
-
-    .upload-card .card-header {
-        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
-        padding: 1rem 1.5rem;
-        color: white;
-    }
-
-    .upload-card .card-body {
-        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
-        padding: 1.2rem;
-    }
-
-    .form-control, .form-select {
-        background: white;
-        border: 1.5px solid #E5E7EB;
-        border-radius: 10px;
-        padding: 0.6rem 0.8rem;
-        font-size: 0.85rem;
-        transition: all 0.3s;
-    }
-
-    .form-control:focus, .form-select:focus {
-        border-color: #6FDFDF;
-        box-shadow: 0 0 0 3px rgba(111, 223, 223, 0.1);
-        outline: none;
-    }
-
-    .form-label {
-        color: #2D2D2D;
-        font-weight: 500;
-        font-size: 0.85rem;
-    }
-
-    .activity-card {
-        background: white;
-        border-radius: 20px;
-        border: 1px solid #E5E7EB;
-        overflow: hidden;
-    }
-
-    .activity-card .card-header {
-        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
-        padding: 1rem 1.5rem;
-        color: white;
-    }
-
-    .activity-card .card-body {
-        background: white;
-        padding: 1rem;
-    }
-
-    .activity-item {
-        display: flex;
-        gap: 0.8rem;
-        padding: 0.6rem 0.8rem;
-        margin-bottom: 0.4rem;
-        background: #FFF8ED;
-        border-radius: 10px;
-        border: 1px solid #E5E7EB;
-        transition: all 0.2s ease;
-    }
-
-    .activity-item:hover {
-        transform: translateX(4px);
-        border-color: #6FDFDF;
-    }
-
-    .activity-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-top: 5px;
-        flex-shrink: 0;
-    }
-
-    .activity-dot.login { background: #4B7BE5; }
-    .activity-dot.license { background: #3FBFB3; }
-    .activity-dot.revoke { background: #EF4444; }
-    .activity-dot.upload { background: #A85CF9; }
-    .activity-dot.order, .activity-dot.payment { background: #F59E0B; }
-    .activity-dot.delete { background: #EF4444; }
-    .activity-dot.default { background: #807F80; }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
-        border: none;
-        border-radius: 10px;
-        padding: 0.6rem 1.2rem;
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: white;
-        transition: all 0.3s;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(75, 123, 229, 0.3);
-    }
-
-    .btn-outline-danger {
-        border: 1.5px solid #EF4444;
-        color: #EF4444;
-        border-radius: 8px;
-        padding: 0.25rem 0.6rem;
-        font-size: 0.75rem;
-        transition: all 0.3s;
-        background: white;
-    }
-
-    .btn-outline-danger:hover {
-        background: #EF4444;
-        color: white;
-    }
-
-    .btn-outline-info {
-        border: 1.5px solid #4B7BE5;
-        color: #4B7BE5;
-        border-radius: 8px;
-        padding: 0.25rem 0.6rem;
-        font-size: 0.75rem;
-        transition: all 0.3s;
-        background: white;
-    }
-
-    .btn-outline-info:hover {
-        background: #4B7BE5;
-        color: white;
-    }
-
-    .badge-active {
-        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
-        color: white;
-        padding: 0.3rem 0.7rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-    }
-
-    .badge-expired {
-        background: #807F80;
-        color: white;
-        padding: 0.3rem 0.7rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-    }
-
-    .badge-revoked {
-        background: #EF4444;
-        color: white;
-        padding: 0.3rem 0.7rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-    }
-
-    .badge-monthly { background: #4B7BE5; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
-    .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
-    .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
-    .badge-level1 { background: #6B7280; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
-    .badge-level2 { background: #8B5CF6; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
-
-    code {
-        background: #FEFAF3;
-        border: 1px solid #6FDFDF;
-        border-radius: 6px;
-        padding: 0.15rem 0.4rem;
-        color: #5534A5;
-        font-size: 0.8rem;
-    }
-
-    .subscription-breakdown {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 0.8rem;
-    }
-
-    .sub-breakdown-item {
-        background: #FFF8ED;
-        border-radius: 10px;
-        padding: 0.8rem;
-        text-align: center;
-        border: 1px solid #E5E7EB;
-    }
-
-    .sub-breakdown-item .sub-type {
-        font-size: 0.75rem;
-        color: #807F80;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.3rem;
-    }
-
-    .sub-breakdown-item .sub-count {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: #4B7BE5;
-    }
-
-    .sub-breakdown-item .sub-revenue {
-        font-size: 0.8rem;
-        color: #807F80;
-    }
-
-    .ea-file-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .account-list {
-        font-size: 0.7rem;
-        color: #807F80;
-        max-width: 150px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        display: inline-block;
-    }
+    .admin-container { max-width: 1400px; margin: 0 auto; padding: 2rem 1rem; }
+    .admin-header { background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); border-radius: 20px; padding: 2rem; color: white; position: relative; overflow: hidden; margin-bottom: 1.5rem; }
+    .admin-header::before { content: ''; position: absolute; top: -50%; right: -10%; width: 300px; height: 300px; background: rgba(111, 223, 223, 0.1); border-radius: 50%; }
+    .admin-header::after { content: ''; position: absolute; bottom: -30%; left: 60%; width: 200px; height: 200px; background: rgba(168, 92, 249, 0.15); border-radius: 50%; }
+    .admin-header-content { position: relative; z-index: 1; }
+    .admin-icon-circle { width: 55px; height: 55px; background: rgba(255, 255, 255, 0.2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.3); flex-shrink: 0; }
+
+    .test-mode-section { display: flex; align-items: center; gap: 0.8rem; margin-top: 1rem; padding: 0.8rem 1rem; background: rgba(255, 255, 255, 0.1); border-radius: 12px; backdrop-filter: blur(5px); }
+    .test-toggle-switch { position: relative; display: inline-block; width: 52px; height: 28px; margin: 0; flex-shrink: 0; }
+    .test-toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .test-toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #6B7280; transition: 0.3s; border-radius: 28px; }
+    .test-toggle-slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; }
+    input:checked + .test-toggle-slider { background-color: #EF4444; }
+    input:checked + .test-toggle-slider:before { transform: translateX(24px); }
+    .test-mode-label { font-size: 0.9rem; font-weight: 600; color: white; }
+    .test-mode-status { font-size: 0.8rem; opacity: 0.85; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: linear-gradient(135deg, #CFF7F7 0%, #E8F6FF 100%); border-radius: 14px; padding: 0.8rem 1rem; border: 1px solid #E5E7EB; transition: all 0.3s; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 0.8rem; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(75,123,229,0.1); border-color: #6FDFDF; }
+    .stat-card::after { content: ''; position: absolute; top: 0; right: 0; width: 50px; height: 50px; border-radius: 0 0 0 50px; opacity: 0.08; }
+    .stat-card.users::after{background:#4B7BE5;} .stat-card.active::after{background:#3FBFB3;} .stat-card.licenses::after{background:#A85CF9;} .stat-card.orders::after{background:#10B981;} .stat-card.revenue::after{background:#F59E0B;} .stat-card.downloads::after{background:#5534A5;}
+    .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .stat-icon.blue{background:rgba(75,123,229,0.1);color:#4B7BE5;} .stat-icon.teal{background:rgba(63,191,179,0.1);color:#3FBFB3;} .stat-icon.purple{background:rgba(168,92,249,0.1);color:#A85CF9;} .stat-icon.green{background:rgba(16,185,129,0.1);color:#10B981;} .stat-icon.gold{background:rgba(245,158,11,0.1);color:#F59E0B;} .stat-icon.dark-purple{background:rgba(85,52,165,0.1);color:#5534A5;}
+    .stat-info{flex:1;} .stat-value{font-size:1.3rem;font-weight:700;color:#2D2D2D;line-height:1.2;} .stat-label{color:#807F80;font-size:0.75rem;font-weight:500;line-height:1.2;}
+
+    @media(max-width:1200px){.stats-grid{grid-template-columns:repeat(3,1fr);}}
+    @media(max-width:600px){.stats-grid{grid-template-columns:1fr 1fr;gap:0.6rem;}.stat-card{padding:0.6rem 0.8rem;}.stat-icon{width:32px;height:32px;font-size:0.9rem;}.stat-value{font-size:1.1rem;}}
+
+    .card { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; }
+    .card-header { background: linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%); padding: 1rem 1.5rem; color: white; border: none; display: flex; justify-content: space-between; align-items: center; }
+    .card-header h5 { color: white; font-weight: 600; font-size: 1rem; margin: 0; }
+    .card-body { background: white; padding: 1.2rem; } .card-body.p-0{padding:0;}
+
+    .table { margin-bottom: 0; background: white; border-radius: 12px; overflow: hidden; }
+    .table thead th { background: #5534A5; color: white; border: none; padding: 0.6rem 0.8rem; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
+    .table tbody td { padding: 0.6rem 0.8rem; vertical-align: middle; font-size: 0.85rem; background: white; }
+    .table tbody tr:hover td{background:#FFF8ED;}
+
+    .upload-card { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; }
+    .upload-card .card-header { background: linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%); padding: 1rem 1.5rem; color: white; }
+    .upload-card .card-body { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); padding: 1.2rem; }
+
+    .form-control,.form-select{background:white;border:1.5px solid #E5E7EB;border-radius:10px;padding:0.6rem 0.8rem;font-size:0.85rem;transition:all 0.3s;}
+    .form-control:focus,.form-select:focus{border-color:#6FDFDF;box-shadow:0 0 0 3px rgba(111,223,223,0.1);outline:none;}
+    .form-label{color:#2D2D2D;font-weight:500;font-size:0.85rem;}
+
+    .activity-card { background: white; border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; }
+    .activity-card .card-header { background: linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%); padding: 1rem 1.5rem; color: white; }
+    .activity-card .card-body { background: white; padding: 1rem; }
+    .activity-item{display:flex;gap:0.8rem;padding:0.6rem 0.8rem;margin-bottom:0.4rem;background:#FFF8ED;border-radius:10px;border:1px solid #E5E7EB;transition:all 0.2s;}
+    .activity-item:hover{transform:translateX(4px);border-color:#6FDFDF;}
+    .activity-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+    .activity-dot.login{background:#4B7BE5;} .activity-dot.license{background:#3FBFB3;} .activity-dot.revoke{background:#EF4444;} .activity-dot.upload{background:#A85CF9;} .activity-dot.order,.activity-dot.payment{background:#F59E0B;} .activity-dot.delete{background:#EF4444;} .activity-dot.default{background:#807F80;}
+
+    .btn-primary{background:linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%);border:none;border-radius:10px;padding:0.6rem 1.2rem;font-weight:600;font-size:0.85rem;color:white;transition:all 0.3s;}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(75,123,229,0.3);}
+    .btn-outline-danger{border:1.5px solid #EF4444;color:#EF4444;border-radius:8px;padding:0.25rem 0.6rem;font-size:0.75rem;transition:all 0.3s;background:white;}
+    .btn-outline-danger:hover{background:#EF4444;color:white;}
+
+    .badge-active{background:linear-gradient(135deg,#3FBFB3 0%,#6FDFDF 100%);color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
+    .badge-expired{background:#807F80;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
+    .badge-revoked{background:#EF4444;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
+    .badge-monthly{background:#4B7BE5;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
+    .badge-yearly{background:#A85CF9;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
+    .badge-lifetime{background:#F59E0B;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
+    .badge-level1{background:#6B7280;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
+    .badge-level2{background:#8B5CF6;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
+
+    .subscription-breakdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.8rem;}
+    .sub-breakdown-item{background:#FFF8ED;border-radius:10px;padding:0.8rem;text-align:center;border:1px solid #E5E7EB;}
+    .sub-breakdown-item .sub-type{font-size:0.75rem;color:#807F80;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.3rem;}
+    .sub-breakdown-item .sub-count{font-size:1.2rem;font-weight:700;color:#4B7BE5;}
+    .sub-breakdown-item .sub-revenue{font-size:0.8rem;color:#807F80;}
+
+    .ea-file-row{display:flex;align-items:center;gap:0.5rem;}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="admin-container">
-    <!-- Admin Header -->
     <div class="admin-header">
         <div class="admin-header-content">
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="admin-icon-circle">
-                            <i class="fas fa-user-shield"></i>
-                        </div>
-                        <div>
-                            <h2 class="fw-bold mb-1">Admin Dashboard</h2>
-                            <p class="mb-0 opacity-75">Manage users, licenses, orders, and EA files</p>
-                        </div>
+                        <div class="admin-icon-circle"><i class="fas fa-user-shield"></i></div>
+                        <div><h2 class="fw-bold mb-1">Admin Dashboard</h2><p class="mb-0 opacity-75">Manage users, licenses, orders, and EA files</p></div>
                     </div>
                 </div>
                 <div class="col-lg-4">
-                    <!-- Test Mode Toggle -->
                     <div class="test-mode-section">
-                        <span class="test-mode-label">
-                            <i class="fas fa-flask me-1"></i>Test Mode:
-                        </span>
+                        <span class="test-mode-label"><i class="fas fa-flask me-1"></i>Test Mode:</span>
                         <label class="test-toggle-switch">
                             <input type="checkbox" id="testModeToggle" {% if is_test_mode %}checked{% endif %} onchange="toggleTestMode()">
                             <span class="test-toggle-slider"></span>
@@ -558,404 +110,80 @@
         </div>
     </div>
 
-    <!-- Stats Grid -->
     <div class="stats-grid">
-        <div class="stat-card users">
-            <div class="stat-icon blue"><i class="fas fa-users"></i></div>
-            <div class="stat-info">
-                <div class="stat-value">{{ total_users }}</div>
-                <div class="stat-label">Total Users</div>
-            </div>
-        </div>
-        <div class="stat-card active">
-            <div class="stat-icon teal"><i class="fas fa-user-check"></i></div>
-            <div class="stat-info">
-                <div class="stat-value">{{ active_users }}</div>
-                <div class="stat-label">Active Members</div>
-            </div>
-        </div>
-        <div class="stat-card licenses">
-            <div class="stat-icon purple"><i class="fas fa-key"></i></div>
-            <div class="stat-info">
-                <div class="stat-value">{{ active_licenses }}/{{ total_licenses }}</div>
-                <div class="stat-label">Active / Total Licenses</div>
-            </div>
-        </div>
-        <div class="stat-card orders">
-            <div class="stat-icon green"><i class="fas fa-shopping-cart"></i></div>
-            <div class="stat-info">
-                <div class="stat-value">{{ total_orders }}</div>
-                <div class="stat-label">Total Orders</div>
-            </div>
-        </div>
-        <div class="stat-card revenue">
-            <div class="stat-icon gold"><i class="fas fa-euro-sign"></i></div>
-            <div class="stat-info">
-                <div class="stat-value">€{{ "%.0f"|format(total_revenue) }}</div>
-                <div class="stat-label">Total Revenue</div>
-            </div>
-        </div>
-        <div class="stat-card downloads">
-            <div class="stat-icon dark-purple"><i class="fas fa-download"></i></div>
-            <div class="stat-info">
-                <div class="stat-value">{{ total_downloads }}</div>
-                <div class="stat-label">Downloads</div>
-            </div>
-        </div>
+        <div class="stat-card users"><div class="stat-icon blue"><i class="fas fa-users"></i></div><div class="stat-info"><div class="stat-value">{{ total_users }}</div><div class="stat-label">Total Users</div></div></div>
+        <div class="stat-card active"><div class="stat-icon teal"><i class="fas fa-user-check"></i></div><div class="stat-info"><div class="stat-value">{{ active_users }}</div><div class="stat-label">Active Members</div></div></div>
+        <div class="stat-card licenses"><div class="stat-icon purple"><i class="fas fa-key"></i></div><div class="stat-info"><div class="stat-value">{{ active_licenses }}/{{ total_licenses }}</div><div class="stat-label">Active / Total Licenses</div></div></div>
+        <div class="stat-card orders"><div class="stat-icon green"><i class="fas fa-shopping-cart"></i></div><div class="stat-info"><div class="stat-value">{{ total_orders }}</div><div class="stat-label">Total Orders</div></div></div>
+        <div class="stat-card revenue"><div class="stat-icon gold"><i class="fas fa-euro-sign"></i></div><div class="stat-info"><div class="stat-value">€{{ "%.0f"|format(total_revenue) }}</div><div class="stat-label">Total Revenue</div></div></div>
+        <div class="stat-card downloads"><div class="stat-icon dark-purple"><i class="fas fa-download"></i></div><div class="stat-info"><div class="stat-value">{{ total_downloads }}</div><div class="stat-label">Downloads</div></div></div>
     </div>
 
-    <!-- Subscription Breakdown -->
     {% if subscription_stats %}
     <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-chart-pie me-2"></i>Subscription Breakdown</h5>
-        </div>
+        <div class="card-header"><h5><i class="fas fa-chart-pie me-2"></i>Subscription Breakdown</h5></div>
         <div class="card-body">
             <div class="subscription-breakdown">
                 {% for stat in subscription_stats %}
-                <div class="sub-breakdown-item">
-                    <div class="sub-type">{{ stat[0] or 'Unknown' }}</div>
-                    <div class="sub-count">{{ stat[1] }} users</div>
-                    <div class="sub-revenue">€{{ "%.2f"|format(stat[2] or 0) }}</div>
-                </div>
+                <div class="sub-breakdown-item"><div class="sub-type">{{ stat[0] or 'Unknown' }}</div><div class="sub-count">{{ stat[1] }} users</div><div class="sub-revenue">€{{ "%.2f"|format(stat[2] or 0) }}</div></div>
                 {% endfor %}
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Content Grid: Recent Users & Recent Orders -->
-    <div class="content-grid">
-        <!-- Recent Users -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Recent Users</h5>
-                <a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-outline-primary">View All</a>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Plan</th>
-                                <th>Level</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for user in recent_users %}
-                            <tr>
-                                <td>
-                                    <strong>{{ user.email }}</strong>
-                                    {% if user.get_full_name() and user.get_full_name() != user.email %}
-                                    <br><small style="color: #807F80;">{{ user.get_full_name() }}</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if user.plan_name %}
-                                    <small>{{ user.plan_name }}</small>
-                                    {% if user.subscription_type %}
-                                    <br><span class="badge 
-                                        {% if user.subscription_type == 'monthly' %}badge-monthly
-                                        {% elif user.subscription_type == 'yearly' %}badge-yearly
-                                        {% elif user.subscription_type == 'lifetime' %}badge-lifetime
-                                        {% endif %}">{{ user.subscription_type|title }}</span>
-                                    {% endif %}
-                                    {% else %}
-                                    <small style="color: #807F80;">-</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}">
-                                        Level {{ user.get_plan_level() }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge 
-                                        {% if user.membership_status == 'active' %}badge-active
-                                        {% elif user.membership_status == 'revoked' %}badge-revoked
-                                        {% else %}badge-expired{% endif %}">
-                                        {{ user.membership_status|title }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-outline-info btn-sm me-1" title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if user.membership_status == 'active' %}
-                                    <form method="POST" action="{{ url_for('revoke_membership', user_id=user.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            onclick="return confirm('Revoke membership for {{ user.email }}?')" title="Revoke">
-                                            <i class="fas fa-ban"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Orders -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Recent Orders</h5>
-                <a href="{{ url_for('admin_orders') }}" class="btn btn-sm btn-outline-primary">View All</a>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Customer</th>
-                                <th>Plan</th>
-                                <th>Amount</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for order in recent_orders %}
-                            <tr>
-                                <td><strong>{{ order.user.email }}</strong></td>
-                                <td>
-                                    <small>{{ order.plan_name or 'N/A' }}</small>
-                                    {% if order.subscription_type %}
-                                    <br><span class="badge badge-active">{{ order.subscription_type|title }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if order.total_amount and order.total_amount > 0 %}
-                                    <strong>{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</strong>
-                                    {% else %}
-                                    <span style="color: #10B981;">Free</span>
-                                    {% endif %}
-                                </td>
-                                <td><small>{{ order.created_at.strftime('%b %d, %Y') }}</small></td>
-                            </tr>
-                            {% endfor %}
-                            {% if not recent_orders %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-3">
-                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No orders yet
-                                </td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
+    <!-- EA Files List -->
+    <div class="card mb-4">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-robot me-2"></i>EA Files ({{ ea_files|length }})</h5></div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>File</th><th>Version</th><th>Level</th><th>Downloads</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for ea in ea_files %}
+                        <tr>
+                            <td><div class="ea-file-row"><i class="fas fa-chart-line" style="color:#A85CF9;"></i><div><strong style="font-size:0.85rem;">{{ ea.filename }}</strong>{% if ea.description %}<br><small style="color:#807F80;">{{ ea.description }}</small>{% endif %}</div></div></td>
+                            <td><span class="badge badge-active">v{{ ea.version }}</span></td>
+                            <td><span class="badge {% if ea.plan_level >= 2 %}badge-level2{% else %}badge-level1{% endif %}">Level {{ ea.plan_level }}</span></td>
+                            <td>{{ ea.download_count }}</td>
+                            <td><form method="POST" action="{{ url_for('delete_ea', ea_id=ea.id) }}" class="d-inline"><button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete {{ ea.filename }}?\n\nThis cannot be undone!')" title="Delete EA"><i class="fas fa-trash"></i></button></form></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not ea_files %}<tr><td colspan="5" class="text-center text-muted py-3"><i class="fas fa-box-open fa-2x mb-2 d-block"></i>No EA files uploaded</td></tr>{% endif %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Grid: Licenses & EA Files -->
-    <div class="content-grid">
-        <!-- Recent Licenses -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-key me-2"></i>Recent Licenses</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>License</th>
-                                <th>User</th>
-                                <th>Type</th>
-                                <th>Accounts</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for lic in recent_licenses %}
-                            <tr>
-                                <td><code>{{ lic.license_key }}</code></td>
-                                <td>{{ lic.user.email }}</td>
-                                <td><small>{{ lic.license_type or 'standard' }}</small></td>
-                                <td>
-                                    <span class="badge {% if lic.accounts.count() >= lic.max_accounts %}badge-expired{% else %}badge-active{% endif %}">
-                                        {{ lic.accounts.count() }}/{{ lic.max_accounts }}
-                                    </span>
-                                    {% if lic.accounts.count() > 0 %}
-                                    <br><span class="account-list">
-                                        {% for acc in lic.accounts %}
-                                            {{ acc.account_number[-20:] }}{% if not loop.last %}, {% endif %}
-                                        {% endfor %}
-                                    </span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge 
-                                        {% if lic.status == 'active' %}badge-active
-                                        {% elif lic.status == 'revoked' %}badge-revoked
-                                        {% else %}badge-expired{% endif %}">
-                                        {{ lic.status|title }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if lic.status == 'active' %}
-                                    <form method="POST" action="{{ url_for('revoke_license', license_id=lic.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            onclick="return confirm('Revoke this license?')">
-                                            <i class="fas fa-ban"></i> Revoke
-                                        </button>
-                                    </form>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- EA Files List with Delete -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-robot me-2"></i>EA Files ({{ ea_files|length }})</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>File</th>
-                                <th>Version</th>
-                                <th>Level</th>
-                                <th>Downloads</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for ea in ea_files %}
-                            <tr>
-                                <td>
-                                    <div class="ea-file-row">
-                                        <i class="fas fa-chart-line" style="color: #A85CF9;"></i>
-                                        <div>
-                                            <strong style="font-size: 0.85rem;">{{ ea.filename }}</strong>
-                                            {% if ea.description %}
-                                            <br><small style="color: #807F80;">{{ ea.description }}</small>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><span class="badge badge-active">v{{ ea.version }}</span></td>
-                                <td>
-                                    <span class="badge {% if ea.plan_level >= 2 %}badge-level2{% else %}badge-level1{% endif %}">
-                                        Level {{ ea.plan_level }}
-                                    </span>
-                                </td>
-                                <td>{{ ea.download_count }}</td>
-                                <td>
-                                    <form method="POST" action="{{ url_for('delete_ea', ea_id=ea.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            onclick="return confirm('Delete {{ ea.filename }}?\n\nThis cannot be undone!')" title="Delete EA">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                            {% if not ea_files %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-3">
-                                    <i class="fas fa-box-open fa-2x mb-2 d-block"></i>No EA files uploaded
-                                </td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Upload EA (Full Width) -->
+    <!-- Upload EA -->
     <div class="upload-card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5>
-        </div>
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5></div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('upload_ea') }}" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <label class="form-label">EA File (.ex4, .ex5, .dll, .zip)</label>
-                    <input type="file" name="file" class="form-control" accept=".ex4,.ex5,.dll,.zip" required>
-                    <small style="color: #807F80; font-size: 0.75rem;">Max: 50MB</small>
+                <div class="mb-3"><label class="form-label">EA File (.ex4, .ex5, .dll, .zip)</label><input type="file" name="file" class="form-control" accept=".ex4,.ex5,.dll,.zip" required><small style="color:#807F80;font-size:0.75rem;">Max: 50MB</small></div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Version</label><input type="text" name="version" class="form-control" placeholder="1.0.0" required></div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Plan Level Required</label><select name="plan_level" class="form-select"><option value="1">🟢 Level 1 (Basic)</option><option value="2" selected>🟣 Level 2 (Full)</option></select></div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Description</label><input type="text" name="description" class="form-control" placeholder="Optional"></div>
                 </div>
                 <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Version</label>
-                        <input type="text" name="version" class="form-control" placeholder="1.0.0" required>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Plan Level Required</label>
-                        <select name="plan_level" class="form-select">
-                            <option value="1">🟢 Level 1 (Basic - Limited Access)</option>
-                            <option value="2" selected>🟣 Level 2 (Full - All EAs)</option>
-                        </select>
-                        <small style="color: #807F80; font-size: 0.7rem;">
-                            Level 1 users see only Level 1 EAs. Level 2 users see all EAs.
-                        </small>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Description</label>
-                        <input type="text" name="description" class="form-control" placeholder="Optional description">
-                    </div>
+                    <div class="col-md-8 mb-3"><label class="form-label">Changelog</label><textarea name="changelog" class="form-control" rows="2" placeholder="What's new?"></textarea></div>
+                    <div class="col-md-4 mb-3 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_beta" id="isBeta"><label class="form-check-label" for="isBeta" style="font-size:0.85rem;"><i class="fas fa-flask me-1" style="color:#A85CF9;"></i>Beta version</label></div></div>
                 </div>
-                <div class="row">
-                    <div class="col-md-8 mb-3">
-                        <label class="form-label">Changelog</label>
-                        <textarea name="changelog" class="form-control" rows="2" placeholder="What's new in this version?"></textarea>
-                    </div>
-                    <div class="col-md-4 mb-3 d-flex align-items-end">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="is_beta" id="isBeta">
-                            <label class="form-check-label" for="isBeta" style="font-size: 0.85rem;">
-                                <i class="fas fa-flask me-1" style="color: #A85CF9;"></i>Beta version
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-cloud-upload-alt me-2"></i>Upload EA
-                </button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-cloud-upload-alt me-2"></i>Upload EA</button>
             </form>
         </div>
     </div>
 
-    <!-- Activity Log (Full Width) -->
+    <!-- Activity Log -->
     <div class="activity-card">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
-        </div>
-        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5></div>
+        <div class="card-body" style="max-height:400px;overflow-y:auto;">
             {% for log in recent_logs %}
             <div class="activity-item">
-                <div class="activity-dot 
-                    {% if 'login' in log.action %}login
-                    {% elif 'license' in log.action %}license
-                    {% elif 'revok' in log.action %}revoke
-                    {% elif 'upload' in log.action %}upload
-                    {% elif 'delete' in log.action %}delete
-                    {% elif 'order' in log.action or 'payment' in log.action %}order
-                    {% else %}default{% endif %}">
-                </div>
-                <div class="flex-grow-1">
-                    <strong style="color: #2D2D2D; font-size: 0.85rem;">{{ log.action|title }}</strong>
-                    <p class="mb-0" style="color: #807F80; font-size: 0.78rem;">{{ log.details }}</p>
-                    <small style="color: #807F80; font-size: 0.72rem;">
-                        {{ log.created_at.strftime('%b %d, %Y %H:%M') }}
-                        {% if log.ip_address %} · {{ log.ip_address }}{% endif %}
-                    </small>
-                </div>
+                <div class="activity-dot {% if 'login' in log.action %}login{% elif 'license' in log.action %}license{% elif 'revok' in log.action %}revoke{% elif 'upload' in log.action %}upload{% elif 'delete' in log.action %}delete{% elif 'order' in log.action or 'payment' in log.action %}order{% else %}default{% endif %}"></div>
+                <div class="flex-grow-1"><strong style="color:#2D2D2D;font-size:0.85rem;">{{ log.action|title }}</strong><p class="mb-0" style="color:#807F80;font-size:0.78rem;">{{ log.details }}</p><small style="color:#807F80;font-size:0.72rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}{% if log.ip_address %} · {{ log.ip_address }}{% endif %}</small></div>
             </div>
             {% endfor %}
         </div>
@@ -964,29 +192,12 @@
 
 <script>
 function toggleTestMode() {
-    const toggle = document.getElementById('testModeToggle');
     const status = document.getElementById('testModeStatus');
-    
-    fetch('/admin/toggle-test-mode', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.test_mode === 'on') {
-            status.textContent = '⚠️ 1-DAY LICENSES';
-            status.style.color = '#FCA5A5';
-            showToast('⚠️ Test mode ON - Licenses will expire in 1 day', 'warning');
-        } else {
-            status.textContent = '✅ NORMAL';
-            status.style.color = '#6FDFDF';
-            showToast('✅ Test mode OFF - Normal licensing restored', 'success');
-        }
-    })
-    .catch(err => {
-        toggle.checked = !toggle.checked;
-        showToast('Error toggling test mode', 'error');
-    });
+    fetch('/admin/toggle-test-mode', {method:'POST',headers:{'Content-Type':'application/json'}})
+    .then(r=>r.json()).then(data=>{
+        if(data.test_mode==='on'){status.textContent='⚠️ 1-DAY LICENSES';status.style.color='#FCA5A5';showToast('⚠️ Test mode ON','warning');}
+        else{status.textContent='✅ NORMAL';status.style.color='#6FDFDF';showToast('✅ Test mode OFF','success');}
+    }).catch(()=>{document.getElementById('testModeToggle').checked=!document.getElementById('testModeToggle').checked;});
 }
 </script>
 {% endblock %}
