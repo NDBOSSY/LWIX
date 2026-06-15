@@ -649,6 +649,20 @@ def revoke_membership(user_id):
     return redirect(url_for("admin_users"))
 
 
+@app.route("/admin/reactivate-membership/<int:user_id>", methods=["POST"])
+@admin_required
+def reactivate_membership(user_id):
+    user = db.session.get(User, user_id)
+    if user:
+        user.membership_status = "active"
+        user.membership_start = datetime.utcnow()
+        user.membership_end = datetime.utcnow() + timedelta(days=user.subscription_duration_days or 30)
+        db.session.commit()
+        log_audit(current_user.id, "membership_reactivated", f"Reactivated {user.email}", request.remote_addr)
+        flash("Membership reactivated.", "success")
+    return redirect(url_for("admin_users"))
+
+
 @app.route("/admin/extend-membership/<int:user_id>", methods=["POST"])
 @admin_required
 def extend_membership(user_id):
