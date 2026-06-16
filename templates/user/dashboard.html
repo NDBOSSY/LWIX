@@ -118,73 +118,6 @@
         letter-spacing: 0.3px;
     }
 
-    .user-id-badge {
-        background: rgba(255,255,255,0.15);
-        padding: 0.2rem 0.6rem;
-        border-radius: 8px;
-        font-size: 0.7rem;
-        font-family: monospace;
-        letter-spacing: 0.5px;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .stat-card {
-        background: linear-gradient(135deg, #CFF7F7 0%, #E8F6FF 100%);
-        border-radius: 14px;
-        padding: 0.8rem 1rem;
-        border: 1px solid #E5E7EB;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(75, 123, 229, 0.1);
-        border-color: #6FDFDF;
-    }
-
-    .stat-card::after {
-        content: '';
-        position: absolute;
-        top: 0; right: 0;
-        width: 50px; height: 50px;
-        border-radius: 0 0 0 50px;
-        opacity: 0.08;
-    }
-
-    .stat-card.license::after { background: #4B7BE5; }
-    .stat-card.downloads::after { background: #3FBFB3; }
-    .stat-card.status::after { background: #A85CF9; }
-
-    .stat-icon {
-        width: 38px; height: 38px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-        flex-shrink: 0;
-    }
-
-    .stat-icon.blue { background: rgba(75, 123, 229, 0.1); color: #4B7BE5; }
-    .stat-icon.teal { background: rgba(63, 191, 179, 0.1); color: #3FBFB3; }
-    .stat-icon.purple { background: rgba(168, 92, 249, 0.1); color: #A85CF9; }
-
-    .stat-info { flex: 1; }
-    .stat-value { font-size: 1.3rem; font-weight: 700; color: #2D2D2D; line-height: 1.2; }
-    .stat-label { color: #807F80; font-size: 0.75rem; font-weight: 500; line-height: 1.2; }
-
     .main-content {
         display: grid;
         grid-template-columns: 1fr 1.5fr;
@@ -342,20 +275,17 @@
         border-color: #4B7BE5;
     }
 
-    .license-info-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.8rem;
+    .max-accounts-display {
+        text-align: center;
+        margin-top: 0.8rem;
+        font-size: 0.85rem;
+        color: #807F80;
     }
 
-    .license-info-item {
-        background: linear-gradient(135deg, #A9C4F7 0%, #B9A6E8 100%);
-        padding: 0.8rem;
-        border-radius: 10px;
+    .max-accounts-display strong {
+        color: #4B7BE5;
+        font-size: 1.1rem;
     }
-
-    .license-info-item .label { font-size: 0.7rem; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem; }
-    .license-info-item .value { font-weight: 600; color: #2D2D2D; font-size: 0.85rem; }
 
     .accounts-section { margin-top: 1rem; }
     .accounts-section h6 { font-size: 0.85rem; color: #4B7BE5; margin-bottom: 0.5rem; }
@@ -756,30 +686,21 @@
 
     .btn-outline-primary:hover { background: #4B7BE5; color: white; }
 
-    @media (max-width: 1024px) { .main-content { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 1024px) { .main-content { grid-template-columns: 1fr; } }
     @media (max-width: 768px) {
         .dashboard-container { padding: 1rem 0.5rem; }
         .welcome-section { padding: 1.2rem; border-radius: 16px; }
         .welcome-section h2 { font-size: 1.1rem; }
         .welcome-icon-circle { width: 40px; height: 40px; font-size: 1.2rem; }
-        .stats-grid { gap: 0.5rem; }
-        .stat-card { padding: 0.6rem 0.7rem; }
-        .stat-icon { width: 30px; height: 30px; font-size: 0.85rem; }
-        .stat-value { font-size: 1.1rem; }
         .membership-info-body { grid-template-columns: 1fr; padding: 0.8rem; }
         .license-body { padding: 1rem; }
         .license-key-display { padding: 0.8rem 2.6rem 0.8rem 0.8rem; font-size: 0.85rem; min-height: 48px; }
         .key-copy-btn { width: 28px; height: 28px; right: 5px; font-size: 0.7rem; }
-        .license-info-grid { grid-template-columns: 1fr; gap: 0.5rem; }
         .ea-grid { grid-template-columns: 1fr; padding: 0.8rem; }
         .ea-card { padding: 0.8rem; }
         .custom-modal { max-width: 300px; }
     }
     @media (max-width: 480px) {
-        .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
-        .stat-card { padding: 0.5rem 0.6rem; }
-        .stat-icon { width: 26px; height: 26px; }
-        .stat-value { font-size: 1rem; }
         .welcome-section { padding: 1rem; }
     }
 </style>
@@ -787,7 +708,7 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <!-- Welcome Section -->
+    <!-- Welcome Section - Clean, only name, email, status orb -->
     <div class="welcome-section">
         <div class="welcome-content">
             <div class="row align-items-center">
@@ -798,14 +719,6 @@
                             <h2 class="fw-bold mb-1">{% if user.first_name %}Welcome back, {{ user.first_name }}!{% else %}Welcome back!{% endif %}</h2>
                             <p class="mb-0 opacity-75">{% if user.get_full_name() and user.get_full_name() != user.email %}{{ user.get_full_name() }} · {{ user.email }}{% else %}{{ user.email }}{% endif %}</p>
                         </div>
-                    </div>
-                    <div class="d-flex gap-2 mt-2 flex-wrap align-items-center">
-                        <span class="user-id-badge"><i class="fas fa-id-card me-1"></i>ID: {{ user.id }}</span>
-                        <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-calendar me-1"></i>Member since {{ user.created_at.strftime('%B %Y') }}</span>
-                        <span class="badge" style="background: rgba(255,255,255,0.2); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-key me-1"></i>{{ user.licenses.count() }} License(s)</span>
-                        {% if user.subscription_type %}<span class="badge {% if user.subscription_type == 'monthly' %}badge-monthly{% elif user.subscription_type == 'yearly' %}badge-yearly{% elif user.subscription_type == 'lifetime' %}badge-lifetime{% endif %}" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-crown me-1"></i>{{ user.subscription_type|title }}</span>{% endif %}
-                        <span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-layer-group me-1"></i>Level {{ user.get_plan_level() }}</span>
-                        {% if license %}<span class="badge" style="background: rgba(63,191,179,0.3); padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem;"><i class="fas fa-desktop me-1"></i>{{ account_count }}/{{ max_accounts }} Accounts</span>{% endif %}
                     </div>
                 </div>
                 <div class="col-md-4 text-end mt-2 mt-md-0">
@@ -821,14 +734,12 @@
         </div>
     </div>
 
-    <!-- Membership Info Card -->
+    <!-- Membership Info Card - Only Plan Level, Subscription Type, Start Date, Service Status -->
     <div class="membership-info-card">
         <div class="membership-info-header"><h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Membership Details</h5></div>
         <div class="membership-info-body">
-            <div class="membership-item"><div class="m-label">Plan</div><div class="m-value">{{ user.plan_name or 'Free Tier' }}</div></div>
             <div class="membership-item"><div class="m-label">Plan Level</div><div class="m-value"><span class="badge {% if user.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}">Level {{ user.get_plan_level() }} - {{ 'Full Access' if user.get_plan_level() >= 2 else 'Basic Access' }}</span></div></div>
             <div class="membership-item"><div class="m-label">Subscription Type</div><div class="m-value">{% if user.subscription_type %}<span class="badge {% if user.subscription_type == 'monthly' %}badge-monthly{% elif user.subscription_type == 'yearly' %}badge-yearly{% elif user.subscription_type == 'lifetime' %}badge-lifetime{% endif %}">{{ user.subscription_type|title }}</span>{% else %}Standard{% endif %}</div></div>
-            <div class="membership-item"><div class="m-label">Duration</div><div class="m-value">{{ user.get_membership_duration_display() }}</div></div>
             <div class="membership-item"><div class="m-label">Start Date</div><div class="m-value">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</div></div>
             <div class="membership-item">
                 <div class="m-label">Service Status</div>
@@ -849,15 +760,9 @@
         </div>
     </div>
 
-    <!-- Stats Grid - 3 cards only -->
-    <div class="stats-grid">
-        <div class="stat-card license"><div class="stat-icon blue"><i class="fas fa-key"></i></div><div class="stat-info"><div class="stat-value">{{ user.licenses.count() }}</div><div class="stat-label">Active Licenses</div></div></div>
-        <div class="stat-card downloads"><div class="stat-icon teal"><i class="fas fa-download"></i></div><div class="stat-info"><div class="stat-value" id="totalDownloads">0</div><div class="stat-label">Total Downloads</div></div></div>
-        <div class="stat-card status"><div class="stat-icon purple"><i class="fas fa-shield-alt"></i></div><div class="stat-info"><div class="stat-value">{{ user.membership_status|title }}</div><div class="stat-label">Membership Status</div></div></div>
-    </div>
-
     <!-- Main Content -->
     <div class="main-content">
+        <!-- License Card - Only license key, copy button, max accounts -->
         <div class="license-card">
             <div class="license-header"><h5 class="mb-0"><i class="fas fa-key me-2"></i>License Details</h5></div>
             <div class="license-body">
@@ -867,15 +772,8 @@
                     <div class="key-overlay"><i class="fas fa-eye-slash"></i> Click to reveal license key</div>
                     <button class="key-copy-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="Copy Key"><i class="fas fa-copy"></i></button>
                 </div>
-                <div class="license-info-grid">
-                    <div class="license-info-item"><div class="label">Status</div><div class="value"><span class="badge {% if license.status == 'active' %}badge-active{% else %}badge-expired{% endif %}">{{ license.status|title }}</span></div></div>
-                    <div class="license-info-item"><div class="label">License Type</div><div class="value">{{ license.license_type|title or 'Standard' }}</div></div>
-                    <div class="license-info-item"><div class="label">EA Version</div><div class="value">{{ license.ea_version or '1.0.0' }}</div></div>
-                    <div class="license-info-item"><div class="label">Max Accounts</div><div class="value">{{ max_accounts }}</div></div>
-                    <div class="license-info-item"><div class="label">Created</div><div class="value">{{ license.created_at.strftime('%b %d, %Y') }}</div></div>
-                    <div class="license-info-item"><div class="label">Expires</div><div class="value">{{ license.expires_at.strftime('%b %d, %Y') }}</div></div>
-                    <div class="license-info-item"><div class="label">Times Validated</div><div class="value">{{ license.validation_count }}</div></div>
-                    <div class="license-info-item"><div class="label">Machine Status</div><div class="value">{{ 'Bound' if license.machine_id else 'Not Bound' }}</div></div>
+                <div class="max-accounts-display">
+                    <i class="fas fa-desktop me-1"></i> Max Accounts: <strong>{{ max_accounts }}</strong>
                 </div>
                 {% if license_accounts %}
                 <div class="accounts-section">
@@ -894,6 +792,7 @@
             </div>
         </div>
 
+        <!-- EA Downloads -->
         <div class="ea-section">
             <div class="ea-header">
                 <h5 class="mb-0"><i class="fas fa-robot me-2" style="color: #A85CF9;"></i>Expert Advisors</h5>
@@ -928,6 +827,7 @@
         </div>
     </div>
 
+    <!-- Discord -->
     <div class="discord-section">
         <div class="discord-header"><i class="fab fa-discord fa-2x"></i><div><h5 class="mb-0">Discord Community</h5><small class="opacity-75">Get support, updates, and connect with other traders</small></div></div>
         <div class="discord-body">
