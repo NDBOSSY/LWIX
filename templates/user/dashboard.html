@@ -46,7 +46,7 @@
       color: var(--ink);
       font-size: 14px;
       line-height: 1.5;
-      padding: 2rem 1.5rem 4rem;
+      padding: 0 1.5rem 4rem;
     }
 
     .dashboard {
@@ -54,7 +54,88 @@
       margin: 0 auto;
     }
 
-    /* header */
+    /* ---- TOP BAR (restored) ---- */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.75rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 -1.5rem 1.75rem -1.5rem;
+      backdrop-filter: blur(6px);
+      background: rgba(255,255,255,0.85);
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: -0.3px;
+      color: var(--ink);
+    }
+    .topbar-brand .mark {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(145deg, var(--accent), var(--violet));
+      color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      box-shadow: 0 2px 8px rgba(30,84,229,0.3);
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+    .topbar-status {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--ink-muted);
+      padding: 0.3rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 30px;
+    }
+    .topbar-status .dot {
+      width: 7px; height: 7px;
+      border-radius: 10px;
+    }
+    .topbar-status .dot.active { background: var(--green); }
+    .topbar-status .dot.inactive { background: var(--red); }
+
+    .topbar-user {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .topbar-user .avatar {
+      width: 32px; height: 32px;
+      border-radius: 40px;
+      background: var(--accent-light);
+      color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .topbar-user .logout-btn {
+      background: transparent;
+      border: none;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .topbar-user .logout-btn:hover { color: var(--red); background: var(--red-light); }
+
+    /* ---- greeting ---- */
     .greeting {
       display: flex;
       align-items: flex-end;
@@ -80,55 +161,33 @@
       color: var(--ink-soft);
       font-size: 0.75rem;
     }
-    .greeting-badge {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 40px;
-      padding: 0.4rem 1rem 0.4rem 1.2rem;
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      font-weight: 500;
-      font-size: 0.82rem;
-      box-shadow: var(--shadow-card);
-    }
-    .greeting-badge .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 10px;
-      background: var(--green);
-      display: inline-block;
-      animation: pulse-dot 2s infinite;
-    }
-    @keyframes pulse-dot { 0% { opacity: 1; } 50% { opacity: 0.4; } }
 
-    /* kpi strip */
+    /* ---- KPI cards with background colors ---- */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 1rem;
       margin-bottom: 2rem;
     }
     .kpi-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.1rem 1.2rem;
+      border-radius: 16px;
+      padding: 1.2rem 1.3rem;
+      border: 1px solid rgba(255,255,255,0.3);
       box-shadow: var(--shadow-card);
-      transition: box-shadow 0.2s;
+      transition: transform 0.15s, box-shadow 0.2s;
     }
-    .kpi-card:hover { box-shadow: var(--shadow-raised); }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-raised); }
     .kpi-card .label {
       font-size: 0.7rem;
       font-weight: 600;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: var(--ink-soft);
+      opacity: 0.7;
     }
     .kpi-card .value {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       margin-top: 0.2rem;
       display: flex;
       align-items: baseline;
@@ -138,10 +197,15 @@
       font-family: 'Inter', sans-serif;
       font-weight: 500;
       font-size: 0.75rem;
-      color: var(--ink-muted);
+      opacity: 0.7;
     }
+    /* card color variants */
+    .kpi-card.color-1 { background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #1e3a8a; }
+    .kpi-card.color-2 { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #065f46; }
+    .kpi-card.color-3 { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+    .kpi-card.color-4 { background: linear-gradient(135deg, #fce7f3, #fbcfe8); color: #831843; }
 
-    /* two-col */
+    /* ---- 2col ---- */
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -179,7 +243,6 @@
     .panel-head .title i { color: var(--ink-soft); font-size: 0.8rem; width: 1.2rem; text-align: center; }
     .panel-body { padding: 1.25rem; }
 
-    /* membership rows */
     .row-item {
       display: flex;
       justify-content: space-between;
@@ -440,7 +503,6 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* toast */
     .toast {
       position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
       background: var(--ink); color: white; padding: 0.7rem 1.4rem;
@@ -451,12 +513,29 @@
     .toast.show { opacity: 1; }
 
     .fa-fw { width: 1.1rem; text-align: center; }
-    .mb-1 { margin-bottom: 0.25rem; }
   </style>
 </head>
 <body>
-<div class="dashboard">
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="mark">TE</div>
+    Trading Engine
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-status">
+      <div class="dot {% if user.membership_status == 'active' %}active{% else %}inactive{% endif %}"></div>
+      {{ 'Active' if user.membership_status == 'active' else 'Inactive' }}
+    </div>
+    <div class="topbar-user">
+      <span class="avatar">{{ (user.first_name or 'U')[0]|upper }}</span>
+      <button class="logout-btn" onclick="window.location.href='{{ url_for('logout') }}'" title="Logout">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </div>
+</div>
 
+<div class="dashboard">
   <!-- greeting -->
   <div class="greeting">
     <div class="greeting-left">
@@ -467,28 +546,23 @@
         <span>Member since {{ user.membership_start.strftime('%b %Y') if user.membership_start else 'N/A' }}</span>
       </div>
     </div>
-    <div class="greeting-badge">
-      <span class="dot"></span>
-      {{ 'Active' if user.membership_status == 'active' else 'Inactive' }}
-      <i class="fas fa-chevron-down" style="font-size: 0.65rem; opacity: 0.5;"></i>
-    </div>
   </div>
 
-  <!-- KPI -->
+  <!-- KPI with background colors -->
   <div class="kpi-grid">
-    <div class="kpi-card">
+    <div class="kpi-card color-1">
       <div class="label">Plan level</div>
       <div class="value">LVL {{ user.get_plan_level() }} <span class="unit">/ 2</span></div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card color-2">
       <div class="label">Subscription</div>
       <div class="value" style="font-size:1.1rem; font-weight:600;">{{ user.subscription_type|title or 'Standard' }}</div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card color-3">
       <div class="label">MT5 accounts</div>
       <div class="value">{{ account_count if license_accounts else 0 }} <span class="unit">/ {{ max_accounts if license else '—' }}</span></div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card color-4">
       <div class="label">EAs unlocked</div>
       <div class="value">{{ ea_files|length if ea_files else 0 }} <span class="unit">/ {{ all_ea_count if all_ea_count is defined else '—' }}</span></div>
     </div>
@@ -637,7 +711,6 @@
     document.getElementById('licenseDisplay').classList.toggle('revealed', visible);
   }
 
-  // copy
   function copyToClipboard(text) {
     navigator.clipboard?.writeText(text).then(() => showToast('License copied!')).catch(() => {});
   }
@@ -651,7 +724,6 @@
   }
   function closeDownloadAllModal() { document.getElementById('downloadAllModal').classList.remove('show'); }
 
-  // generate
   function confirmGenerateLicense() {
     closeLicenseModal();
     document.getElementById('loadingOverlay').style.display = 'flex';
@@ -665,7 +737,6 @@
       .catch(() => { document.getElementById('loadingOverlay').style.display = 'none'; showToast('Error', 'error'); });
   }
 
-  // download all
   function confirmDownloadAll() {
     closeDownloadAllModal();
     const links = document.querySelectorAll('a[href*="download-ea"]');
@@ -677,7 +748,6 @@
     }, i * 1500));
   }
 
-  // toast
   function showToast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -687,7 +757,6 @@
     t._hide = setTimeout(() => t.classList.remove('show'), 2600);
   }
 
-  // close on backdrop
   document.getElementById('licenseModal').addEventListener('click', function(e) { if (e.target === this) closeLicenseModal(); });
   document.getElementById('downloadAllModal').addEventListener('click', function(e) { if (e.target === this) closeDownloadAllModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLicenseModal(); closeDownloadAllModal(); } });
