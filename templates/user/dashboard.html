@@ -5,16 +5,19 @@
 {% block extra_css %}
 <style>
     :root {
-        --bg: #0F172A;
-        --card-bg: #1E293B;
-        --card-border: #334155;
-        --accent: #6366F1;
-        --accent2: #8B5CF6;
-        --green: #10B981;
-        --red: #EF4444;
-        --text: #F1F5F9;
-        --text-muted: #94A3B8;
-        --gold: #F59E0B;
+        --bg: #F8FAFC;
+        --card-bg: #FFFFFF;
+        --card-border: #E2E8F0;
+        --accent: #1D4ED8;
+        --accent-dark: #1E3A8A;
+        --green: #15803D;
+        --green-bg: #ECFDF5;
+        --red: #B91C1C;
+        --red-bg: #FEF2F2;
+        --text: #0F172A;
+        --text-muted: #64748B;
+        --gold: #B45309;
+        --gold-bg: #FFFBEB;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,18 +42,15 @@
         margin-bottom: 2rem;
         flex-wrap: wrap;
         gap: 1rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--card-border);
     }
 
     .header-left h1 {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         font-weight: 700;
-        letter-spacing: -0.5px;
-    }
-
-    .header-left h1 span {
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.3px;
+        color: var(--text);
     }
 
     .header-left .email {
@@ -69,22 +69,17 @@
         padding: 0.5rem 1.2rem;
         font-size: 0.85rem;
         font-weight: 500;
+        color: var(--text);
     }
 
     .status-dot {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
-        animation: pulse-dot 2s infinite;
     }
 
-    .status-dot.active { background: var(--green); box-shadow: 0 0 10px var(--green); }
-    .status-dot.inactive { background: var(--red); box-shadow: 0 0 10px var(--red); animation: none; }
-
-    @keyframes pulse-dot {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.4; }
-    }
+    .status-dot.active { background: var(--green); }
+    .status-dot.inactive { background: var(--red); }
 
     /* === GRID === */
     .grid {
@@ -106,13 +101,9 @@
     .card {
         background: var(--card-bg);
         border: 1px solid var(--card-border);
-        border-radius: 16px;
+        border-radius: 12px;
         padding: 1.5rem;
-        transition: border-color 0.3s;
-    }
-
-    .card:hover {
-        border-color: var(--accent);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
     .card-header {
@@ -135,10 +126,10 @@
         font-size: 0.9rem;
     }
 
-    .icon-purple { background: rgba(139, 92, 246, 0.2); color: #A78BFA; }
-    .icon-blue { background: rgba(99, 102, 241, 0.2); color: #818CF8; }
-    .icon-green { background: rgba(16, 185, 129, 0.2); color: #34D399; }
-    .icon-gold { background: rgba(245, 158, 11, 0.2); color: #FBBF24; }
+    .icon-purple { background: #EEF2FF; color: var(--accent-dark); }
+    .icon-blue { background: #EFF6FF; color: var(--accent); }
+    .icon-green { background: var(--green-bg); color: var(--green); }
+    .icon-gold { background: var(--gold-bg); color: var(--gold); }
 
     /* === MEMBERSHIP === */
     .membership-grid {
@@ -148,39 +139,43 @@
     }
 
     .membership-item {
-        background: rgba(255,255,255,0.03);
-        border-radius: 10px;
+        background: var(--bg);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
         padding: 0.8rem 1rem;
     }
 
     .membership-item .label {
         font-size: 0.7rem;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 0.6px;
         color: var(--text-muted);
         margin-bottom: 0.3rem;
+        font-weight: 600;
     }
 
     .membership-item .value {
         font-weight: 600;
         font-size: 0.9rem;
+        color: var(--text);
     }
 
     /* === LICENSE KEY === */
     .license-display {
-        background: rgba(0,0,0,0.3);
-        border: 2px dashed var(--card-border);
-        border-radius: 12px;
+        background: var(--bg);
+        border: 1.5px dashed var(--card-border);
+        border-radius: 10px;
         padding: 1.2rem;
         text-align: center;
         font-family: 'SF Mono', 'Fira Code', monospace;
-        font-size: 1.2rem;
+        font-size: 1.15rem;
         font-weight: 700;
-        letter-spacing: 2px;
+        letter-spacing: 1.5px;
         cursor: pointer;
         user-select: none;
         position: relative;
-        transition: all 0.3s;
+        transition: border-color 0.2s;
+        color: var(--text);
     }
 
     .license-display:hover {
@@ -219,9 +214,9 @@
         right: 10px;
         top: 50%;
         transform: translateY(-50%);
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
+        width: 32px;
+        height: 32px;
+        border-radius: 7px;
         border: 1px solid var(--card-border);
         background: var(--card-bg);
         color: var(--text-muted);
@@ -250,7 +245,7 @@
 
     .accounts-row strong {
         color: var(--text);
-        font-size: 1.1rem;
+        font-size: 1.05rem;
     }
 
     /* === EA CARDS === */
@@ -262,26 +257,26 @@
     }
 
     .ea-card {
-        background: rgba(255,255,255,0.03);
+        background: var(--bg);
         border: 1px solid var(--card-border);
-        border-radius: 12px;
+        border-radius: 10px;
         padding: 1rem;
-        transition: all 0.3s;
+        transition: border-color 0.2s;
     }
 
     .ea-card:hover {
         border-color: var(--accent);
-        transform: translateY(-2px);
     }
 
     .ea-card.locked {
-        opacity: 0.5;
+        opacity: 0.6;
     }
 
     .ea-card .ea-name {
         font-weight: 600;
         font-size: 0.9rem;
         margin-bottom: 0.5rem;
+        color: var(--text);
     }
 
     .ea-card .ea-meta {
@@ -295,33 +290,40 @@
         font-size: 0.7rem;
         padding: 0.2rem 0.5rem;
         border-radius: 6px;
-        background: rgba(255,255,255,0.05);
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
         color: var(--text-muted);
+        font-weight: 500;
     }
 
     .download-btn {
         width: 100%;
-        padding: 0.5rem;
+        padding: 0.55rem;
         border: none;
-        border-radius: 8px;
+        border-radius: 7px;
         font-weight: 600;
         font-size: 0.8rem;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: opacity 0.2s;
+        text-align: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
     }
 
     .download-btn.active {
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        background: var(--accent);
         color: white;
     }
 
     .download-btn.active:hover {
         opacity: 0.9;
-        transform: translateY(-1px);
     }
 
     .download-btn.locked {
-        background: rgba(255,255,255,0.05);
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
         color: var(--text-muted);
         cursor: not-allowed;
     }
@@ -330,17 +332,18 @@
         text-align: center;
         margin-top: 1rem;
         padding: 0.8rem;
-        border: 2px dashed var(--card-border);
-        border-radius: 12px;
+        border: 1.5px dashed var(--card-border);
+        border-radius: 10px;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: border-color 0.2s;
         font-size: 0.85rem;
         color: var(--text-muted);
+        font-weight: 500;
     }
 
     .download-all:hover {
         border-color: var(--accent);
-        color: var(--text);
+        color: var(--accent);
     }
 
     /* === DISCORD === */
@@ -350,17 +353,16 @@
         gap: 0.5rem;
         background: #5865F2;
         color: white;
-        padding: 0.7rem 1.5rem;
-        border-radius: 10px;
+        padding: 0.65rem 1.4rem;
+        border-radius: 8px;
         text-decoration: none;
         font-weight: 600;
         font-size: 0.9rem;
-        transition: all 0.3s;
+        transition: opacity 0.2s;
     }
 
     .discord-btn:hover {
-        background: #4752C4;
-        transform: translateY(-2px);
+        opacity: 0.9;
     }
 
     /* === BUTTONS === */
@@ -369,32 +371,32 @@
         align-items: center;
         gap: 0.4rem;
         padding: 0.6rem 1.2rem;
-        border-radius: 10px;
+        border-radius: 8px;
         font-weight: 600;
         font-size: 0.85rem;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: opacity 0.2s, background 0.2s;
         border: none;
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        background: var(--accent);
         color: white;
     }
 
     .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+        opacity: 0.9;
     }
 
     .btn-outline {
-        background: transparent;
-        border: 1.5px solid var(--card-border);
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
         color: var(--text);
     }
 
     .btn-outline:hover {
         border-color: var(--accent);
+        color: var(--accent);
     }
 
     /* === MODAL === */
@@ -403,8 +405,7 @@
         position: fixed;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background: rgba(0,0,0,0.7);
-        backdrop-filter: blur(4px);
+        background: rgba(15, 23, 42, 0.5);
         z-index: 1000;
         justify-content: center;
         align-items: center;
@@ -415,14 +416,15 @@
     .modal {
         background: var(--card-bg);
         border: 1px solid var(--card-border);
-        border-radius: 16px;
+        border-radius: 14px;
         padding: 2rem;
         width: 90%;
         max-width: 400px;
         text-align: center;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
     }
 
-    .modal h3 { margin-bottom: 1rem; }
+    .modal h3 { margin-bottom: 1rem; color: var(--text); }
     .modal p { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
 
     .modal-actions {
@@ -436,17 +438,18 @@
         position: fixed;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background: rgba(0,0,0,0.8);
+        background: rgba(15, 23, 42, 0.6);
         z-index: 2000;
         justify-content: center;
         align-items: center;
         flex-direction: column;
+        color: white;
     }
 
     .spinner {
-        width: 40px; height: 40px;
-        border: 3px solid var(--card-border);
-        border-top-color: var(--accent);
+        width: 36px; height: 36px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-top-color: white;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
     }
@@ -454,18 +457,20 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .upgrade-banner {
-        background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(139,92,246,0.15));
-        border: 1px solid rgba(245,158,11,0.3);
-        border-radius: 12px;
+        background: var(--gold-bg);
+        border: 1px solid #FDE68A;
+        border-radius: 10px;
         padding: 0.8rem 1rem;
         text-align: center;
         font-size: 0.85rem;
         margin-top: 1rem;
+        color: var(--gold);
     }
 
     .upgrade-banner a {
         color: var(--gold);
         font-weight: 600;
+        text-decoration: underline;
     }
 </style>
 {% endblock %}
@@ -475,7 +480,7 @@
     <!-- Header -->
     <div class="header">
         <div class="header-left">
-            <h1>Hey <span>{{ user.first_name or 'there' }}</span> 👋</h1>
+            <h1>Hey {{ user.first_name or 'there' }} 👋</h1>
             <p class="email">{{ user.email }}</p>
         </div>
         <div class="status-pill">
@@ -496,7 +501,7 @@
                 <div class="membership-item">
                     <div class="label">Plan Level</div>
                     <div class="value">
-                        <span class="badge" style="background: {% if user.get_plan_level() >= 2 %}rgba(139,92,246,0.2); color:#A78BFA;{% else %}rgba(100,116,139,0.2); color:#94A3B8;{% endif %} padding:0.2rem 0.6rem; border-radius:6px; font-size:0.8rem;">
+                        <span class="badge" style="background: {% if user.get_plan_level() >= 2 %}#EEF2FF; color:#1E3A8A;{% else %}#F1F5F9; color:#64748B;{% endif %} padding:0.2rem 0.6rem; border-radius:6px; font-size:0.8rem;">
                             Level {{ user.get_plan_level() }}
                         </span>
                     </div>
@@ -552,7 +557,7 @@
             <div class="icon icon-green"><i class="fas fa-robot"></i></div>
             Expert Advisors
             {% if ea_files is defined and all_ea_count is defined %}
-            <span style="margin-left:auto;font-size:0.8rem;color:var(--text-muted);">{{ ea_files|length }}/{{ all_ea_count }} Available</span>
+            <span style="margin-left:auto;font-size:0.8rem;color:var(--text-muted);font-weight:500;">{{ ea_files|length }}/{{ all_ea_count }} Available</span>
             {% endif %}
         </div>
         {% if ea_files %}
