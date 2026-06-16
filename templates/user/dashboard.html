@@ -220,6 +220,54 @@
     }
     .license-box .key-footer strong { font-family: 'JetBrains Mono', monospace; color: var(--ink); font-weight: 700; }
 
+    /* License accounts list */
+    .license-accounts {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border);
+    }
+    .license-accounts .accounts-title {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin-bottom: 0.5rem;
+    }
+    .license-accounts .account-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.3rem 0.5rem;
+        border-radius: 6px;
+        background: var(--surface);
+        margin-bottom: 0.3rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+    }
+    .license-accounts .account-item .account-number {
+        font-weight: 600;
+        color: var(--ink-secondary);
+    }
+    .license-accounts .account-item .account-date {
+        font-size: 0.7rem;
+        color: var(--ink-soft);
+    }
+    .license-accounts .account-item .account-badge {
+        font-size: 0.6rem;
+        padding: 0.1rem 0.5rem;
+        border-radius: 10px;
+        background: var(--green-light);
+        color: var(--green);
+        font-weight: 600;
+    }
+    .license-accounts .no-accounts {
+        color: var(--ink-soft);
+        font-size: 0.8rem;
+        text-align: center;
+        padding: 0.5rem 0;
+    }
+
     .copy-btn {
         width: 30px; height: 30px;
         border-radius: 8px;
@@ -493,6 +541,26 @@
                         <span style="color:var(--green);"><i class="fas fa-check-circle fa-fw"></i> <strong>{{ account_count }}</strong> active</span>
                         {% endif %}
                     </div>
+                </div>
+
+                <!-- Display activated accounts -->
+                <div class="license-accounts">
+                    <div class="accounts-title">
+                        <i class="fas fa-server fa-fw"></i> Activated Accounts
+                    </div>
+                    {% if license_accounts %}
+                        {% for acc in license_accounts %}
+                        <div class="account-item">
+                            <span class="account-number"><i class="fas fa-hashtag fa-fw" style="color:var(--ink-soft);"></i> {{ acc.account }}</span>
+                            <span class="account-date">{{ acc.activated.strftime('%b %d, %Y') if acc.activated else 'N/A' }}</span>
+                            <span class="account-badge"><i class="fas fa-check-circle"></i> Active</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="no-accounts">
+                            <i class="fas fa-circle-plus"></i> No accounts activated yet
+                        </div>
+                    {% endif %}
                 </div>
                 {% else %}
                 <div class="empty-state">
