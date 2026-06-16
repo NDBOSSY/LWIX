@@ -5,81 +5,109 @@
 {% block extra_css %}
 <style>
     :root {
-        --bg: #F8FAFC;
-        --card-bg: #FFFFFF;
-        --card-border: #E2E8F0;
-        --accent: #1D4ED8;
-        --accent-dark: #1E3A8A;
-        --green: #15803D;
-        --green-bg: #ECFDF5;
-        --red: #B91C1C;
-        --red-bg: #FEF2F2;
-        --text: #0F172A;
-        --text-muted: #64748B;
-        --gold: #B45309;
-        --gold-bg: #FFFBEB;
+        --bg: #F1F4F9;
+        --surface: #FFFFFF;
+        --surface-sunken: #F8FAFC;
+        --border: #E5E9F0;
+        --border-strong: #D8DEE9;
+
+        --navy: #0B1B3F;
+        --navy-light: #14275A;
+        --accent: #2557D6;
+        --accent-deep: #173E9E;
+        --accent-soft: #EAF0FE;
+
+        --green: #0F9D58;
+        --green-soft: #E8F7EF;
+        --red: #D93025;
+        --red-soft: #FCEAE9;
+        --gold: #B7791F;
+        --gold-soft: #FBF3E2;
+
+        --ink: #0F1729;
+        --ink-soft: #5B6478;
+        --ink-faint: #8A93A6;
+
+        --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+        --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+        --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+        --shadow-lg: 0 20px 40px rgba(11, 27, 63, 0.12), 0 4px 12px rgba(11, 27, 63, 0.06);
+        --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
         background: var(--bg);
-        font-family: 'Inter', -apple-system, sans-serif;
-        color: var(--text);
+        background-image:
+            radial-gradient(circle at 12% 0%, rgba(37, 87, 214, 0.06), transparent 38%),
+            radial-gradient(circle at 100% 8%, rgba(11, 27, 63, 0.05), transparent 42%);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
     }
 
     .dashboard-container {
-        max-width: 1100px;
+        max-width: 1140px;
         margin: 0 auto;
-        padding: 2rem 1.5rem;
+        padding: 2.5rem 1.5rem 4rem;
     }
 
     /* === HEADER === */
     .header {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
+        align-items: center;
         margin-bottom: 2rem;
         flex-wrap: wrap;
         gap: 1rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid var(--card-border);
+    }
+
+    .header-left .eyebrow {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 0.35rem;
     }
 
     .header-left h1 {
-        font-size: 1.6rem;
+        font-size: 1.85rem;
         font-weight: 700;
-        letter-spacing: -0.3px;
-        color: var(--text);
+        letter-spacing: -0.5px;
+        color: var(--navy);
     }
 
     .header-left .email {
-        color: var(--text-muted);
+        color: var(--ink-soft);
         font-size: 0.9rem;
-        margin-top: 0.2rem;
+        margin-top: 0.25rem;
     }
 
     .status-pill {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
+        gap: 0.6rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
         border-radius: 50px;
-        padding: 0.5rem 1.2rem;
+        padding: 0.55rem 1.3rem;
         font-size: 0.85rem;
-        font-weight: 500;
-        color: var(--text);
+        font-weight: 600;
+        color: var(--ink);
+        box-shadow: var(--shadow-sm);
     }
 
     .status-dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
+        position: relative;
     }
 
-    .status-dot.active { background: var(--green); }
-    .status-dot.inactive { background: var(--red); }
+    .status-dot.active { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+    .status-dot.inactive { background: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
 
     /* === GRID === */
     .grid {
@@ -95,91 +123,112 @@
 
     @media (max-width: 768px) {
         .grid { grid-template-columns: 1fr; }
+        .dashboard-container { padding: 1.5rem 1rem 3rem; }
     }
 
     /* === CARDS === */
     .card {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 1.75rem;
+        box-shadow: var(--shadow-md), var(--shadow-inset);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), var(--navy-light));
+        opacity: 0.9;
     }
 
     .card-header {
         display: flex;
         align-items: center;
-        gap: 0.6rem;
-        margin-bottom: 1.2rem;
-        font-weight: 600;
-        font-size: 0.95rem;
-        color: var(--text);
+        gap: 0.7rem;
+        margin-bottom: 1.4rem;
+        font-weight: 700;
+        font-size: 0.98rem;
+        color: var(--navy);
+        letter-spacing: -0.1px;
     }
 
     .card-header .icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+        box-shadow: var(--shadow-xs);
     }
 
-    .icon-purple { background: #EEF2FF; color: var(--accent-dark); }
-    .icon-blue { background: #EFF6FF; color: var(--accent); }
-    .icon-green { background: var(--green-bg); color: var(--green); }
-    .icon-gold { background: var(--gold-bg); color: var(--gold); }
+    .icon-purple { background: linear-gradient(145deg, #EEF2FF, #E3E9FE); color: var(--accent-deep); }
+    .icon-blue { background: linear-gradient(145deg, #EAF0FE, #DCE7FD); color: var(--accent); }
+    .icon-green { background: linear-gradient(145deg, #E8F7EF, #D9F1E3); color: var(--green); }
+    .icon-gold { background: linear-gradient(145deg, #FBF3E2, #F7E8C8); color: var(--gold); }
 
     /* === MEMBERSHIP === */
     .membership-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1rem;
+        gap: 0.9rem;
     }
 
     .membership-item {
-        background: var(--bg);
-        border: 1px solid var(--card-border);
-        border-radius: 8px;
-        padding: 0.8rem 1rem;
+        background: var(--surface-sunken);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.9rem 1.1rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .membership-item:hover {
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow-xs);
     }
 
     .membership-item .label {
-        font-size: 0.7rem;
+        font-size: 0.68rem;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: var(--text-muted);
-        margin-bottom: 0.3rem;
-        font-weight: 600;
+        letter-spacing: 0.7px;
+        color: var(--ink-faint);
+        margin-bottom: 0.4rem;
+        font-weight: 700;
     }
 
     .membership-item .value {
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: var(--text);
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: var(--ink);
     }
 
     /* === LICENSE KEY === */
     .license-display {
-        background: var(--bg);
-        border: 1.5px dashed var(--card-border);
-        border-radius: 10px;
-        padding: 1.2rem;
+        background: linear-gradient(155deg, var(--surface-sunken), #EFF3FA);
+        border: 1.5px dashed var(--border-strong);
+        border-radius: 14px;
+        padding: 1.4rem;
         text-align: center;
         font-family: 'SF Mono', 'Fira Code', monospace;
-        font-size: 1.15rem;
+        font-size: 1.2rem;
         font-weight: 700;
-        letter-spacing: 1.5px;
+        letter-spacing: 2px;
         cursor: pointer;
         user-select: none;
         position: relative;
-        transition: border-color 0.2s;
-        color: var(--text);
+        transition: border-color 0.25s, box-shadow 0.25s;
+        color: var(--navy);
     }
 
     .license-display:hover {
         border-color: var(--accent);
+        box-shadow: var(--shadow-sm);
     }
 
     .license-display .key-text {
@@ -196,10 +245,10 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        color: var(--text-muted);
+        color: var(--ink-soft);
         font-family: 'Inter', sans-serif;
         font-size: 0.85rem;
-        font-weight: 500;
+        font-weight: 600;
         letter-spacing: 0;
         pointer-events: none;
         transition: opacity 0.3s;
@@ -211,100 +260,109 @@
 
     .copy-btn {
         position: absolute;
-        right: 10px;
+        right: 12px;
         top: 50%;
         transform: translateY(-50%);
-        width: 32px;
-        height: 32px;
-        border-radius: 7px;
-        border: 1px solid var(--card-border);
-        background: var(--card-bg);
-        color: var(--text-muted);
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        border: 1px solid var(--border-strong);
+        background: var(--surface);
+        color: var(--ink-soft);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: all 0.2s;
         z-index: 2;
+        box-shadow: var(--shadow-xs);
     }
 
     .copy-btn:hover {
         background: var(--accent);
         color: white;
         border-color: var(--accent);
+        transform: translateY(-50%) scale(1.06);
     }
 
     .accounts-row {
         display: flex;
         justify-content: center;
-        gap: 1.5rem;
-        margin-top: 1rem;
+        gap: 1.75rem;
+        margin-top: 1.1rem;
         font-size: 0.85rem;
-        color: var(--text-muted);
+        color: var(--ink-soft);
     }
 
     .accounts-row strong {
-        color: var(--text);
+        color: var(--navy);
         font-size: 1.05rem;
     }
 
     /* === EA CARDS === */
     .ea-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
         gap: 1rem;
-        margin-top: 1rem;
+        margin-top: 1.2rem;
     }
 
     .ea-card {
-        background: var(--bg);
-        border: 1px solid var(--card-border);
-        border-radius: 10px;
-        padding: 1rem;
-        transition: border-color 0.2s;
+        background: var(--surface-sunken);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.15rem;
+        transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
     }
 
     .ea-card:hover {
         border-color: var(--accent);
+        box-shadow: var(--shadow-sm);
+        transform: translateY(-2px);
     }
 
     .ea-card.locked {
-        opacity: 0.6;
+        opacity: 0.55;
+    }
+
+    .ea-card.locked:hover {
+        transform: none;
+        box-shadow: none;
     }
 
     .ea-card .ea-name {
-        font-weight: 600;
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-        color: var(--text);
+        font-weight: 700;
+        font-size: 0.92rem;
+        margin-bottom: 0.55rem;
+        color: var(--ink);
     }
 
     .ea-card .ea-meta {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.45rem;
         flex-wrap: wrap;
-        margin-bottom: 0.8rem;
+        margin-bottom: 0.9rem;
     }
 
     .ea-badge {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.5rem;
+        font-size: 0.68rem;
+        padding: 0.22rem 0.55rem;
         border-radius: 6px;
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        color: var(--text-muted);
-        font-weight: 500;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--ink-soft);
+        font-weight: 600;
     }
 
     .download-btn {
         width: 100%;
-        padding: 0.55rem;
+        padding: 0.6rem;
         border: none;
-        border-radius: 7px;
-        font-weight: 600;
+        border-radius: 9px;
+        font-weight: 700;
         font-size: 0.8rem;
         cursor: pointer;
-        transition: opacity 0.2s;
+        transition: all 0.2s;
         text-align: center;
         display: inline-flex;
         align-items: center;
@@ -313,37 +371,40 @@
     }
 
     .download-btn.active {
-        background: var(--accent);
+        background: linear-gradient(135deg, var(--accent), var(--accent-deep));
         color: white;
+        box-shadow: var(--shadow-xs);
     }
 
     .download-btn.active:hover {
-        opacity: 0.9;
+        box-shadow: 0 6px 16px rgba(37, 87, 214, 0.28);
+        transform: translateY(-1px);
     }
 
     .download-btn.locked {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        color: var(--text-muted);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--ink-faint);
         cursor: not-allowed;
     }
 
     .download-all {
         text-align: center;
-        margin-top: 1rem;
-        padding: 0.8rem;
-        border: 1.5px dashed var(--card-border);
-        border-radius: 10px;
+        margin-top: 1.2rem;
+        padding: 0.9rem;
+        border: 1.5px dashed var(--border-strong);
+        border-radius: 12px;
         cursor: pointer;
-        transition: border-color 0.2s;
+        transition: all 0.2s;
         font-size: 0.85rem;
-        color: var(--text-muted);
-        font-weight: 500;
+        color: var(--ink-soft);
+        font-weight: 600;
     }
 
     .download-all:hover {
         border-color: var(--accent);
         color: var(--accent);
+        background: var(--accent-soft);
     }
 
     /* === DISCORD === */
@@ -351,18 +412,20 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        background: #5865F2;
+        background: linear-gradient(135deg, #5865F2, #4752C4);
         color: white;
-        padding: 0.65rem 1.4rem;
-        border-radius: 8px;
+        padding: 0.7rem 1.6rem;
+        border-radius: 10px;
         text-decoration: none;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 0.9rem;
-        transition: opacity 0.2s;
+        transition: all 0.2s;
+        box-shadow: var(--shadow-xs);
     }
 
     .discord-btn:hover {
-        opacity: 0.9;
+        box-shadow: 0 8px 20px rgba(88, 101, 242, 0.3);
+        transform: translateY(-1px);
     }
 
     /* === BUTTONS === */
@@ -370,28 +433,30 @@
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
-        padding: 0.6rem 1.2rem;
-        border-radius: 8px;
-        font-weight: 600;
+        padding: 0.65rem 1.3rem;
+        border-radius: 10px;
+        font-weight: 700;
         font-size: 0.85rem;
         cursor: pointer;
-        transition: opacity 0.2s, background 0.2s;
+        transition: all 0.2s;
         border: none;
     }
 
     .btn-primary {
-        background: var(--accent);
+        background: linear-gradient(135deg, var(--accent), var(--accent-deep));
         color: white;
+        box-shadow: var(--shadow-xs);
     }
 
     .btn-primary:hover {
-        opacity: 0.9;
+        box-shadow: 0 8px 20px rgba(37, 87, 214, 0.3);
+        transform: translateY(-1px);
     }
 
     .btn-outline {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        color: var(--text);
+        background: var(--surface);
+        border: 1.5px solid var(--border-strong);
+        color: var(--ink);
     }
 
     .btn-outline:hover {
@@ -405,7 +470,8 @@
         position: fixed;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background: rgba(15, 23, 42, 0.5);
+        background: rgba(11, 27, 63, 0.45);
+        backdrop-filter: blur(3px);
         z-index: 1000;
         justify-content: center;
         align-items: center;
@@ -414,18 +480,18 @@
     .modal-overlay.show { display: flex; }
 
     .modal {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 14px;
-        padding: 2rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 2.2rem;
         width: 90%;
-        max-width: 400px;
+        max-width: 420px;
         text-align: center;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+        box-shadow: var(--shadow-lg);
     }
 
-    .modal h3 { margin-bottom: 1rem; color: var(--text); }
-    .modal p { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .modal h3 { margin-bottom: 1rem; color: var(--navy); font-size: 1.2rem; }
+    .modal p { color: var(--ink-soft); margin-bottom: 1.6rem; font-size: 0.9rem; line-height: 1.5; }
 
     .modal-actions {
         display: flex;
@@ -438,7 +504,7 @@
         position: fixed;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background: rgba(15, 23, 42, 0.6);
+        background: rgba(11, 27, 63, 0.55);
         z-index: 2000;
         justify-content: center;
         align-items: center;
@@ -447,8 +513,8 @@
     }
 
     .spinner {
-        width: 36px; height: 36px;
-        border: 3px solid rgba(255,255,255,0.3);
+        width: 38px; height: 38px;
+        border: 3px solid rgba(255,255,255,0.25);
         border-top-color: white;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
@@ -457,19 +523,20 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .upgrade-banner {
-        background: var(--gold-bg);
-        border: 1px solid #FDE68A;
-        border-radius: 10px;
-        padding: 0.8rem 1rem;
+        background: linear-gradient(135deg, var(--gold-soft), #FDF7EA);
+        border: 1px solid #F0DCA0;
+        border-radius: 12px;
+        padding: 0.9rem 1.1rem;
         text-align: center;
         font-size: 0.85rem;
-        margin-top: 1rem;
+        margin-top: 1.2rem;
         color: var(--gold);
+        font-weight: 500;
     }
 
     .upgrade-banner a {
         color: var(--gold);
-        font-weight: 600;
+        font-weight: 700;
         text-decoration: underline;
     }
 </style>
@@ -480,6 +547,7 @@
     <!-- Header -->
     <div class="header">
         <div class="header-left">
+            <div class="eyebrow">Trading Engine</div>
             <h1>Hey {{ user.first_name or 'there' }} 👋</h1>
             <p class="email">{{ user.email }}</p>
         </div>
@@ -501,7 +569,7 @@
                 <div class="membership-item">
                     <div class="label">Plan Level</div>
                     <div class="value">
-                        <span class="badge" style="background: {% if user.get_plan_level() >= 2 %}#EEF2FF; color:#1E3A8A;{% else %}#F1F5F9; color:#64748B;{% endif %} padding:0.2rem 0.6rem; border-radius:6px; font-size:0.8rem;">
+                        <span class="badge" style="background: {% if user.get_plan_level() >= 2 %}#EEF2FF; color:#173E9E;{% else %}#F1F5F9; color:#5B6478;{% endif %} padding:0.22rem 0.65rem; border-radius:6px; font-size:0.8rem; font-weight:700;">
                             Level {{ user.get_plan_level() }}
                         </span>
                     </div>
@@ -543,8 +611,8 @@
             </div>
             {% else %}
             <div style="text-align:center;padding:2rem 1rem;">
-                <i class="fas fa-lock fa-3x mb-3" style="color:var(--text-muted);"></i>
-                <p style="color:var(--text-muted);margin-bottom:1rem;">No license generated yet</p>
+                <i class="fas fa-lock fa-3x mb-3" style="color:var(--ink-faint);"></i>
+                <p style="color:var(--ink-soft);margin-bottom:1.1rem;">No license generated yet</p>
                 <button class="btn btn-primary" onclick="showLicenseModal()"><i class="fas fa-plus me-2"></i>Generate License</button>
             </div>
             {% endif %}
@@ -557,7 +625,7 @@
             <div class="icon icon-green"><i class="fas fa-robot"></i></div>
             Expert Advisors
             {% if ea_files is defined and all_ea_count is defined %}
-            <span style="margin-left:auto;font-size:0.8rem;color:var(--text-muted);font-weight:500;">{{ ea_files|length }}/{{ all_ea_count }} Available</span>
+            <span style="margin-left:auto;font-size:0.8rem;color:var(--ink-soft);font-weight:600;">{{ ea_files|length }}/{{ all_ea_count }} Available</span>
             {% endif %}
         </div>
         {% if ea_files %}
@@ -589,7 +657,7 @@
         </div>
         {% endif %}
         {% else %}
-        <div style="text-align:center;padding:2rem;color:var(--text-muted);">
+        <div style="text-align:center;padding:2rem;color:var(--ink-soft);">
             <i class="fas fa-box-open fa-3x mb-3"></i>
             <p>No EAs available yet</p>
         </div>
@@ -603,13 +671,13 @@
             Discord Community
         </div>
         {% if user.discord_joined %}
-            <p style="color:var(--green);margin-bottom:1rem;"><i class="fas fa-check-circle me-1"></i> Connected</p>
+            <p style="color:var(--green);margin-bottom:1.1rem;"><i class="fas fa-check-circle me-1"></i> Connected</p>
             <a href="{{ discord_invite }}" target="_blank" class="discord-btn"><i class="fab fa-discord me-2"></i>Open Discord</a>
         {% elif license %}
-            <p style="color:var(--text-muted);margin-bottom:1rem;">Connect your account for private channel access</p>
+            <p style="color:var(--ink-soft);margin-bottom:1.1rem;">Connect your account for private channel access</p>
             <a href="{{ url_for('connect_discord') }}" class="discord-btn"><i class="fab fa-discord me-2"></i>Connect Discord</a>
         {% else %}
-            <p style="color:var(--text-muted);margin-bottom:1rem;">Generate a license to unlock Discord</p>
+            <p style="color:var(--ink-soft);margin-bottom:1.1rem;">Generate a license to unlock Discord</p>
             <button class="btn btn-outline" onclick="showLicenseModal()"><i class="fas fa-key me-2"></i>Get License</button>
         {% endif %}
     </div>
