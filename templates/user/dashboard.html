@@ -3,429 +3,568 @@
 {% block title %}Dashboard - Trading Engine{% endblock %}
 
 {% block extra_css %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
-        --bg: #F1F4F9;
+        --bg: #FAFBFC;
         --surface: #FFFFFF;
-        --surface-sunken: #F8FAFC;
-        --border: #E5E9F0;
-        --border-strong: #D8DEE9;
+        --surface-sunken: #F6F8FA;
+        --border: #E3E7EB;
+        --border-strong: #C9D0D9;
 
-        --navy: #0B1B3F;
-        --navy-light: #14275A;
-        --accent: #2557D6;
-        --accent-deep: #173E9E;
-        --accent-soft: #EAF0FE;
+        --ink-900: #0A0E14;
+        --ink-700: #1C2630;
+        --ink-500: #5C6B7A;
+        --ink-400: #8794A1;
+        --ink-300: #B0BAC3;
 
-        --green: #0F9D58;
-        --green-soft: #E8F7EF;
-        --red: #D93025;
-        --red-soft: #FCEAE9;
-        --gold: #B7791F;
-        --gold-soft: #FBF3E2;
+        --accent: #1E54E5;
+        --accent-700: #143DAD;
+        --accent-100: #E8EFFD;
 
-        --ink: #0F1729;
-        --ink-soft: #5B6478;
-        --ink-faint: #8A93A6;
+        --green: #0C8B51;
+        --green-100: #E4F5EC;
+        --red: #C8311E;
+        --red-100: #FCEAE7;
+        --amber: #A86200;
+        --amber-100: #FCF1DE;
 
-        --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-        --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-        --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
-        --shadow-lg: 0 20px 40px rgba(11, 27, 63, 0.12), 0 4px 12px rgba(11, 27, 63, 0.06);
-        --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        --mono: 'JetBrains Mono', 'SF Mono', monospace;
+        --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html { -webkit-font-smoothing: antialiased; }
+
     body {
         background: var(--bg);
-        background-image:
-            radial-gradient(circle at 12% 0%, rgba(37, 87, 214, 0.06), transparent 38%),
-            radial-gradient(circle at 100% 8%, rgba(11, 27, 63, 0.05), transparent 42%);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: var(--ink);
-        -webkit-font-smoothing: antialiased;
+        font-family: var(--sans);
+        color: var(--ink-900);
+        font-size: 14px;
+        line-height: 1.5;
     }
 
-    .dashboard-container {
-        max-width: 1140px;
-        margin: 0 auto;
-        padding: 2.5rem 1.5rem 4rem;
-    }
+    a { color: inherit; }
 
-    /* === HEADER === */
-    .header {
+    /* === TOP BAR === */
+    .topbar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0 1.75rem;
+        height: 56px;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-        gap: 1rem;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 50;
     }
 
-    .header-left .eyebrow {
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        color: var(--accent);
-        margin-bottom: 0.35rem;
-    }
-
-    .header-left h1 {
-        font-size: 1.85rem;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-        color: var(--navy);
-    }
-
-    .header-left .email {
-        color: var(--ink-soft);
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
-    }
-
-    .status-pill {
-        display: inline-flex;
+    .topbar-brand {
+        display: flex;
         align-items: center;
         gap: 0.6rem;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 50px;
-        padding: 0.55rem 1.3rem;
-        font-size: 0.85rem;
+        font-weight: 700;
+        font-size: 0.92rem;
+        letter-spacing: -0.2px;
+        color: var(--ink-900);
+    }
+
+    .topbar-brand .mark {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        background: var(--ink-900);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 800;
+        font-family: var(--mono);
+    }
+
+    .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+    }
+
+    .topbar-status {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.78rem;
         font-weight: 600;
-        color: var(--ink);
-        box-shadow: var(--shadow-sm);
-    }
-
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        position: relative;
-    }
-
-    .status-dot.active { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
-    .status-dot.inactive { background: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
-
-    /* === GRID === */
-    .grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .grid-full {
-        grid-column: 1 / -1;
-    }
-
-    @media (max-width: 768px) {
-        .grid { grid-template-columns: 1fr; }
-        .dashboard-container { padding: 1.5rem 1rem 3rem; }
-    }
-
-    /* === CARDS === */
-    .card {
-        background: var(--surface);
+        color: var(--ink-500);
+        padding: 0.3rem 0.7rem;
         border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 1.75rem;
-        box-shadow: var(--shadow-md), var(--shadow-inset);
-        position: relative;
+        border-radius: 6px;
+    }
+
+    .topbar-status .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+    }
+
+    .topbar-status .dot.active { background: var(--green); }
+    .topbar-status .dot.inactive { background: var(--red); }
+
+    .topbar-user {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--accent-100);
+        color: var(--accent-700);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.75rem;
+        font-family: var(--mono);
+    }
+
+    /* === PAGE HEADER === */
+    .page-header {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1.75rem 1.75rem 0;
+    }
+
+    .page-header .crumb {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: var(--ink-400);
+        margin-bottom: 0.4rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        color: var(--ink-900);
+    }
+
+    .page-header .sub {
+        font-size: 0.85rem;
+        color: var(--ink-500);
+        margin-top: 0.2rem;
+    }
+
+    /* === LAYOUT === */
+    .dashboard-container {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1.5rem 1.75rem 4rem;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+
+    /* === SUMMARY STRIP === */
+    .summary-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        background: var(--border);
+        border: 1px solid var(--border);
+        border-radius: 10px;
         overflow: hidden;
     }
 
-    .card::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, var(--accent), var(--navy-light));
-        opacity: 0.9;
+    .summary-cell {
+        background: var(--surface);
+        padding: 1rem 1.25rem;
     }
 
-    .card-header {
-        display: flex;
-        align-items: center;
-        gap: 0.7rem;
-        margin-bottom: 1.4rem;
-        font-weight: 700;
-        font-size: 0.98rem;
-        color: var(--navy);
-        letter-spacing: -0.1px;
-    }
-
-    .card-header .icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.95rem;
-        box-shadow: var(--shadow-xs);
-    }
-
-    .icon-purple { background: linear-gradient(145deg, #EEF2FF, #E3E9FE); color: var(--accent-deep); }
-    .icon-blue { background: linear-gradient(145deg, #EAF0FE, #DCE7FD); color: var(--accent); }
-    .icon-green { background: linear-gradient(145deg, #E8F7EF, #D9F1E3); color: var(--green); }
-    .icon-gold { background: linear-gradient(145deg, #FBF3E2, #F7E8C8); color: var(--gold); }
-
-    /* === MEMBERSHIP === */
-    .membership-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.9rem;
-    }
-
-    .membership-item {
-        background: var(--surface-sunken);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 0.9rem 1.1rem;
-        transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .membership-item:hover {
-        border-color: var(--border-strong);
-        box-shadow: var(--shadow-xs);
-    }
-
-    .membership-item .label {
-        font-size: 0.68rem;
+    .summary-cell .label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.4px;
         text-transform: uppercase;
-        letter-spacing: 0.7px;
-        color: var(--ink-faint);
+        color: var(--ink-400);
         margin-bottom: 0.4rem;
-        font-weight: 700;
     }
 
-    .membership-item .value {
-        font-weight: 700;
-        font-size: 0.92rem;
-        color: var(--ink);
+    .summary-cell .value {
+        font-family: var(--mono);
+        font-weight: 600;
+        font-size: 1.05rem;
+        color: var(--ink-900);
+        display: flex;
+        align-items: baseline;
+        gap: 0.4rem;
     }
 
-    /* === LICENSE KEY === */
-    .license-display {
-        background: linear-gradient(155deg, var(--surface-sunken), #EFF3FA);
-        border: 1.5px dashed var(--border-strong);
-        border-radius: 14px;
-        padding: 1.4rem;
+    .summary-cell .value .unit {
+        font-family: var(--sans);
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--ink-400);
+    }
+
+    @media (max-width: 900px) {
+        .summary-strip { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* === GRID === */
+    .grid-2 {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+        .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* === PANELS === */
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.9rem 1.25rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .panel-head .title {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-weight: 700;
+        font-size: 0.85rem;
+        color: var(--ink-900);
+    }
+
+    .panel-head .title i {
+        font-size: 0.78rem;
+        color: var(--ink-400);
+        width: 16px;
         text-align: center;
-        font-family: 'SF Mono', 'Fira Code', monospace;
-        font-size: 1.2rem;
+    }
+
+    .panel-head .meta {
+        font-size: 0.75rem;
+        color: var(--ink-400);
+        font-family: var(--mono);
+        font-weight: 500;
+    }
+
+    .panel-body {
+        padding: 1.25rem;
+    }
+
+    /* === MEMBERSHIP TABLE === */
+    .data-rows .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.65rem 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-rows .row:last-child { border-bottom: none; }
+
+    .data-rows .row .k {
+        font-size: 0.82rem;
+        color: var(--ink-500);
+        font-weight: 500;
+    }
+
+    .data-rows .row .v {
+        font-size: 0.84rem;
+        font-weight: 600;
+        color: var(--ink-900);
+        text-align: right;
+    }
+
+    .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.18rem 0.55rem;
+        border-radius: 5px;
+        font-size: 0.72rem;
         font-weight: 700;
-        letter-spacing: 2px;
+        font-family: var(--mono);
+    }
+
+    .pill-accent { background: var(--accent-100); color: var(--accent-700); }
+    .pill-neutral { background: var(--surface-sunken); color: var(--ink-500); border: 1px solid var(--border); }
+    .pill-green { background: var(--green-100); color: var(--green); }
+    .pill-red { background: var(--red-100); color: var(--red); }
+
+    /* === LICENSE === */
+    .license-box {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-sunken);
+        overflow: hidden;
+    }
+
+    .license-box .key-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 1.1rem;
         cursor: pointer;
         user-select: none;
-        position: relative;
-        transition: border-color 0.25s, box-shadow 0.25s;
-        color: var(--navy);
     }
 
-    .license-display:hover {
-        border-color: var(--accent);
-        box-shadow: var(--shadow-sm);
+    .license-box .key-row .dots {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--green);
+        flex-shrink: 0;
     }
 
-    .license-display .key-text {
-        filter: blur(5px);
-        transition: filter 0.3s;
-    }
-
-    .license-display.revealed .key-text {
-        filter: blur(0);
-    }
-
-    .license-display .key-hint {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: var(--ink-soft);
-        font-family: 'Inter', sans-serif;
-        font-size: 0.85rem;
+    .license-box .key-text {
+        font-family: var(--mono);
         font-weight: 600;
-        letter-spacing: 0;
-        pointer-events: none;
-        transition: opacity 0.3s;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+        color: var(--ink-900);
+        filter: blur(4px);
+        transition: filter 0.25s;
+        flex: 1;
     }
 
-    .license-display.revealed .key-hint {
-        opacity: 0;
+    .license-box.revealed .key-text { filter: blur(0); }
+
+    .license-box .reveal-hint {
+        font-size: 0.72rem;
+        color: var(--ink-400);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .license-box .key-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.6rem 1.1rem;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+    }
+
+    .license-box .key-footer .stat {
+        font-size: 0.76rem;
+        color: var(--ink-500);
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .license-box .key-footer .stat strong {
+        font-family: var(--mono);
+        color: var(--ink-900);
+        font-weight: 700;
     }
 
     .copy-btn {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 34px;
-        height: 34px;
-        border-radius: 9px;
-        border: 1px solid var(--border-strong);
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
         background: var(--surface);
-        color: var(--ink-soft);
+        color: var(--ink-500);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s;
-        z-index: 2;
-        box-shadow: var(--shadow-xs);
+        transition: all 0.15s;
+        flex-shrink: 0;
     }
 
-    .copy-btn:hover {
-        background: var(--accent);
-        color: white;
-        border-color: var(--accent);
-        transform: translateY(-50%) scale(1.06);
+    .copy-btn:hover { background: var(--ink-900); color: white; border-color: var(--ink-900); }
+
+    .empty-state {
+        text-align: center;
+        padding: 2.25rem 1rem;
     }
 
-    .accounts-row {
-        display: flex;
-        justify-content: center;
-        gap: 1.75rem;
-        margin-top: 1.1rem;
-        font-size: 0.85rem;
-        color: var(--ink-soft);
-    }
-
-    .accounts-row strong {
-        color: var(--navy);
-        font-size: 1.05rem;
-    }
-
-    /* === EA CARDS === */
-    .ea-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1rem;
-        margin-top: 1.2rem;
-    }
-
-    .ea-card {
+    .empty-state .icon-circle {
+        width: 44px; height: 44px;
+        border-radius: 50%;
         background: var(--surface-sunken);
         border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 1.15rem;
-        transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 0.9rem;
+        color: var(--ink-400);
+        font-size: 1rem;
     }
 
-    .ea-card:hover {
-        border-color: var(--accent);
-        box-shadow: var(--shadow-sm);
-        transform: translateY(-2px);
+    .empty-state p {
+        color: var(--ink-500);
+        font-size: 0.85rem;
+        margin-bottom: 1.1rem;
     }
 
-    .ea-card.locked {
-        opacity: 0.55;
-    }
-
-    .ea-card.locked:hover {
-        transform: none;
-        box-shadow: none;
-    }
-
-    .ea-card .ea-name {
-        font-weight: 700;
-        font-size: 0.92rem;
-        margin-bottom: 0.55rem;
-        color: var(--ink);
-    }
-
-    .ea-card .ea-meta {
-        display: flex;
-        gap: 0.45rem;
-        flex-wrap: wrap;
-        margin-bottom: 0.9rem;
-    }
-
-    .ea-badge {
-        font-size: 0.68rem;
-        padding: 0.22rem 0.55rem;
-        border-radius: 6px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        color: var(--ink-soft);
-        font-weight: 600;
-    }
-
-    .download-btn {
+    /* === EA TABLE === */
+    .ea-table {
         width: 100%;
-        padding: 0.6rem;
-        border: none;
-        border-radius: 9px;
+        border-collapse: collapse;
+    }
+
+    .ea-table thead th {
+        text-align: left;
+        font-size: 0.7rem;
         font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: var(--ink-400);
+        padding: 0.7rem 1.25rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-sunken);
+    }
+
+    .ea-table thead th:last-child { text-align: right; }
+
+    .ea-table tbody td {
+        padding: 0.85rem 1.25rem;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.84rem;
+        vertical-align: middle;
+    }
+
+    .ea-table tbody tr:last-child td { border-bottom: none; }
+    .ea-table tbody tr:hover { background: var(--surface-sunken); }
+    .ea-table tbody tr.locked { opacity: 0.5; }
+
+    .ea-table .ea-file {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .ea-table .ea-file .file-icon {
+        width: 28px; height: 28px;
+        border-radius: 6px;
+        background: var(--accent-100);
+        color: var(--accent-700);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .ea-table .ea-file .name {
+        font-weight: 600;
+        color: var(--ink-900);
+        font-family: var(--mono);
         font-size: 0.8rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-align: center;
+    }
+
+    .ea-table td.num {
+        font-family: var(--mono);
+        color: var(--ink-500);
+        font-size: 0.78rem;
+    }
+
+    .ea-table td.actions { text-align: right; }
+
+    .table-btn {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        text-decoration: none;
-    }
-
-    .download-btn.active {
-        background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-        color: white;
-        box-shadow: var(--shadow-xs);
-    }
-
-    .download-btn.active:hover {
-        box-shadow: 0 6px 16px rgba(37, 87, 214, 0.28);
-        transform: translateY(-1px);
-    }
-
-    .download-btn.locked {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        color: var(--ink-faint);
-        cursor: not-allowed;
-    }
-
-    .download-all {
-        text-align: center;
-        margin-top: 1.2rem;
-        padding: 0.9rem;
-        border: 1.5px dashed var(--border-strong);
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 0.85rem;
-        color: var(--ink-soft);
+        gap: 0.35rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
         font-weight: 600;
+        font-size: 0.76rem;
+        cursor: pointer;
+        border: 1px solid var(--border-strong);
+        background: var(--surface);
+        color: var(--ink-700);
+        text-decoration: none;
+        transition: all 0.15s;
     }
 
-    .download-all:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: var(--accent-soft);
+    .table-btn:hover { background: var(--ink-900); color: white; border-color: var(--ink-900); }
+
+    .table-btn.disabled {
+        cursor: not-allowed;
+        color: var(--ink-300);
+        background: var(--surface-sunken);
     }
+
+    .table-btn.disabled:hover { background: var(--surface-sunken); color: var(--ink-300); border-color: var(--border-strong); }
+
+    .table-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.8rem 1.25rem;
+        border-top: 1px solid var(--border);
+        background: var(--surface-sunken);
+    }
+
+    .table-footer .download-all-link {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--accent);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .table-footer .download-all-link:hover { color: var(--accent-700); }
+
+    .upgrade-note {
+        font-size: 0.78rem;
+        color: var(--amber);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .upgrade-note a { color: var(--amber); font-weight: 700; text-decoration: underline; }
 
     /* === DISCORD === */
-    .discord-btn {
-        display: inline-flex;
+    .discord-panel-body {
+        display: flex;
         align-items: center;
-        gap: 0.5rem;
-        background: linear-gradient(135deg, #5865F2, #4752C4);
-        color: white;
-        padding: 0.7rem 1.6rem;
-        border-radius: 10px;
-        text-decoration: none;
-        font-weight: 700;
-        font-size: 0.9rem;
-        transition: all 0.2s;
-        box-shadow: var(--shadow-xs);
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
     }
 
-    .discord-btn:hover {
-        box-shadow: 0 8px 20px rgba(88, 101, 242, 0.3);
-        transform: translateY(-1px);
+    .discord-panel-body .info {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .discord-panel-body .discord-icon {
+        width: 40px; height: 40px;
+        border-radius: 9px;
+        background: #5865F2;
+        color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .discord-panel-body .text strong {
+        display: block;
+        font-size: 0.86rem;
+        color: var(--ink-900);
+        margin-bottom: 0.1rem;
+    }
+
+    .discord-panel-body .text span {
+        font-size: 0.78rem;
+        color: var(--ink-500);
     }
 
     /* === BUTTONS === */
@@ -433,45 +572,37 @@
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
-        padding: 0.65rem 1.3rem;
-        border-radius: 10px;
-        font-weight: 700;
-        font-size: 0.85rem;
+        padding: 0.55rem 1.1rem;
+        border-radius: 7px;
+        font-weight: 600;
+        font-size: 0.82rem;
         cursor: pointer;
-        transition: all 0.2s;
-        border: none;
+        transition: all 0.15s;
+        border: 1px solid transparent;
+        text-decoration: none;
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+        background: var(--ink-900);
         color: white;
-        box-shadow: var(--shadow-xs);
     }
 
-    .btn-primary:hover {
-        box-shadow: 0 8px 20px rgba(37, 87, 214, 0.3);
-        transform: translateY(-1px);
-    }
+    .btn-primary:hover { background: var(--accent-700); }
 
     .btn-outline {
         background: var(--surface);
-        border: 1.5px solid var(--border-strong);
-        color: var(--ink);
+        border: 1px solid var(--border-strong);
+        color: var(--ink-700);
     }
 
-    .btn-outline:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-    }
+    .btn-outline:hover { border-color: var(--ink-900); }
 
     /* === MODAL === */
     .modal-overlay {
         display: none;
         position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(11, 27, 63, 0.45);
-        backdrop-filter: blur(3px);
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(10, 14, 20, 0.5);
         z-index: 1000;
         justify-content: center;
         align-items: center;
@@ -482,211 +613,266 @@
     .modal {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 2.2rem;
+        border-radius: 12px;
+        padding: 1.75rem;
         width: 90%;
-        max-width: 420px;
-        text-align: center;
-        box-shadow: var(--shadow-lg);
+        max-width: 380px;
+        box-shadow: 0 24px 48px rgba(10, 14, 20, 0.18);
     }
 
-    .modal h3 { margin-bottom: 1rem; color: var(--navy); font-size: 1.2rem; }
-    .modal p { color: var(--ink-soft); margin-bottom: 1.6rem; font-size: 0.9rem; line-height: 1.5; }
+    .modal h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        color: var(--ink-900);
+    }
+
+    .modal p {
+        color: var(--ink-500);
+        margin-bottom: 1.4rem;
+        font-size: 0.84rem;
+        line-height: 1.5;
+    }
 
     .modal-actions {
         display: flex;
-        gap: 0.8rem;
-        justify-content: center;
+        gap: 0.6rem;
+        justify-content: flex-end;
     }
 
     .loading-overlay {
         display: none;
         position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(11, 27, 63, 0.55);
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(10, 14, 20, 0.65);
         z-index: 2000;
         justify-content: center;
         align-items: center;
         flex-direction: column;
         color: white;
+        gap: 0.9rem;
     }
 
+    .loading-overlay p { font-size: 0.85rem; font-weight: 500; }
+
     .spinner {
-        width: 38px; height: 38px;
-        border: 3px solid rgba(255,255,255,0.25);
+        width: 28px; height: 28px;
+        border: 2.5px solid rgba(255,255,255,0.25);
         border-top-color: white;
         border-radius: 50%;
-        animation: spin 0.8s linear infinite;
+        animation: spin 0.7s linear infinite;
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .upgrade-banner {
-        background: linear-gradient(135deg, var(--gold-soft), #FDF7EA);
-        border: 1px solid #F0DCA0;
-        border-radius: 12px;
-        padding: 0.9rem 1.1rem;
-        text-align: center;
-        font-size: 0.85rem;
-        margin-top: 1.2rem;
-        color: var(--gold);
-        font-weight: 500;
-    }
-
-    .upgrade-banner a {
-        color: var(--gold);
-        font-weight: 700;
-        text-decoration: underline;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Header -->
-    <div class="header">
-        <div class="header-left">
-            <div class="eyebrow">Trading Engine</div>
-            <h1>Hey {{ user.first_name or 'there' }} 👋</h1>
-            <p class="email">{{ user.email }}</p>
-        </div>
-        <div class="status-pill">
-            <div class="status-dot {% if user.membership_status == 'active' %}active{% else %}inactive{% endif %}"></div>
+<div class="topbar">
+    <div class="topbar-brand">
+        <div class="mark">TE</div>
+        Trading Engine
+    </div>
+    <div class="topbar-right">
+        <div class="topbar-status">
+            <div class="dot {% if user.membership_status == 'active' %}active{% else %}inactive{% endif %}"></div>
             {{ 'Active' if user.membership_status == 'active' else 'Inactive' }}
+        </div>
+        <div class="topbar-user">{{ (user.first_name or 'U')[0]|upper }}</div>
+    </div>
+</div>
+
+<div class="page-header">
+    <div class="crumb">Account / Dashboard</div>
+    <h1>Hey {{ user.first_name or 'there' }} 👋</h1>
+    <p class="sub">{{ user.email }}</p>
+</div>
+
+<div class="dashboard-container">
+
+    <!-- Summary strip -->
+    <div class="summary-strip">
+        <div class="summary-cell">
+            <div class="label">Plan Level</div>
+            <div class="value">{{ user.get_plan_level() }} <span class="unit">/ {{ 2 }}</span></div>
+        </div>
+        <div class="summary-cell">
+            <div class="label">Subscription</div>
+            <div class="value" style="font-size:0.92rem;">{{ user.subscription_type|title if user.subscription_type else 'Standard' }}</div>
+        </div>
+        <div class="summary-cell">
+            <div class="label">MT5 Accounts</div>
+            <div class="value">{{ account_count if license_accounts else 0 }} <span class="unit">/ {{ max_accounts if license else '—' }}</span></div>
+        </div>
+        <div class="summary-cell">
+            <div class="label">EAs Unlocked</div>
+            <div class="value">{{ ea_files|length if ea_files else 0 }} <span class="unit">/ {{ all_ea_count if all_ea_count is defined else '—' }}</span></div>
         </div>
     </div>
 
-    <!-- Grid -->
-    <div class="grid">
+    <div class="grid-2">
         <!-- Membership -->
-        <div class="card">
-            <div class="card-header">
-                <div class="icon icon-purple"><i class="fas fa-crown"></i></div>
-                Membership
+        <div class="panel">
+            <div class="panel-head">
+                <div class="title"><i class="fas fa-id-badge"></i>Membership</div>
             </div>
-            <div class="membership-grid">
-                <div class="membership-item">
-                    <div class="label">Plan Level</div>
-                    <div class="value">
-                        <span class="badge" style="background: {% if user.get_plan_level() >= 2 %}#EEF2FF; color:#173E9E;{% else %}#F1F5F9; color:#5B6478;{% endif %} padding:0.22rem 0.65rem; border-radius:6px; font-size:0.8rem; font-weight:700;">
-                            Level {{ user.get_plan_level() }}
-                        </span>
+            <div class="panel-body">
+                <div class="data-rows">
+                    <div class="row">
+                        <span class="k">Plan level</span>
+                        <span class="v"><span class="pill {% if user.get_plan_level() >= 2 %}pill-accent{% else %}pill-neutral{% endif %}">LVL {{ user.get_plan_level() }}</span></span>
                     </div>
-                </div>
-                <div class="membership-item">
-                    <div class="label">Type</div>
-                    <div class="value">{{ user.subscription_type|title if user.subscription_type else 'Standard' }}</div>
-                </div>
-                <div class="membership-item">
-                    <div class="label">Started</div>
-                    <div class="value">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</div>
-                </div>
-                <div class="membership-item">
-                    <div class="label">Status</div>
-                    <div class="value" style="color: {% if user.membership_status == 'active' %}var(--green){% else %}var(--red){% endif %};">
-                        {{ '● Active & Running' if user.membership_status == 'active' else '○ Inactive' }}
+                    <div class="row">
+                        <span class="k">Subscription type</span>
+                        <span class="v">{{ user.subscription_type|title if user.subscription_type else 'Standard' }}</span>
+                    </div>
+                    <div class="row">
+                        <span class="k">Member since</span>
+                        <span class="v" style="font-family:var(--mono);font-weight:600;">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</span>
+                    </div>
+                    <div class="row">
+                        <span class="k">Status</span>
+                        <span class="v">
+                            {% if user.membership_status == 'active' %}
+                            <span class="pill pill-green"><i class="fas fa-circle" style="font-size:5px;"></i> RUNNING</span>
+                            {% else %}
+                            <span class="pill pill-red"><i class="fas fa-circle" style="font-size:5px;"></i> INACTIVE</span>
+                            {% endif %}
+                        </span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- License -->
-        <div class="card">
-            <div class="card-header">
-                <div class="icon icon-blue"><i class="fas fa-key"></i></div>
-                Your License
+        <div class="panel">
+            <div class="panel-head">
+                <div class="title"><i class="fas fa-key"></i>License key</div>
             </div>
-            {% if license %}
-            <div class="license-display" id="licenseDisplay" onclick="toggleLicense()">
-                <span class="key-text">{{ license.license_key }}</span>
-                <span class="key-hint"><i class="fas fa-eye-slash"></i> Tap to reveal</span>
-                <button class="copy-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="Copy"><i class="fas fa-copy"></i></button>
-            </div>
-            <div class="accounts-row">
-                <span><i class="fas fa-desktop me-1"></i> <strong>{{ max_accounts }}</strong> Max Accounts</span>
-                {% if license_accounts %}
-                <span><i class="fas fa-check-circle me-1" style="color:var(--green);"></i> <strong>{{ account_count }}</strong> Active</span>
+            <div class="panel-body">
+                {% if license %}
+                <div class="license-box" id="licenseDisplay">
+                    <div class="key-row" onclick="toggleLicense()">
+                        <div class="dots"></div>
+                        <span class="key-text">{{ license.license_key }}</span>
+                        <span class="reveal-hint"><i class="fas fa-eye-slash"></i> Tap to reveal</span>
+                        <button class="copy-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="Copy"><i class="fas fa-copy"></i></button>
+                    </div>
+                    <div class="key-footer">
+                        <span class="stat"><i class="fas fa-desktop"></i> <strong>{{ max_accounts }}</strong> max accounts</span>
+                        {% if license_accounts %}
+                        <span class="stat" style="color:var(--green);"><i class="fas fa-check-circle"></i> <strong>{{ account_count }}</strong> active</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="icon-circle"><i class="fas fa-lock"></i></div>
+                    <p>No license generated yet</p>
+                    <button class="btn btn-primary" onclick="showLicenseModal()"><i class="fas fa-plus"></i>Generate license</button>
+                </div>
                 {% endif %}
             </div>
-            {% else %}
-            <div style="text-align:center;padding:2rem 1rem;">
-                <i class="fas fa-lock fa-3x mb-3" style="color:var(--ink-faint);"></i>
-                <p style="color:var(--ink-soft);margin-bottom:1.1rem;">No license generated yet</p>
-                <button class="btn btn-primary" onclick="showLicenseModal()"><i class="fas fa-plus me-2"></i>Generate License</button>
-            </div>
-            {% endif %}
         </div>
     </div>
 
     <!-- EA Downloads -->
-    <div class="card grid-full">
-        <div class="card-header">
-            <div class="icon icon-green"><i class="fas fa-robot"></i></div>
-            Expert Advisors
+    <div class="panel">
+        <div class="panel-head">
+            <div class="title"><i class="fas fa-robot"></i>Expert Advisors</div>
             {% if ea_files is defined and all_ea_count is defined %}
-            <span style="margin-left:auto;font-size:0.8rem;color:var(--ink-soft);font-weight:600;">{{ ea_files|length }}/{{ all_ea_count }} Available</span>
+            <div class="meta">{{ ea_files|length }}/{{ all_ea_count }} AVAILABLE</div>
             {% endif %}
         </div>
         {% if ea_files %}
-        <div class="ea-grid">
-            {% for ea in ea_files %}
-            <div class="ea-card {% if not license %}locked{% endif %}">
-                <div class="ea-name">{{ ea.filename }}</div>
-                <div class="ea-meta">
-                    <span class="ea-badge">v{{ ea.version }}</span>
-                    {% if ea.file_size %}<span class="ea-badge">{{ (ea.file_size / 1024)|round(1) }} KB</span>{% endif %}
-                    <span class="ea-badge">Lvl {{ ea.plan_level }}</span>
-                </div>
-                {% if license %}
-                <a href="{{ url_for('download_ea', file_id=ea.id) }}" class="download-btn active"><i class="fas fa-download me-2"></i>Download</a>
-                {% else %}
-                <button class="download-btn locked" disabled><i class="fas fa-lock me-2"></i>License Required</button>
-                {% endif %}
-            </div>
-            {% endfor %}
+        <table class="ea-table">
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Version</th>
+                    <th>Size</th>
+                    <th>Level</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ea in ea_files %}
+                <tr class="{% if not license %}locked{% endif %}">
+                    <td>
+                        <div class="ea-file">
+                            <div class="file-icon"><i class="fas fa-file-code"></i></div>
+                            <span class="name">{{ ea.filename }}</span>
+                        </div>
+                    </td>
+                    <td class="num">v{{ ea.version }}</td>
+                    <td class="num">{{ (ea.file_size / 1024)|round(1) if ea.file_size else '—' }} KB</td>
+                    <td class="num">LVL {{ ea.plan_level }}</td>
+                    <td class="actions">
+                        {% if license %}
+                        <a href="{{ url_for('download_ea', file_id=ea.id) }}" class="table-btn"><i class="fas fa-download"></i> Download</a>
+                        {% else %}
+                        <span class="table-btn disabled"><i class="fas fa-lock"></i> Locked</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="table-footer">
+            {% if license and ea_files|length > 1 %}
+            <span class="download-all-link" onclick="showDownloadAllModal()"><i class="fas fa-layer-group"></i> Download all ({{ ea_files|length }})</span>
+            {% else %}
+            <span></span>
+            {% endif %}
+            {% if all_ea_count is defined and ea_files|length < all_ea_count %}
+            <span class="upgrade-note"><i class="fas fa-lock"></i> {{ all_ea_count - ea_files|length }} more on <a href="https://www.tradingengine.nl/upgrade" target="_blank">Level 2</a></span>
+            {% endif %}
         </div>
-        {% if license and ea_files|length > 1 %}
-        <div class="download-all" onclick="showDownloadAllModal()">
-            <i class="fas fa-layer-group me-2"></i>Download All ({{ ea_files|length }})
-        </div>
-        {% endif %}
-        {% if all_ea_count is defined and ea_files|length < all_ea_count %}
-        <div class="upgrade-banner">
-            <i class="fas fa-lock me-1"></i> {{ all_ea_count - ea_files|length }} more EA(s) on <a href="https://www.tradingengine.nl/upgrade" target="_blank">Level 2</a>
-        </div>
-        {% endif %}
         {% else %}
-        <div style="text-align:center;padding:2rem;color:var(--ink-soft);">
-            <i class="fas fa-box-open fa-3x mb-3"></i>
+        <div class="empty-state">
+            <div class="icon-circle"><i class="fas fa-box-open"></i></div>
             <p>No EAs available yet</p>
         </div>
         {% endif %}
     </div>
 
     <!-- Discord -->
-    <div class="card grid-full" style="text-align:center;">
-        <div class="card-header" style="justify-content:center;">
-            <div class="icon icon-blue"><i class="fab fa-discord"></i></div>
-            Discord Community
+    <div class="panel">
+        <div class="panel-head">
+            <div class="title"><i class="fab fa-discord"></i>Discord community</div>
         </div>
-        {% if user.discord_joined %}
-            <p style="color:var(--green);margin-bottom:1.1rem;"><i class="fas fa-check-circle me-1"></i> Connected</p>
-            <a href="{{ discord_invite }}" target="_blank" class="discord-btn"><i class="fab fa-discord me-2"></i>Open Discord</a>
-        {% elif license %}
-            <p style="color:var(--ink-soft);margin-bottom:1.1rem;">Connect your account for private channel access</p>
-            <a href="{{ url_for('connect_discord') }}" class="discord-btn"><i class="fab fa-discord me-2"></i>Connect Discord</a>
-        {% else %}
-            <p style="color:var(--ink-soft);margin-bottom:1.1rem;">Generate a license to unlock Discord</p>
-            <button class="btn btn-outline" onclick="showLicenseModal()"><i class="fas fa-key me-2"></i>Get License</button>
-        {% endif %}
+        <div class="panel-body discord-panel-body">
+            <div class="info">
+                <div class="discord-icon"><i class="fab fa-discord"></i></div>
+                <div class="text">
+                    {% if user.discord_joined %}
+                    <strong>Connected</strong>
+                    <span>You have access to private channels</span>
+                    {% elif license %}
+                    <strong>Not connected</strong>
+                    <span>Connect your account for private channel access</span>
+                    {% else %}
+                    <strong>Locked</strong>
+                    <span>Generate a license to unlock Discord</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if user.discord_joined %}
+            <a href="{{ discord_invite }}" target="_blank" class="btn btn-primary"><i class="fab fa-discord"></i>Open Discord</a>
+            {% elif license %}
+            <a href="{{ url_for('connect_discord') }}" class="btn btn-primary"><i class="fab fa-discord"></i>Connect Discord</a>
+            {% else %}
+            <button class="btn btn-outline" onclick="showLicenseModal()"><i class="fas fa-key"></i>Get license</button>
+            {% endif %}
+        </div>
     </div>
+
 </div>
 
 <!-- License Modal -->
 <div class="modal-overlay" id="licenseModal">
     <div class="modal">
-        <h3>Generate License Key</h3>
+        <h3>Generate license key</h3>
         <p>Unlock all EA downloads, Discord access, and up to {{ 2 if user.get_plan_level() == 1 else 4 }} MT5 accounts.</p>
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="closeLicenseModal()">Cancel</button>
@@ -697,17 +883,17 @@
 
 <div class="modal-overlay" id="downloadAllModal">
     <div class="modal">
-        <h3>Download All EAs</h3>
+        <h3>Download all EAs</h3>
         <p>Get all <strong id="downloadCountBadge">{{ ea_files|length }}</strong> Expert Advisors at once.</p>
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="closeDownloadAllModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="confirmDownloadAll()">Download All</button>
+            <button class="btn btn-primary" onclick="confirmDownloadAll()">Download all</button>
         </div>
     </div>
 </div>
 
 <div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner mb-3"></div>
+    <div class="spinner"></div>
     <p>Generating your license key...</p>
 </div>
 
