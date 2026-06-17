@@ -1,19 +1,13 @@
 """
 Subscription & Licensing Platform
-Complete Flask Application with Wix Integration, Stripe Integration, OTP Auth, License Management & Discord Integration
+Complete Flask Application with Wix Integration, Stripe Integration, OTP Auth, 
+License Management & Discord Integration
 
-License account slots are now tracked automatically via EA sessions:
-- A LicenseAccount (one per account number) holds a slot.
-- Each running EA instance on that account registers an EASession (identified
-  by a client-generated session_id) when it calls /api/validate-license.
-- The account's slot is occupied as long as it has >=1 EASession.
-- When an EA is removed/stopped, it calls /api/release-license with its
-  session_id. The matching EASession is deleted. If that was the LAST
-  session on the account, the LicenseAccount itself is deleted too, freeing
-  the slot automatically — no admin action required.
-- Admin's "reset account" action remains only as a manual override for stuck
-  slots (e.g. an EA crashed without releasing) — it is not part of normal
-  accounting.
+Session-based automatic account slot management:
+- LicenseAccount represents one occupied account-number slot
+- EASession tracks individual EA instances (by session_id)
+- Multiple EAs on same account share one slot
+- Slot is freed automatically when last EA session releases
 """
 
 import os
@@ -257,9 +251,8 @@ class License(db.Model):
 class LicenseAccount(db.Model):
     """
     Represents one account-number slot under a license.
-    A row exists here ONLY while at least one EASession is attached to it.
-    Slot accounting (accounts_used / accounts_remaining) is simply a live
-    count of these rows — there is no separate "occupied" flag to maintain.
+    Exists only while at least one EASession is attached.
+    Slot count = number of LicenseAccount rows for the license.
     """
     __tablename__ = "license_accounts"
     id = db.Column(db.Integer, primary_key=True)
@@ -272,17 +265,9 @@ class LicenseAccount(db.Model):
 
 class EASession(db.Model):
     """
-    Represents a single running EA instance attached to a license account.
-    Identified by a client-generated session_id (one EA instance should keep
-    using the same session_id across restarts so it doesn't appear as a new
-    instance every time).
-
-    Lifecycle:
-      - Created when an EA calls /api/validate-license with a new session_id.
-      - Deleted when the EA calls /api/release-license with that session_id.
-      - When the last EASession under a LicenseAccount is deleted, the
-        LicenseAccount itself is deleted too — automatically freeing the slot.
-    No heartbeat/timeout is used; release is explicit only.
+    Represents a single running EA instance.
+    Multiple sessions on the same account share one slot.
+    When the last session is deleted, the LicenseAccount is deleted too.
     """
     __tablename__ = "ea_sessions"
     id = db.Column(db.Integer, primary_key=True)
@@ -408,6 +393,46 @@ def allowed_file(filename): return "." in filename and filename.rsplit(".", 1)[1
 
 
 # ============================================================================
+# DATABASE MIGRATION
+# ============================================================================
+
+def run_migrations():
+    """Create any missing tables. Safe to run multiple times."""
+    try:
+        with app.app_context():
+            inspector = db.inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+            
+            if 'ea_sessions' not in existing_tables:
+                logger.info("Creating ea_sessions table...")
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS ea_sessions (
+                        id SERIAL PRIMARY KEY,
+                        license_account_id INTEGER NOT NULL REFERENCES license_accounts(id) ON DELETE CASCADE,
+                        session_id VARCHAR(100) NOT NULL,
+                        symbol VARCHAR(20),
+                        magic_number INTEGER,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_account_session UNIQUE (license_account_id, session_id)
+                    )
+                """))
+                db.session.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_ea_sessions_session_id ON ea_sessions(session_id)
+                """))
+                db.session.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_ea_sessions_license_account_id ON ea_sessions(license_account_id)
+                """))
+                db.session.commit()
+                logger.info("✅ ea_sessions table created")
+            else:
+                logger.info("✅ All tables exist")
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        db.session.rollback()
+
+
+# ============================================================================
 # DECORATORS
 # ============================================================================
 
@@ -445,7 +470,13 @@ def index():
     return redirect(url_for("user_login"))
 
 @app.route("/health")
-def health(): return jsonify({"status": "healthy", "timestamp": datetime.utcnow().isoformat()})
+def health():
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "active_licenses": License.query.filter_by(status="active").count(),
+        "active_accounts": LicenseAccount.query.count()
+    })
 
 
 # ============================================================================
@@ -569,7 +600,11 @@ def user_dashboard():
     license_accounts = []; account_count = 0; max_accounts = default_max
     if license:
         license_accounts = [
-            {"account": a.account_number, "activated": a.activated_at, "sessions": a.sessions.count()}
+            {
+                "account": a.account_number,
+                "activated": a.activated_at,
+                "sessions": a.sessions.count()
+            }
             for a in license.accounts
         ]
         account_count = len(license_accounts); max_accounts = license.max_accounts
@@ -763,18 +798,15 @@ def delete_ea(ea_id):
 @admin_required
 def reset_license_account(account_id):
     """
-    Manual override only — force-frees an account slot regardless of how many
-    EA sessions are currently attached to it (e.g. a crashed EA that never
-    called /api/release-license). This is NOT part of normal slot accounting,
-    which happens automatically via validate/release; it exists purely as a
-    support tool for stuck slots.
+    Manual override - force-frees an account slot regardless of EA sessions.
+    Only for stuck/crashed EAs that never called /api/release-license.
     """
     account = db.session.get(LicenseAccount, account_id)
     if account:
         lic = db.session.get(License, account.license_id)
         acct_number = account.account_number
         session_count = account.sessions.count()
-        db.session.delete(account); db.session.commit()  # cascades to ea_sessions
+        db.session.delete(account); db.session.commit()
         if lic:
             log_audit(lic.user_id, "license_account_force_reset",
                       f"{lic.mask_license_key()} | account={acct_number} | sessions_cleared={session_count} | by admin",
@@ -784,30 +816,23 @@ def reset_license_account(account_id):
 
 
 # ============================================================================
-# API
+# API - LICENSE VALIDATION & RELEASE
 # ============================================================================
 
 @app.route("/api/validate-license", methods=["POST"])
-@limiter.limit("30 per minute")
+@limiter.limit("60 per minute")
 def api_validate_license():
     """
-    Called by the EA whenever it (re)validates its license — typically on
-    OnInit and periodically afterwards.
-
-    Slot accounting is fully automatic:
-      - If the account number already holds a slot (LicenseAccount exists),
-        this EA's session is added/refreshed under it. Multiple EA instances
-        (different session_id) on the SAME account number share that one
-        slot — adding a 2nd, 3rd, etc. EA to an already-occupied account does
-        NOT consume an additional slot.
-      - If the account number does NOT currently hold a slot, one is created
-        here (consuming one of max_accounts) and this EA's session becomes
-        the first one registered under it.
+    Called by EA on init and periodically.
+    
+    Slot logic:
+    - If account already has a slot, add/refresh EA session under it.
+    - If account doesn't have a slot, create one (consuming 1 of max_accounts).
+    - Multiple EAs on same account share one slot.
     """
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({"valid": False, "error": "Invalid request"}), 400
+        if not data: return jsonify({"valid": False, "error": "Invalid request"}), 400
 
         license_key = data.get("license_key", "").strip()
         machine_id = data.get("machine_id", "").strip()
@@ -818,24 +843,18 @@ def api_validate_license():
         except (TypeError, ValueError):
             magic_number = None
 
-        if not license_key:
-            return jsonify({"valid": False, "error": "License key required"}), 400
-        if not machine_id:
-            return jsonify({"valid": False, "error": "machine_id required"}), 400
-        if not session_id:
-            return jsonify({"valid": False, "error": "session_id required"}), 400
+        if not license_key: return jsonify({"valid": False, "error": "License key required"}), 400
+        if not machine_id: return jsonify({"valid": False, "error": "machine_id required"}), 400
+        if not session_id: return jsonify({"valid": False, "error": "session_id required"}), 400
 
         lic = License.query.filter_by(license_key=license_key).first()
-        if not lic:
-            return jsonify({"valid": False, "error": "License not found"}), 404
-        if not lic.is_valid():
-            return jsonify({"valid": False, "error": "License not active or expired"}), 403
+        if not lic: return jsonify({"valid": False, "error": "License not found"}), 404
+        if not lic.is_valid(): return jsonify({"valid": False, "error": "License not active or expired"}), 403
 
         account = LicenseAccount.query.filter_by(license_id=lic.id, account_number=machine_id).first()
 
         if account:
-            # This account number already occupies a slot. Register/refresh
-            # this EA's session under it — does not affect slot count.
+            # Account already has a slot - add/refresh session
             existing_session = EASession.query.filter_by(
                 license_account_id=account.id, session_id=session_id
             ).first()
@@ -857,7 +876,7 @@ def api_validate_license():
                 "sessions_on_account": account.sessions.count(),
             })
 
-        # Account number doesn't currently hold a slot — need a free one.
+        # New account - need a free slot
         active_count = lic.accounts.count()
         if active_count >= lic.max_accounts:
             return jsonify({
@@ -867,7 +886,7 @@ def api_validate_license():
 
         new_account = LicenseAccount(license_id=lic.id, account_number=machine_id)
         db.session.add(new_account)
-        db.session.flush()  # assign new_account.id before referencing it
+        db.session.flush()
         db.session.add(EASession(
             license_account_id=new_account.id, session_id=session_id,
             symbol=symbol, magic_number=magic_number,
@@ -881,7 +900,7 @@ def api_validate_license():
             "sessions_on_account": 1,
         })
     except Exception as e:
-        logger.error(f"Validation failed: {e}")
+        logger.error(f"Validation failed: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"valid": False, "error": "Server error"}), 500
 
@@ -890,18 +909,13 @@ def api_validate_license():
 @limiter.limit("30 per minute")
 def api_release_license():
     """
-    Called by the EA when it stops running on an account (removed from
-    chart, chart closed, etc.) — releases just THIS EA's session.
-
-    The account-number slot is only freed automatically once ALL sessions
-    under that account have been released (i.e. no EA instance remains
-    attached). No admin action and no timeout are involved; this is purely
-    explicit and automatic based on EA calls.
+    Called by EA when it stops (removed from chart, terminal closed).
+    Releases THIS EA's session only.
+    Slot is freed automatically when ALL sessions on the account are released.
     """
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({"success": False, "error": "Invalid request"}), 400
+        if not data: return jsonify({"success": False, "error": "Invalid request"}), 400
 
         license_key = data.get("license_key", "").strip()
         machine_id = data.get("machine_id", "").strip()
@@ -911,8 +925,7 @@ def api_release_license():
             return jsonify({"success": False, "error": "license_key, machine_id and session_id required"}), 400
 
         lic = License.query.filter_by(license_key=license_key).first()
-        if not lic:
-            return jsonify({"success": False, "error": "License not found"}), 404
+        if not lic: return jsonify({"success": False, "error": "License not found"}), 404
 
         account = LicenseAccount.query.filter_by(license_id=lic.id, account_number=machine_id).first()
         if not account:
@@ -939,7 +952,6 @@ def api_release_license():
         account_slot_freed = False
 
         if remaining_sessions == 0:
-            # Last EA on this account just released — automatically free the slot.
             db.session.delete(account)
             account_slot_freed = True
 
@@ -947,8 +959,7 @@ def api_release_license():
 
         log_audit(
             lic.user_id, "ea_session_released",
-            f"{lic.mask_license_key()} | account={machine_id} | session={session_id} | "
-            f"slot_freed={account_slot_freed}",
+            f"{lic.mask_license_key()} | account={machine_id} | session={session_id} | slot_freed={account_slot_freed}",
             request.remote_addr,
         )
 
@@ -962,7 +973,7 @@ def api_release_license():
             "accounts_remaining": lic.max_accounts - lic.accounts.count(),
         })
     except Exception as e:
-        logger.error(f"Release license failed: {e}")
+        logger.error(f"Release failed: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"success": False, "error": "Server error"}), 500
 
@@ -1231,15 +1242,13 @@ def auto_init_db():
         except Exception as e: logger.error(f"DB init failed: {e}")
 
 
-@app.route("/admin/fix-database-now")
-@admin_required
-def fix_database_now():
-    db.create_all()
-    return jsonify({"status": "done", "tables": list(db.metadata.tables.keys())})
+# ============================================================================
+# STARTUP
+# ============================================================================
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
+# Run migrations on startup to create any missing tables
+with app.app_context():
+    run_migrations()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
