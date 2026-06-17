@@ -7,7 +7,8 @@ Session-based automatic account slot management:
 - LicenseAccount represents one occupied account-number slot
 - EASession tracks individual EA instances (by session_id)
 - Multiple EAs on same account share one slot
-- Slot is freed automatically when last EA session releases
+- Slot freed when last EA session releases
+- Heartbeat auto-cleanup for crashed EAs (fully automatic, no admin needed)
 """
 
 import os
@@ -17,6 +18,7 @@ import hashlib
 import secrets
 import logging
 import threading
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
@@ -90,6 +92,9 @@ class Config:
     DEFAULT_SUBSCRIPTION_DURATION_DAYS = int(os.getenv("DEFAULT_SUBSCRIPTION_DURATION_DAYS", 365))
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 50 * 1024 * 1024))
+
+    # Heartbeat auto-cleanup for crashed EAs (fully automatic, no admin needed)
+    HEARTBEAT_TIMEOUT_MINUTES = int(os.getenv("HEARTBEAT_TIMEOUT_MINUTES", 10))
 
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"
@@ -266,7 +271,8 @@ class LicenseAccount(db.Model):
 class EASession(db.Model):
     """
     Represents a single running EA instance.
-    Multiple sessions on the same account share one slot.
+    last_seen is updated on every heartbeat (/api/validate-license).
+    Stale sessions (no heartbeat for HEARTBEAT_TIMEOUT_MINUTES) are auto-cleaned.
     When the last session is deleted, the LicenseAccount is deleted too.
     """
     __tablename__ = "ea_sessions"
@@ -393,6 +399,59 @@ def allowed_file(filename): return "." in filename and filename.rsplit(".", 1)[1
 
 
 # ============================================================================
+# AUTO-CLEANUP (Background, fully automatic, no admin needed)
+# ============================================================================
+
+def cleanup_stale_sessions():
+    """Remove EA sessions with no heartbeat. Frees account slots automatically."""
+    try:
+        threshold = datetime.utcnow() - timedelta(minutes=Config.HEARTBEAT_TIMEOUT_MINUTES)
+        
+        stale_sessions = EASession.query.filter(
+            EASession.last_seen < threshold
+        ).all()
+        
+        cleaned = 0
+        freed = 0
+        
+        for session in stale_sessions:
+            account = session.license_account
+            acct_num = account.account_number if account else "unknown"
+            inactive_mins = (datetime.utcnow() - session.last_seen).total_seconds() / 60
+            
+            logger.info(f"🧹 Auto-clean: session={session.session_id[:8]}... account={acct_num} inactive={inactive_mins:.0f}min")
+            
+            db.session.delete(session)
+            cleaned += 1
+            
+            # If this was the last session on the account, free the slot
+            if account and account.sessions.count() <= 1:
+                logger.info(f"🔓 Slot freed: account={acct_num}")
+                db.session.delete(account)
+                freed += 1
+        
+        if cleaned > 0:
+            db.session.commit()
+            logger.info(f"✅ Auto-cleanup: {cleaned} sessions removed, {freed} slots freed")
+        
+    except Exception as e:
+        logger.error(f"Auto-cleanup error: {e}")
+        db.session.rollback()
+
+
+def start_auto_cleanup():
+    """Background thread - runs cleanup every 5 minutes. Fully automatic."""
+    def job():
+        while True:
+            time.sleep(300)  # Every 5 minutes
+            with app.app_context():
+                cleanup_stale_sessions()
+    
+    threading.Thread(target=job, daemon=True).start()
+    logger.info(f"🔄 Auto-cleanup started (timeout: {Config.HEARTBEAT_TIMEOUT_MINUTES}min, runs every 5min)")
+
+
+# ============================================================================
 # DATABASE MIGRATION
 # ============================================================================
 
@@ -475,7 +534,8 @@ def health():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "active_licenses": License.query.filter_by(status="active").count(),
-        "active_accounts": LicenseAccount.query.count()
+        "active_accounts": LicenseAccount.query.count(),
+        "active_sessions": EASession.query.count()
     })
 
 
@@ -794,27 +854,6 @@ def delete_ea(ea_id):
     return redirect(url_for("admin_dashboard"))
 
 
-@app.route("/admin/reset-account/<int:account_id>", methods=["POST"])
-@admin_required
-def reset_license_account(account_id):
-    """
-    Manual override - force-frees an account slot regardless of EA sessions.
-    Only for stuck/crashed EAs that never called /api/release-license.
-    """
-    account = db.session.get(LicenseAccount, account_id)
-    if account:
-        lic = db.session.get(License, account.license_id)
-        acct_number = account.account_number
-        session_count = account.sessions.count()
-        db.session.delete(account); db.session.commit()
-        if lic:
-            log_audit(lic.user_id, "license_account_force_reset",
-                      f"{lic.mask_license_key()} | account={acct_number} | sessions_cleared={session_count} | by admin",
-                      request.remote_addr)
-        flash(f"Account slot freed ({session_count} EA session(s) cleared).", "success")
-    return redirect(request.referrer or url_for("admin_dashboard"))
-
-
 # ============================================================================
 # API - LICENSE VALIDATION & RELEASE
 # ============================================================================
@@ -823,12 +862,13 @@ def reset_license_account(account_id):
 @limiter.limit("60 per minute")
 def api_validate_license():
     """
-    Called by EA on init and periodically.
+    Called by EA on init and periodically (heartbeat).
     
     Slot logic:
     - If account already has a slot, add/refresh EA session under it.
     - If account doesn't have a slot, create one (consuming 1 of max_accounts).
     - Multiple EAs on same account share one slot.
+    - last_seen updated on every call (heartbeat).
     """
     try:
         data = request.get_json()
@@ -854,7 +894,7 @@ def api_validate_license():
         account = LicenseAccount.query.filter_by(license_id=lic.id, account_number=machine_id).first()
 
         if account:
-            # Account already has a slot - add/refresh session
+            # Account already has a slot - add/refresh session (heartbeat update)
             existing_session = EASession.query.filter_by(
                 license_account_id=account.id, session_id=session_id
             ).first()
@@ -1246,9 +1286,12 @@ def auto_init_db():
 # STARTUP
 # ============================================================================
 
-# Run migrations on startup to create any missing tables
+# Run migrations to create any missing tables
 with app.app_context():
     run_migrations()
+
+# Start automatic background cleanup (no admin needed)
+start_auto_cleanup()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
