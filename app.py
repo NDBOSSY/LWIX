@@ -1231,6 +1231,16 @@ def auto_init_db():
         except Exception as e: logger.error(f"DB init failed: {e}")
 
 
+@app.route("/admin/fix-database-now")
+@admin_required
+def fix_database_now():
+    db.create_all()
+    return jsonify({"status": "done", "tables": list(db.metadata.tables.keys())})
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
