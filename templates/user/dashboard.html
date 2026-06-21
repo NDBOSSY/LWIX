@@ -730,7 +730,7 @@
     }
 
     // ==========================================
-    // FIXED: License generation with proper error handling
+    // License generation with proper error handling
     // ==========================================
     function confirmGenerateLicense() {
         console.log('[DEBUG] Generate license clicked');
@@ -800,7 +800,8 @@
                 console.error('[DEBUG] License generation failed:', data.error);
                 showToast(data.error || 'Failed to generate license', 'error');
                 
-                // Re-enable button                if (generateBtn) {
+                // Re-enable button
+                if (generateBtn) {
                     generateBtn.disabled = false;
                     generateBtn.textContent = 'Generate';
                 }
@@ -847,7 +848,7 @@
     }
 
     // ==========================================
-    // FIXED: Toast notifications with better styling
+    // Toast notifications with better styling
     // ==========================================
     function showToast(msg, type = 'success') {
         console.log(`[TOAST] ${type}: ${msg}`);
