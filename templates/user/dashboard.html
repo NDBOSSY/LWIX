@@ -469,6 +469,11 @@
     .toast.show { opacity: 1; }
 
     .fa-fw { width: 1.1rem; text-align: center; }
+
+    /* Error toast styling */
+    .toast.error { background: var(--red); }
+    .toast.success { background: var(--green); }
+    .toast.warning { background: var(--amber); }
 </style>
 {% endblock %}
 
@@ -490,7 +495,7 @@
     <div class="kpi-grid">
         <div class="kpi-card color-1">
             <div class="label">Plan level</div>
-            <div class="value">LVL {{ user.get_plan_level() }} <span class="unit">/ 2</span></div>
+            <div class="value">{{ plan_level_display if plan_level_display else 'LVL ' + user.get_plan_level()|string }} <span class="unit">/ {{ user.get_plan_level() }}</span></div>
         </div>
         <div class="kpi-card color-2">
             <div class="label">Subscription</div>
@@ -498,7 +503,7 @@
         </div>
         <div class="kpi-card color-3">
             <div class="label">MT5 accounts</div>
-            <div class="value">{{ account_count if license_accounts else 0 }} <span class="unit">/ {{ max_accounts if license else '—' }}</span></div>
+            <div class="value">{{ account_count if license_accounts else 0 }} <span class="unit">/ {{ max_accounts }}</span></div>
         </div>
         <div class="kpi-card color-4">
             <div class="label">EAs unlocked</div>
@@ -516,7 +521,7 @@
             <div class="panel-body">
                 <div class="row-item"><span class="key">Plan level</span><span class="val"><span class="pill {% if user.get_plan_level() >= 2 %}pill-accent{% else %}pill-neutral{% endif %}">LVL {{ user.get_plan_level() }}</span></span></div>
                 <div class="row-item"><span class="key">Subscription type</span><span class="val">{{ user.subscription_type|title or 'Standard' }}</span></div>
-                <div class="row-item"><span class="key">Member since</span><span class="val" style="font-family:var(--mono);">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</span></div>
+                <div class="row-item"><span class="key">Member since</span><span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</span></div>
                 <div class="row-item"><span class="key">Status</span><span class="val">{% if user.membership_status == 'active' %}<span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> RUNNING</span>{% else %}<span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> INACTIVE</span>{% endif %}</span></div>
             </div>
         </div>
@@ -638,10 +643,10 @@
 <div class="modal-overlay" id="licenseModal">
     <div class="modal">
         <h3>Generate license key</h3>
-        <p>Unlock all EA downloads, Discord access, and up to {{ 2 if user.get_plan_level() == 1 else 4 }} MT5 accounts.</p>
+        <p>Unlock all EA downloads, Discord access, and up to <strong>{{ 2 if user.get_plan_level() == 1 else 4 }}</strong> MT5 accounts.</p>
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="closeLicenseModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="confirmGenerateLicense()">Generate</button>
+            <button class="btn btn-primary" id="generateBtn" onclick="confirmGenerateLicense()">Generate</button>
         </div>
     </div>
 </div>
@@ -657,66 +662,273 @@
 </div>
 <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
-    <p>Generating your license key…</p>
+    <p id="loadingMessage">Generating your license key…</p>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-    // license reveal
-    let visible = false;
+    // ==========================================
+    // FIXED JAVASCRIPT - LICENSE GENERATION
+    // ==========================================
+    
+    // License reveal
+    let licenseVisible = false;
     function toggleLicense() {
-        visible = !visible;
-        document.getElementById('licenseDisplay').classList.toggle('revealed', visible);
+        licenseVisible = !licenseVisible;
+        const box = document.getElementById('licenseDisplay');
+        if (box) {
+            box.classList.toggle('revealed', licenseVisible);
+        }
     }
 
     function copyToClipboard(text) {
-        navigator.clipboard?.writeText(text).then(() => showToast('License copied!')).catch(() => {});
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('License copied! ✓', 'success');
+            }).catch(() => {
+                // Fallback
+                fallbackCopy(text);
+            });
+        } else {
+            fallbackCopy(text);
+        }
+    }
+    
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showToast('License copied! ✓', 'success');
+        } catch (err) {
+            showToast('Failed to copy', 'error');
+        }
+        document.body.removeChild(textarea);
     }
 
-    // modals
-    function showLicenseModal() { document.getElementById('licenseModal').classList.add('show'); }
-    function closeLicenseModal() { document.getElementById('licenseModal').classList.remove('show'); }
+    // Modal controls
+    function showLicenseModal() { 
+        document.getElementById('licenseModal').classList.add('show'); 
+    }
+    
+    function closeLicenseModal() { 
+        document.getElementById('licenseModal').classList.remove('show'); 
+    }
+    
     function showDownloadAllModal() {
-        document.getElementById('downloadCountBadge').textContent = document.querySelectorAll('a[href*="download-ea"]').length;
+        const eaCount = document.querySelectorAll('a[href*="download-ea"]').length;
+        document.getElementById('downloadCountBadge').textContent = eaCount;
         document.getElementById('downloadAllModal').classList.add('show');
     }
-    function closeDownloadAllModal() { document.getElementById('downloadAllModal').classList.remove('show'); }
+    
+    function closeDownloadAllModal() { 
+        document.getElementById('downloadAllModal').classList.remove('show'); 
+    }
 
+    // ==========================================
+    // FIXED: License generation with proper error handling
+    // ==========================================
     function confirmGenerateLicense() {
+        console.log('[DEBUG] Generate license clicked');
+        
+        // Close modal
         closeLicenseModal();
-        document.getElementById('loadingOverlay').style.display = 'flex';
-        fetch('{{ url_for("generate_license") }}', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
-            .then(r => r.json())
-            .then(d => {
-                document.getElementById('loadingOverlay').style.display = 'none';
-                if (d.success) { showToast('License generated! 🎉', 'success'); setTimeout(() => location.reload(), 1500); }
-                else { showToast(d.error || 'Failed', 'error'); }
-            })
-            .catch(() => { document.getElementById('loadingOverlay').style.display = 'none'; showToast('Error', 'error'); });
+        
+        // Show loading overlay
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const generateBtn = document.getElementById('generateBtn');
+        
+        loadingOverlay.style.display = 'flex';
+        loadingMessage.textContent = 'Generating your license key…';
+        
+        // Disable button to prevent double-click
+        if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+        }
+        
+        // Make the API call
+        console.log('[DEBUG] Sending request to /generate-license');
+        
+        fetch('/generate-license', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            // No body needed for this endpoint
+        })
+        .then(response => {
+            console.log('[DEBUG] Response status:', response.status);
+            console.log('[DEBUG] Response headers:', response.headers);
+            
+            // Check if response is OK
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || `Server error (${response.status})`);
+                }).catch(err => {
+                    if (err.message && !err.message.includes('Unexpected')) {
+                        throw err;
+                    }
+                    throw new Error(`Server error (${response.status})`);
+                });
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            console.log('[DEBUG] Response data:', data);
+            
+            // Hide loading
+            loadingOverlay.style.display = 'none';
+            
+            if (data.success) {
+                console.log('[DEBUG] License generated successfully!');
+                showToast('License generated successfully! 🎉', 'success');
+                
+                // Reload after short delay to show the license
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                console.error('[DEBUG] License generation failed:', data.error);
+                showToast(data.error || 'Failed to generate license', 'error');
+                
+                // Re-enable button                if (generateBtn) {
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = 'Generate';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('[DEBUG] Fetch error:', error);
+            
+            // Hide loading
+            loadingOverlay.style.display = 'none';
+            
+            // Show error
+            showToast(error.message || 'Network error. Please try again.', 'error');
+            
+            // Re-enable button
+            if (generateBtn) {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate';
+            }
+        });
     }
 
     function confirmDownloadAll() {
         closeDownloadAllModal();
         const links = document.querySelectorAll('a[href*="download-ea"]');
-        if (!links.length) { showToast('No EAs available', 'error'); return; }
+        if (!links.length) { 
+            showToast('No EAs available', 'warning'); 
+            return; 
+        }
+        
         showToast(`Starting ${links.length} downloads…`, 'success');
-        links.forEach((link, i) => setTimeout(() => {
-            const a = document.createElement('a'); a.href = link.href; a.download = '';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        }, i * 1500));
+        
+        links.forEach((link, i) => {
+            setTimeout(() => {
+                const a = document.createElement('a'); 
+                a.href = link.href; 
+                a.download = '';
+                a.style.display = 'none';
+                document.body.appendChild(a); 
+                a.click(); 
+                document.body.removeChild(a);
+            }, i * 1500);
+        });
     }
 
-    function showToast(msg, type) {
+    // ==========================================
+    // FIXED: Toast notifications with better styling
+    // ==========================================
+    function showToast(msg, type = 'success') {
+        console.log(`[TOAST] ${type}: ${msg}`);
+        
         const t = document.getElementById('toast');
+        if (!t) {
+            console.error('[TOAST] Toast element not found!');
+            alert(msg); // Fallback
+            return;
+        }
+        
         t.textContent = msg;
-        t.style.background = type === 'error' ? 'var(--red)' : 'var(--ink)';
+        
+        // Reset classes
+        t.className = 'toast';
+        
+        // Add type-specific class
+        if (type === 'error') {
+            t.classList.add('error');
+        } else if (type === 'success') {
+            t.classList.add('success');
+        } else if (type === 'warning') {
+            t.classList.add('warning');
+        }
+        
+        // Show toast
         t.classList.add('show');
-        clearTimeout(t._hide);
-        t._hide = setTimeout(() => t.classList.remove('show'), 2600);
+        
+        // Clear existing timeout
+        if (t._hideTimeout) {
+            clearTimeout(t._hideTimeout);
+        }
+        
+        // Auto-hide
+        t._hideTimeout = setTimeout(() => {
+            t.classList.remove('show');
+        }, 3000);
     }
 
-    document.getElementById('licenseModal').addEventListener('click', function(e) { if (e.target === this) closeLicenseModal(); });
-    document.getElementById('downloadAllModal').addEventListener('click', function(e) { if (e.target === this) closeDownloadAllModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLicenseModal(); closeDownloadAllModal(); } });
+    // ==========================================
+    // Event Listeners
+    // ==========================================
+    
+    // Close modals when clicking overlay
+    document.getElementById('licenseModal')?.addEventListener('click', function(e) { 
+        if (e.target === this) closeLicenseModal(); 
+    });
+    
+    document.getElementById('downloadAllModal')?.addEventListener('click', function(e) { 
+        if (e.target === this) closeDownloadAllModal(); 
+    });
+    
+    // Close modals with Escape key
+    document.addEventListener('keydown', function(e) { 
+        if (e.key === 'Escape') { 
+            closeLicenseModal(); 
+            closeDownloadAllModal(); 
+        } 
+    });
+    
+    // Close loading overlay on Escape (emergency escape)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && e.ctrlKey) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay && loadingOverlay.style.display === 'flex') {
+                loadingOverlay.style.display = 'none';
+                showToast('Operation cancelled', 'warning');
+                
+                const generateBtn = document.getElementById('generateBtn');
+                if (generateBtn) {
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = 'Generate';
+                }
+            }
+        }
+    });
+    
+    // Debug: Log when page is ready
+    console.log('[DEBUG] Dashboard page loaded');
+    console.log('[DEBUG] User level:', {{ user.get_plan_level() }});
+    console.log('[DEBUG] Has license:', {{ 'true' if license else 'false' }});
+    console.log('[DEBUG] Max accounts:', {{ max_accounts }});
 </script>
 {% endblock %}
