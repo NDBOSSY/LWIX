@@ -427,7 +427,10 @@
         justify-content: center; align-items: center;
     }
     .modal-overlay.show { display: flex; }
-    .modal {
+    /* NOTE: named .modal-box (not .modal) because Bootstrap's CSS already
+       defines a .modal class with `display: none; position: fixed;` that
+       would otherwise silently override this and hide the dialog. */
+    .modal-box {
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 20px;
@@ -436,8 +439,8 @@
         width: 90%;
         box-shadow: 0 24px 48px rgba(0,0,0,0.12);
     }
-    .modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
-    .modal p { color: var(--ink-muted); margin-bottom: 1.2rem; font-size: 0.85rem; }
+    .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .modal-box p { color: var(--ink-muted); margin-bottom: 1.2rem; font-size: 0.85rem; }
     .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
 
     .loading-overlay {
@@ -641,7 +644,7 @@
 
 <!-- modals -->
 <div class="modal-overlay" id="licenseModal">
-    <div class="modal">
+    <div class="modal-box">
         <h3>Generate license key</h3>
         <p>Unlock all EA downloads, Discord access, and up to <strong>{{ 2 if user.get_plan_level() == 1 else 4 }}</strong> MT5 accounts.</p>
         <div class="modal-actions">
@@ -651,7 +654,7 @@
     </div>
 </div>
 <div class="modal-overlay" id="downloadAllModal">
-    <div class="modal">
+    <div class="modal-box">
         <h3>Download all EAs</h3>
         <p>Get all <strong id="downloadCountBadge">{{ ea_files|length if ea_files else 0 }}</strong> Expert Advisors at once.</p>
         <div class="modal-actions">
