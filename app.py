@@ -10,6 +10,8 @@ ACCOUNT SLOT LOGIC:
 - Heartbeat auto-cleanup for crashed EAs (fully automatic)
 
 FIXED: Proper MT5 account tracking with unique account_number
+FIXED: Unlimited validations (max_validations=None skips the check)
+FIXED: Heartbeats no longer increment validation_count
 """
 
 import os
@@ -121,9 +123,9 @@ login_manager.login_message = "Please log in to access this page."
 CORS(app, supports_credentials=True)
 
 limiter = Limiter(
-    get_remote_address, 
-    app=app, 
-    default_limits=["200 per day", "50 per hour"], 
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
     storage_uri=Config.RATELIMIT_STORAGE_URL
 )
 
@@ -248,7 +250,7 @@ class OTPToken(db.Model):
     attempts = db.Column(db.Integer, default=0)
     purpose = db.Column(db.String(50), default="login")
 
-    def is_valid(self): 
+    def is_valid(self):
         return not self.used and self.expires_at > datetime.utcnow() and self.attempts < 3
 
 
@@ -266,24 +268,26 @@ class License(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     revoked_at = db.Column(db.DateTime, nullable=True)
     validation_count = db.Column(db.Integer, default=0)
-    max_validations = db.Column(db.Integer, default=10000)
+    # FIX: max_validations=None means unlimited — the check is skipped entirely
+    max_validations = db.Column(db.Integer, nullable=True, default=None)
     ea_version = db.Column(db.String(20), nullable=True)
 
     accounts = db.relationship("LicenseAccount", backref="license", lazy="dynamic", cascade="all, delete-orphan")
 
     def is_valid(self):
-        if self.status != "active": 
+        if self.status != "active":
             return False
-        if self.expires_at < datetime.utcnow(): 
+        if self.expires_at < datetime.utcnow():
             self.status = "expired"
             db.session.commit()
             return False
-        if self.validation_count >= self.max_validations: 
+        # FIX: only enforce the cap when max_validations is explicitly set
+        if self.max_validations is not None and self.validation_count >= self.max_validations:
             return False
         return True
 
     def mask_license_key(self):
-        if len(self.license_key) > 8: 
+        if len(self.license_key) > 8:
             return f"{self.license_key[:4]}...{self.license_key[-4:]}"
         return self.license_key
 
@@ -391,10 +395,10 @@ def decrypt_data(data):
     try: return cipher_suite.decrypt(data.encode()).decode()
     except: return data
 
-def generate_license_key(): 
+def generate_license_key():
     return "-".join([secrets.token_hex(2).upper() for _ in range(3)])
 
-def generate_otp(): 
+def generate_otp():
     return "".join([str(secrets.randbelow(10)) for _ in range(6)])
 
 def parse_duration_to_days(duration_str):
@@ -426,7 +430,7 @@ def send_email_async(subject, recipients, body, html_body=None):
                 msg = Message(subject=subject, recipients=recipients, body=body, html=html_body)
                 mail.send(msg)
                 logger.info(f"[EMAIL] Sent to {recipients}: {subject}")
-        except Exception as e: 
+        except Exception as e:
             logger.error(f"[EMAIL] Failed: {e}")
     threading.Thread(target=send).start()
 
@@ -438,10 +442,10 @@ def log_audit(user_id, action, details=None, ip_address=None):
         )
         db.session.add(log)
         db.session.commit()
-    except Exception as e: 
+    except Exception as e:
         logger.error(f"[AUDIT] Failed: {e}")
 
-def allowed_file(filename): 
+def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in {"ex4", "ex5", "dll", "zip"}
 
 def get_max_accounts_for_level(plan_level):
@@ -468,33 +472,33 @@ def cleanup_stale_sessions():
     """Remove EA sessions with no heartbeat. Frees account slots automatically."""
     try:
         threshold = datetime.utcnow() - timedelta(minutes=Config.HEARTBEAT_TIMEOUT_MINUTES)
-        
+
         stale_sessions = EASession.query.filter(
             EASession.last_seen < threshold
         ).all()
-        
+
         cleaned = 0
         freed = 0
-        
+
         for ea_session in stale_sessions:
             account = ea_session.license_account
             acct_num = account.account_number if account else "unknown"
             inactive_mins = (datetime.utcnow() - ea_session.last_seen).total_seconds() / 60
-            
+
             logger.info(f"🧹 Auto-clean: session={ea_session.session_id[:8]}... account={acct_num} inactive={inactive_mins:.0f}min")
-            
+
             db.session.delete(ea_session)
             cleaned += 1
-            
+
             if account and account.sessions.count() <= 1:
                 logger.info(f"🔓 Slot freed: MT5 account={acct_num}")
                 db.session.delete(account)
                 freed += 1
-        
+
         if cleaned > 0:
             db.session.commit()
             logger.info(f"✅ Auto-cleanup: {cleaned} sessions removed, {freed} slots freed")
-        
+
     except Exception as e:
         logger.error(f"Auto-cleanup error: {e}")
         db.session.rollback()
@@ -506,7 +510,7 @@ def start_auto_cleanup():
             time.sleep(300)
             with app.app_context():
                 cleanup_stale_sessions()
-    
+
     threading.Thread(target=job, daemon=True).start()
     logger.info(f"🔄 Auto-cleanup started (timeout: {Config.HEARTBEAT_TIMEOUT_MINUTES}min)")
 
@@ -520,7 +524,7 @@ def run_migrations():
         with app.app_context():
             inspector = db.inspect(db.engine)
             existing_tables = inspector.get_table_names()
-            
+
             if 'ea_sessions' not in existing_tables:
                 logger.info("Creating ea_sessions table...")
                 db.session.execute(db.text("""
@@ -543,12 +547,12 @@ def run_migrations():
                 """))
                 db.session.commit()
                 logger.info("✅ ea_sessions table created")
-            
+
             # Fix existing licenses with invalid max_accounts
             bad_licenses = License.query.filter(
                 (License.max_accounts == None) | (License.max_accounts <= 0)
             ).all()
-            
+
             for lic in bad_licenses:
                 user = lic.user
                 if user:
@@ -556,11 +560,23 @@ def run_migrations():
                     correct_max = get_max_accounts_for_level(user_level)
                     logger.warning(f"FIXING license {lic.mask_license_key()}: max_accounts {lic.max_accounts} → {correct_max}")
                     lic.max_accounts = correct_max
-            
+
             if bad_licenses:
                 db.session.commit()
                 logger.info(f"✅ Fixed {len(bad_licenses)} licenses")
-                
+
+            # FIX: Remove validation limits from all existing licenses on every startup
+            capped_licenses = License.query.filter(
+                License.max_validations != None
+            ).all()
+
+            if capped_licenses:
+                for lic in capped_licenses:
+                    lic.max_validations = None
+                    lic.validation_count = 0
+                db.session.commit()
+                logger.info(f"✅ Removed validation limits from {len(capped_licenses)} existing licenses")
+
     except Exception as e:
         logger.error(f"Migration failed: {e}")
         db.session.rollback()
@@ -574,19 +590,19 @@ def admin_required(f):
     @wraps(f)
     @login_required
     def decorated(*args, **kwargs):
-        if not current_user.is_admin: 
-            flash("Admin access required.", "error"); 
+        if not current_user.is_admin:
+            flash("Admin access required.", "error")
             abort(403)
         return f(*args, **kwargs)
     return decorated
 
 @login_manager.user_loader
-def load_user(user_id): 
+def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 @app.errorhandler(404)
 def not_found(e):
-    if request.path.startswith("/api/"): 
+    if request.path.startswith("/api/"):
         return jsonify({"error": "Not found"}), 404
     return render_template("errors/404.html"), 404
 
@@ -594,7 +610,7 @@ def not_found(e):
 def internal_error(e):
     db.session.rollback()
     logger.error(f"500 Error: {e}", exc_info=True)
-    if request.path.startswith("/api/"): 
+    if request.path.startswith("/api/"):
         return jsonify({"error": "Server error"}), 500
     return render_template("errors/500.html"), 500
 
@@ -629,59 +645,59 @@ def health():
 def user_login():
     if current_user.is_authenticated:
         return redirect(url_for("admin_dashboard") if current_user.is_admin else url_for("user_dashboard"))
-    
+
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
-        
-        try: 
+
+        try:
             email = validate_email(email).email
-        except EmailNotValidError: 
+        except EmailNotValidError:
             flash("Invalid email address.", "error")
             return render_template("user/login.html")
-        
+
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
-        if email == admin_email: 
+        if email == admin_email:
             session["admin_email"] = email
             return redirect(url_for("admin_password"))
-        
+
         user = User.query.filter_by(email=email).first()
-        if not user: 
+        if not user:
             flash("No account found. Purchase a plan first.", "error")
             return render_template("user/login.html")
-        
-        if not user.email_verified: 
+
+        if not user.email_verified:
             flash("Account not active. Complete purchase first.", "error")
             return render_template("user/login.html")
-        
-        if user.locked_until and user.locked_until > datetime.utcnow(): 
+
+        if user.locked_until and user.locked_until > datetime.utcnow():
             flash("Account locked. Try later.", "error")
             return render_template("user/login.html")
-        
+
         try:
             OTPToken.query.filter_by(user_id=user.id, used=False).update({"used": True})
             otp = generate_otp()
             otp_token = OTPToken(
-                user_id=user.id, token=otp, 
-                expires_at=datetime.utcnow() + timedelta(minutes=Config.OTP_EXPIRY_MINUTES), 
+                user_id=user.id, token=otp,
+                expires_at=datetime.utcnow() + timedelta(minutes=Config.OTP_EXPIRY_MINUTES),
                 purpose="login"
             )
             db.session.add(otp_token)
             db.session.commit()
-            
+
             send_email_async(
-                "Your OTP - Trading Engine", 
-                [email], 
-                f"OTP: {otp}", 
+                "Your OTP - Trading Engine",
+                [email],
+                f"OTP: {otp}",
                 f"<h3>OTP: {otp}</h3><p>Expires in {Config.OTP_EXPIRY_MINUTES} min.</p>"
             )
-            
+
             session["pending_email"] = email
             flash("OTP sent.", "success")
             return redirect(url_for("verify_otp"))
-        except Exception as e: 
+        except Exception as e:
             logger.error(f"[LOGIN] OTP error: {e}", exc_info=True)
             flash("Failed to send OTP.", "error")
-    
+
     return render_template("user/login.html")
 
 
@@ -690,12 +706,12 @@ def user_login():
 def admin_password():
     admin_email = session.get("admin_email") or os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
     admin_user = User.query.filter_by(email=admin_email).first()
-    
+
     if admin_user and admin_user.locked_until and admin_user.locked_until > datetime.utcnow():
         session.pop("admin_email", None)
         flash("Admin locked.", "error")
         return redirect(url_for("user_login"))
-    
+
     if request.method == "POST":
         if request.form.get("password") == os.getenv("ADMIN_PASSWORD", "admin123").strip():
             if not admin_user:
@@ -706,12 +722,12 @@ def admin_password():
                     plan_name="Admin", subscription_type="lifetime", subscription_duration_days=36500
                 )
                 db.session.add(admin_user)
-            else: 
+            else:
                 admin_user.login_attempts = 0
                 admin_user.locked_until = None
                 admin_user.is_admin = True
             db.session.commit()
-            
+
             OTPToken.query.filter_by(user_id=admin_user.id, used=False).update({"used": True})
             otp = generate_otp()
             otp_token = OTPToken(
@@ -722,7 +738,7 @@ def admin_password():
             db.session.add(otp_token)
             db.session.commit()
             send_email_async("Admin OTP", [admin_email], f"OTP: {otp}")
-            
+
             session["pending_email"] = admin_email
             session["is_admin_login"] = True
             session.pop("admin_email", None)
@@ -731,15 +747,15 @@ def admin_password():
         else:
             if admin_user:
                 admin_user.login_attempts += 1
-                if admin_user.login_attempts >= Config.MAX_LOGIN_ATTEMPTS: 
+                if admin_user.login_attempts >= Config.MAX_LOGIN_ATTEMPTS:
                     admin_user.locked_until = datetime.utcnow() + timedelta(minutes=30)
                     flash("Locked 30 min.", "error")
-                else: 
+                else:
                     flash(f"Wrong password. {Config.MAX_LOGIN_ATTEMPTS - admin_user.login_attempts} left.", "error")
                 db.session.commit()
-            else: 
+            else:
                 flash("Invalid password.", "error")
-    
+
     return render_template("admin/password.html")
 
 
@@ -747,69 +763,69 @@ def admin_password():
 @limiter.limit("10 per minute")
 def verify_otp():
     email = session.get("pending_email")
-    if not email: 
+    if not email:
         return redirect(url_for("user_login"))
-    
+
     is_admin = session.get("is_admin_login", False)
-    
+
     if request.method == "POST":
         otp_code = request.form.get("otp", "").strip()
-        if len(otp_code) != 6: 
+        if len(otp_code) != 6:
             flash("Invalid OTP.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
-        
+
         user = User.query.filter_by(email=email).first()
-        if not user: 
+        if not user:
             flash("User not found.", "error")
             return redirect(url_for("user_login"))
-        
+
         otp_token = OTPToken.query.filter_by(user_id=user.id, used=False).order_by(OTPToken.created_at.desc()).first()
-        if not otp_token: 
+        if not otp_token:
             flash("No OTP. Request new.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
-        
-        if otp_token.attempts >= 3: 
+
+        if otp_token.attempts >= 3:
             otp_token.used = True
             db.session.commit()
             flash("Too many attempts.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
-        
+
         if otp_token.token == otp_code:
-            if not otp_token.is_valid(): 
+            if not otp_token.is_valid():
                 flash("OTP expired.", "error")
                 return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
-            
+
             otp_token.used = True
             user.email_verified = True
             user.login_attempts = 0
             user.last_login = datetime.utcnow()
             user.locked_until = None
             db.session.commit()
-            
+
             login_user(user, remember=True)
             session.pop("pending_email", None)
             session.pop("is_admin_login", None)
-            
+
             log_audit(user.id, "login", f"{'Admin' if user.is_admin else 'User'} login", request.remote_addr)
-            
+
             flash(f"Welcome back, {user.first_name or 'there'}!", "success")
             return redirect(url_for("admin_dashboard") if user.is_admin else url_for("user_dashboard"))
         else:
             otp_token.attempts += 1
             user.login_attempts += 1
-            if user.login_attempts >= Config.MAX_LOGIN_ATTEMPTS: 
+            if user.login_attempts >= Config.MAX_LOGIN_ATTEMPTS:
                 user.locked_until = datetime.utcnow() + timedelta(minutes=30)
                 flash("Locked 30 min.", "error")
-            else: 
+            else:
                 flash("Invalid OTP.", "error")
             db.session.commit()
-    
+
     return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
 
 
 @app.route("/logout")
 def logout():
-    if current_user.is_authenticated: 
+    if current_user.is_authenticated:
         log_audit(current_user.id, "logout", request.remote_addr)
     logout_user()
     session.clear()
@@ -827,27 +843,26 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def user_dashboard():
-    if current_user.is_admin: 
+    if current_user.is_admin:
         return redirect(url_for("admin_dashboard"))
-    
+
     user = current_user
     license = user.get_active_license()
     user_level = user.get_plan_level()
-    
+
     ea_files = EAFile.query.filter(
-        EAFile.is_active == True, 
+        EAFile.is_active == True,
         EAFile.plan_level <= user_level
     ).order_by(EAFile.upload_date.desc()).all()
-    
+
     all_ea_count = EAFile.query.filter_by(is_active=True).count()
-    
-    # Calculate max accounts
+
     default_max = get_max_accounts_for_level(user_level)
-    
+
     license_accounts = []
     account_count = 0
     max_accounts = default_max
-    
+
     if license:
         license_accounts = [
             {
@@ -858,14 +873,14 @@ def user_dashboard():
             for a in license.accounts
         ]
         account_count = len(license_accounts)
-        
+
         if license.max_accounts and license.max_accounts > 0:
             max_accounts = license.max_accounts
         else:
             license.max_accounts = default_max
             db.session.commit()
             max_accounts = default_max
-    
+
     return render_template(
         "user/dashboard.html",
         user=user,
@@ -891,7 +906,7 @@ def user_dashboard():
 @limiter.limit("3 per day")
 def generate_license():
     logger.info(f"[LICENSE GEN] User: {current_user.email}")
-    
+
     if not current_user.is_membership_active():
         return jsonify({
             "error": "Active membership required",
@@ -900,47 +915,49 @@ def generate_license():
                 "end_date": current_user.membership_end.isoformat() if current_user.membership_end else None
             }
         }), 403
-    
+
     if current_user.get_active_license():
         return jsonify({"error": "Already have active license"}), 400
-    
+
     try:
         test_mode = Setting.query.filter_by(key="test_mode").first()
         is_test = test_mode and test_mode.value == "on"
-        
+
         key = generate_license_key()
         days = 1 if is_test else (current_user.subscription_duration_days or Config.LICENSE_EXPIRY_DAYS)
         license_type = "test" if is_test else (current_user.subscription_type or "standard")
         user_level = current_user.get_plan_level()
         max_accounts = get_max_accounts_for_level(user_level)
-        
+
         lic = License(
             user_id=current_user.id,
             license_key=key,
             expires_at=datetime.utcnow() + timedelta(days=days),
             ea_version="1.0.0",
             license_type=license_type,
-            max_accounts=max_accounts
+            max_accounts=max_accounts,
+            max_validations=None,   # FIX: no validation cap
+            validation_count=0,
         )
-        
+
         db.session.add(lic)
         db.session.commit()
-        
-        logger.info(f"[LICENSE GEN] ✅ {lic.mask_license_key()} | max_acc={max_accounts} | level={user_level}")
-        
+
+        logger.info(f"[LICENSE GEN] ✅ {lic.mask_license_key()} | max_acc={max_accounts} | level={user_level} | unlimited validations")
+
         log_audit(
             current_user.id, "license_generated",
             f"{lic.mask_license_key()} | level={user_level} | max_acc={max_accounts}",
             request.remote_addr
         )
-        
+
         send_email_async(
             "Your License Key - Trading Engine",
             [current_user.email],
             f"License: {key}\nExpires: {lic.expires_at.strftime('%B %d, %Y')}\nMax MT5 Accounts: {max_accounts}",
             f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {lic.expires_at.strftime('%B %d, %Y')}</p><p>Max MT5 Accounts: {max_accounts}</p>"
         )
-        
+
         return jsonify({
             "success": True,
             "license_key": key,
@@ -948,7 +965,7 @@ def generate_license():
             "expires_at": lic.expires_at.isoformat(),
             "max_accounts": max_accounts
         })
-        
+
     except Exception as e:
         logger.error(f"[LICENSE GEN] Error: {e}", exc_info=True)
         db.session.rollback()
@@ -962,30 +979,30 @@ def generate_license():
 @app.route("/download-ea/<int:file_id>")
 @login_required
 def download_ea(file_id):
-    if not current_user.is_membership_active(): 
+    if not current_user.is_membership_active():
         flash("Active membership required.", "error")
         return redirect(url_for("user_dashboard"))
-    
+
     ea = db.session.get(EAFile, file_id)
-    if not ea or not ea.is_active: 
+    if not ea or not ea.is_active:
         flash("EA not found.", "error")
         return redirect(url_for("user_dashboard"))
-    
-    if ea.plan_level > current_user.get_plan_level(): 
+
+    if ea.plan_level > current_user.get_plan_level():
         flash("Requires higher plan level.", "error")
         return redirect(url_for("user_dashboard"))
-    
+
     file_path = os.path.join(Config.UPLOAD_FOLDER, ea.file_path)
-    if not os.path.exists(file_path): 
+    if not os.path.exists(file_path):
         flash("File missing. Contact support.", "error")
         return redirect(url_for("user_dashboard"))
-    
+
     ea.download_count += 1
     db.session.commit()
     log_audit(current_user.id, "ea_download", ea.filename, request.remote_addr)
-    
+
     return send_from_directory(
-        Config.UPLOAD_FOLDER, ea.file_path, 
+        Config.UPLOAD_FOLDER, ea.file_path,
         as_attachment=True, download_name=ea.filename
     )
 
@@ -1004,26 +1021,26 @@ def admin_dashboard():
     total_orders = Order.query.count()
     total_revenue = db.session.query(db.func.sum(Order.total_amount)).scalar() or 0
     total_downloads = db.session.query(db.func.sum(EAFile.download_count)).scalar() or 0
-    
+
     recent_users = User.query.filter_by(is_admin=False).order_by(User.created_at.desc()).limit(10).all()
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
     recent_licenses = License.query.order_by(License.created_at.desc()).limit(10).all()
     recent_logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(20).all()
     ea_files = EAFile.query.order_by(EAFile.upload_date.desc()).all()
-    
+
     subscription_stats = db.session.query(
-        User.subscription_type, 
-        db.func.count(User.id), 
+        User.subscription_type,
+        db.func.count(User.id),
         db.func.sum(User.plan_price)
     ).filter(User.is_admin == False).group_by(User.subscription_type).all()
-    
+
     test_mode = Setting.query.filter_by(key="test_mode").first()
     is_test_mode = test_mode.value == "on" if test_mode else False
-    
+
     problematic_licenses = License.query.filter(
         (License.max_accounts == None) | (License.max_accounts <= 0)
     ).all()
-    
+
     return render_template(
         "admin/dashboard.html",
         total_users=total_users,
@@ -1051,7 +1068,7 @@ def fix_all_licenses():
     bad_licenses = License.query.filter(
         (License.max_accounts == None) | (License.max_accounts <= 0)
     ).all()
-    
+
     fixed = 0
     for lic in bad_licenses:
         user = lic.user
@@ -1061,7 +1078,7 @@ def fix_all_licenses():
             logger.info(f"[FIX] License {lic.mask_license_key()}: {lic.max_accounts} → {correct_max}")
             lic.max_accounts = correct_max
             fixed += 1
-    
+
     db.session.commit()
     flash(f"Fixed {fixed} licenses", "success")
     return redirect(url_for("admin_dashboard"))
@@ -1091,16 +1108,16 @@ def admin_users():
 @admin_required
 def admin_user_detail(user_id):
     user = db.session.get(User, user_id)
-    if not user: 
+    if not user:
         flash("User not found.", "error")
         return redirect(url_for("admin_users"))
-    
+
     orders = user.orders.order_by(Order.created_at.desc()).all()
     licenses = user.licenses.order_by(License.created_at.desc()).all()
-    
+
     return render_template(
-        "admin/user_detail.html", 
-        user=user, orders=orders, licenses=licenses, 
+        "admin/user_detail.html",
+        user=user, orders=orders, licenses=licenses,
         now=datetime.utcnow()
     )
 
@@ -1117,7 +1134,7 @@ def admin_orders():
 @admin_required
 def revoke_license(license_id):
     lic = db.session.get(License, license_id)
-    if lic: 
+    if lic:
         lic.status = "revoked"
         lic.revoked_at = datetime.utcnow()
         db.session.commit()
@@ -1174,25 +1191,25 @@ def extend_membership(user_id):
 @app.route("/admin/upload-ea", methods=["POST"])
 @admin_required
 def upload_ea():
-    if "file" not in request.files: 
+    if "file" not in request.files:
         flash("No file.", "error")
         return redirect(url_for("admin_dashboard"))
-    
+
     file = request.files["file"]
-    if file.filename == "" or not allowed_file(file.filename): 
+    if file.filename == "" or not allowed_file(file.filename):
         flash("Invalid file type.", "error")
         return redirect(url_for("admin_dashboard"))
-    
+
     filename = secure_filename(file.filename)
     saved = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{filename}"
     file_path = os.path.join(Config.UPLOAD_FOLDER, saved)
     file.save(file_path)
-    
+
     sha = hashlib.sha256()
     with open(file_path, "rb") as f:
-        for block in iter(lambda: f.read(4096), b""): 
+        for block in iter(lambda: f.read(4096), b""):
             sha.update(block)
-    
+
     ea = EAFile(
         filename=filename, file_path=saved,
         version=request.form.get("version", "1.0.0"),
@@ -1216,7 +1233,7 @@ def delete_ea(ea_id):
     ea = db.session.get(EAFile, ea_id)
     if ea:
         file_path = os.path.join(Config.UPLOAD_FOLDER, ea.file_path)
-        if os.path.exists(file_path): 
+        if os.path.exists(file_path):
             os.remove(file_path)
         name = ea.filename
         db.session.delete(ea)
@@ -1234,55 +1251,55 @@ def delete_ea(ea_id):
 def api_validate_license():
     """
     Called by EA on init and periodically (heartbeat).
-    
+
     ACCOUNT SLOT LOGIC:
     - Each UNIQUE MT5 account number = 1 slot
     - Multiple EAs on same MT5 account share 1 slot
     - Slot freed only when ALL EAs on that account are removed
+
+    FIX: Heartbeat calls do NOT increment validation_count.
+         Only genuinely new sessions (new EA or new account) increment it.
     """
     try:
         data = request.get_json()
-        if not data: 
+        if not data:
             return jsonify({"valid": False, "error": "Invalid request"}), 400
 
         license_key = data.get("license_key", "").strip()
-        account_number = data.get("account_number", "").strip()  # MT5 login (UNIQUE per account)
-        machine_id = data.get("machine_id", "").strip()  # Computer ID (fallback)
-        session_id = data.get("session_id", "").strip()  # Unique EA instance ID
+        account_number = data.get("account_number", "").strip()
+        machine_id = data.get("machine_id", "").strip()
+        session_id = data.get("session_id", "").strip()
         symbol = data.get("symbol", "").strip() or None
-        
+
         try:
             magic_number = int(data.get("magic_number")) if data.get("magic_number") is not None else None
         except (TypeError, ValueError):
             magic_number = None
 
-        if not license_key: 
+        if not license_key:
             return jsonify({"valid": False, "error": "License key required"}), 400
-        
-        # Use account_number as primary unique identifier
-        # Fall back to machine_id for backward compatibility
+
         unique_account_id = account_number if account_number else machine_id
-        
-        if not unique_account_id: 
+
+        if not unique_account_id:
             return jsonify({"valid": False, "error": "account_number or machine_id required"}), 400
-        
-        if not session_id: 
+
+        if not session_id:
             return jsonify({"valid": False, "error": "session_id required"}), 400
 
         logger.info(f"[VALIDATE] License: {license_key[:10]}... | MT5 Account: {unique_account_id} | EA: {session_id[:8]}...")
 
         lic = License.query.filter_by(license_key=license_key).first()
-        if not lic: 
+        if not lic:
             logger.warning(f"[VALIDATE] License not found")
             return jsonify({"valid": False, "error": "License not found"}), 404
-        
-        if not lic.is_valid(): 
+
+        if not lic.is_valid():
             logger.warning(f"[VALIDATE] License invalid: {lic.mask_license_key()} status={lic.status}")
             return jsonify({"valid": False, "error": "License not active or expired"}), 403
 
-        # Check if this MT5 account already has a slot
         account = LicenseAccount.query.filter_by(
-            license_id=lic.id, 
+            license_id=lic.id,
             account_number=unique_account_id
         ).first()
 
@@ -1291,37 +1308,37 @@ def api_validate_license():
             # EXISTING MT5 ACCOUNT - Share the slot
             # ==========================================
             existing_session = EASession.query.filter_by(
-                license_account_id=account.id, 
+                license_account_id=account.id,
                 session_id=session_id
             ).first()
-            
+
             if existing_session:
-                # Heartbeat update
+                # Heartbeat — update timestamp only, do NOT increment validation_count
                 existing_session.last_seen = datetime.utcnow()
                 existing_session.symbol = symbol or existing_session.symbol
                 existing_session.magic_number = magic_number if magic_number is not None else existing_session.magic_number
                 logger.debug(f"[VALIDATE] 💓 Heartbeat: MT5={unique_account_id} EA={session_id[:8]}...")
             else:
-                # New EA on existing MT5 account (shares same slot)
+                # New EA on existing MT5 account — increment once for the new session
                 db.session.add(EASession(
-                    license_account_id=account.id, 
+                    license_account_id=account.id,
                     session_id=session_id,
-                    symbol=symbol, 
+                    symbol=symbol,
                     magic_number=magic_number,
                 ))
+                lic.validation_count += 1
                 logger.info(f"[VALIDATE] ➕ New EA on existing MT5={unique_account_id} | Total EAs: {account.sessions.count() + 1}")
-            
+
             lic.last_validated = datetime.utcnow()
-            lic.validation_count += 1
             db.session.commit()
-            
+
             total_slots = lic.accounts.count()
-            
+
             return jsonify({
-                "valid": True, 
-                "expires_at": lic.expires_at.isoformat(), 
+                "valid": True,
+                "expires_at": lic.expires_at.isoformat(),
                 "user_email": lic.user.email,
-                "accounts_used": total_slots, 
+                "accounts_used": total_slots,
                 "accounts_max": lic.max_accounts,
                 "accounts_remaining": lic.max_accounts - total_slots,
                 "sessions_on_this_account": account.sessions.count(),
@@ -1331,53 +1348,51 @@ def api_validate_license():
         # NEW MT5 ACCOUNT - Need a free slot
         # ==========================================
         total_slots = lic.accounts.count()
-        
+
         logger.info(f"[VALIDATE] New MT5 account: {unique_account_id} | Slots: {total_slots}/{lic.max_accounts}")
-        
+
         if total_slots >= lic.max_accounts:
             logger.warning(f"[VALIDATE] 🚫 MAX SLOTS: {total_slots}/{lic.max_accounts}")
             return jsonify({
-                "valid": False, 
+                "valid": False,
                 "error": f"Maximum {lic.max_accounts} MT5 accounts reached. Currently using {total_slots}.",
-                "accounts_used": total_slots, 
+                "accounts_used": total_slots,
                 "accounts_max": lic.max_accounts,
                 "accounts_remaining": 0,
             }), 403
 
-        # Create new slot for this MT5 account
         new_account = LicenseAccount(
-            license_id=lic.id, 
+            license_id=lic.id,
             account_number=unique_account_id
         )
         db.session.add(new_account)
         db.session.flush()
-        
-        # Create first EA session for this account
+
         db.session.add(EASession(
-            license_account_id=new_account.id, 
+            license_account_id=new_account.id,
             session_id=session_id,
-            symbol=symbol, 
+            symbol=symbol,
             magic_number=magic_number,
         ))
-        
+
         lic.last_validated = datetime.utcnow()
-        lic.validation_count += 1
+        lic.validation_count += 1  # New account registration — count this
         db.session.commit()
-        
+
         new_total = lic.accounts.count()
-        
+
         logger.info(f"[VALIDATE] ✅ NEW SLOT: MT5={unique_account_id} | Total: {new_total}/{lic.max_accounts}")
-        
+
         return jsonify({
-            "valid": True, 
-            "expires_at": lic.expires_at.isoformat(), 
+            "valid": True,
+            "expires_at": lic.expires_at.isoformat(),
             "user_email": lic.user.email,
-            "accounts_used": new_total, 
+            "accounts_used": new_total,
             "accounts_max": lic.max_accounts,
             "accounts_remaining": lic.max_accounts - new_total,
             "sessions_on_this_account": 1,
         })
-        
+
     except Exception as e:
         logger.error(f"[VALIDATE] ❌ Error: {e}", exc_info=True)
         db.session.rollback()
@@ -1394,69 +1409,64 @@ def api_release_license():
     """
     try:
         data = request.get_json()
-        if not data: 
+        if not data:
             return jsonify({"success": False, "error": "Invalid request"}), 400
 
         license_key = data.get("license_key", "").strip()
-        account_number = data.get("account_number", "").strip()  # MT5 login
+        account_number = data.get("account_number", "").strip()
         machine_id = data.get("machine_id", "").strip()
         session_id = data.get("session_id", "").strip()
 
-        # Use account_number as primary identifier
         unique_account_id = account_number if account_number else machine_id
 
         if not license_key or not unique_account_id or not session_id:
             return jsonify({
-                "success": False, 
+                "success": False,
                 "error": "license_key, account_number (or machine_id), and session_id required"
             }), 400
 
         lic = License.query.filter_by(license_key=license_key).first()
-        if not lic: 
+        if not lic:
             return jsonify({"success": False, "error": "License not found"}), 404
 
-        # Find the account slot
         account = LicenseAccount.query.filter_by(
-            license_id=lic.id, 
+            license_id=lic.id,
             account_number=unique_account_id
         ).first()
-        
+
         if not account:
             logger.info(f"[RELEASE] No slot for: {unique_account_id}")
             return jsonify({
                 "success": True, "session_released": False, "slot_freed": False,
                 "message": "No active slot for this account",
-                "accounts_used": lic.accounts.count(), 
+                "accounts_used": lic.accounts.count(),
                 "accounts_max": lic.max_accounts,
                 "accounts_remaining": lic.max_accounts - lic.accounts.count(),
             })
 
-        # Find and remove THIS specific EA session
         ea_session = EASession.query.filter_by(
-            license_account_id=account.id, 
+            license_account_id=account.id,
             session_id=session_id
         ).first()
-        
+
         if not ea_session:
             logger.info(f"[RELEASE] Session not found: {session_id[:8]}... on {unique_account_id}")
             return jsonify({
                 "success": True, "session_released": False, "slot_freed": False,
                 "message": "Session not found",
                 "sessions_remaining": account.sessions.count(),
-                "accounts_used": lic.accounts.count(), 
+                "accounts_used": lic.accounts.count(),
                 "accounts_max": lic.max_accounts,
                 "accounts_remaining": lic.max_accounts - lic.accounts.count(),
             })
 
-        # Remove this EA session
         db.session.delete(ea_session)
         db.session.flush()
-        
+
         remaining_sessions = account.sessions.count()
         slot_freed = False
 
         if remaining_sessions == 0:
-            # No more EAs on this MT5 account - free the slot
             db.session.delete(account)
             slot_freed = True
             logger.info(f"[RELEASE] 🔓 SLOT FREED: MT5={unique_account_id}")
@@ -1480,7 +1490,7 @@ def api_release_license():
             "accounts_max": lic.max_accounts,
             "accounts_remaining": lic.max_accounts - lic.accounts.count(),
         })
-        
+
     except Exception as e:
         logger.error(f"[RELEASE] ❌ Error: {e}", exc_info=True)
         db.session.rollback()
@@ -1489,7 +1499,7 @@ def api_release_license():
 
 @app.route("/api/user/info")
 @login_required
-def api_user_info(): 
+def api_user_info():
     return jsonify(current_user.to_dict())
 
 
@@ -1501,20 +1511,20 @@ def api_user_info():
 @limiter.limit("60 per minute")
 def wix_payment_webhook():
     try:
-        if request.is_json: 
+        if request.is_json:
             raw = request.get_json()
-        else: 
+        else:
             raw = request.form.to_dict() or request.get_json(force=True, silent=True) or {}
-        
+
         data = raw.get("data", raw)
-        
-        if data.get("eventType") != "Plan ordered": 
+
+        if data.get("eventType") != "Plan ordered":
             return jsonify({"status": "ignored"}), 200
-        
+
         email = data.get("contact_email", "").strip().lower()
-        if not email: 
+        if not email:
             return jsonify({"error": "Email required"}), 400
-        
+
         first_name = data.get("contact_first_name", "")
         last_name = data.get("contact_last_name", "")
         plan_name = data.get("plan_name", "")
@@ -1523,38 +1533,38 @@ def wix_payment_webhook():
         plan_end = data.get("plan_end_date", "")
         order_id = data.get("order_id", "")
         contact_id = data.get("contact_id", "")
-        
-        try: 
+
+        try:
             plan_price = float(data.get("plan_price_amount", 0))
-        except: 
+        except:
             plan_price = 0.0
-        
+
         currency = data.get("plan_price_currency", "EUR")
-        
+
         duration_days, subscription_type = parse_duration_to_days(plan_duration)
-        
+
         if subscription_type == "one_time" and plan_name:
             pl = plan_name.lower()
-            if "monthly" in pl or "maand" in pl: 
+            if "monthly" in pl or "maand" in pl:
                 duration_days, subscription_type = 30, "monthly"
-            elif "yearly" in pl or "jaar" in pl: 
+            elif "yearly" in pl or "jaar" in pl:
                 duration_days, subscription_type = 365, "yearly"
-            elif "lifetime" in pl or "levenslang" in pl: 
+            elif "lifetime" in pl or "levenslang" in pl:
                 duration_days, subscription_type = 36500, "lifetime"
-        
+
         membership_start = parse_wix_date(plan_start) or datetime.utcnow()
         membership_end = parse_wix_date(plan_end) or (membership_start + timedelta(days=duration_days))
-        
+
         user = User.query.filter_by(email=email).first()
         is_new = False
-        
+
         if not user:
             user = User(
-                email=email, first_name=first_name, last_name=last_name, 
-                wix_contact_id=contact_id, wix_order_id=order_id, wix_payment_id=order_id, 
+                email=email, first_name=first_name, last_name=last_name,
+                wix_contact_id=contact_id, wix_order_id=order_id, wix_payment_id=order_id,
                 email_verified=True, membership_status="active",
-                membership_start=membership_start, membership_end=membership_end, 
-                plan_name=plan_name, plan_price=plan_price, currency=currency, 
+                membership_start=membership_start, membership_end=membership_end,
+                plan_name=plan_name, plan_price=plan_price, currency=currency,
                 subscription_type=subscription_type, subscription_duration_days=duration_days
             )
             db.session.add(user)
@@ -1576,35 +1586,35 @@ def wix_payment_webhook():
             user.subscription_type = subscription_type
             user.subscription_duration_days = duration_days
             db.session.flush()
-        
+
         if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
             order = Order(
-                user_id=user.id, wix_order_id=order_id, wix_payment_id=order_id, 
-                plan_name=plan_name, plan_price=plan_price, currency=currency, 
-                total_amount=plan_price, subscription_type=subscription_type, 
-                subscription_duration_days=duration_days, status="completed", 
-                payment_status="paid", ip_address=request.remote_addr, 
+                user_id=user.id, wix_order_id=order_id, wix_payment_id=order_id,
+                plan_name=plan_name, plan_price=plan_price, currency=currency,
+                total_amount=plan_price, subscription_type=subscription_type,
+                subscription_duration_days=duration_days, status="completed",
+                payment_status="paid", ip_address=request.remote_addr,
                 raw_data=json.dumps(data)
             )
             db.session.add(order)
-        
+
         db.session.commit()
-        
+
         send_email_async(
-            "Welcome to Trading Engine! 🎉", 
+            "Welcome to Trading Engine! 🎉",
             [email],
             f"Your {plan_name} is active. Login at {Config.APP_URL}/login",
             f"<h3>Hi {first_name or 'there'}!</h3><p>Plan: {plan_name}</p><p>Login: {Config.APP_URL}/login</p>"
         )
-        
+
         log_audit(
-            user.id, "wix_plan_ordered", 
-            f"{'New' if is_new else 'Updated'} | {plan_name} | {subscription_type}", 
+            user.id, "wix_plan_ordered",
+            f"{'New' if is_new else 'Updated'} | {plan_name} | {subscription_type}",
             request.remote_addr
         )
-        
+
         return jsonify({"status": "success"}), 200
-        
+
     except Exception as e:
         logger.error(f"[WIX WEBHOOK] Error: {e}", exc_info=True)
         db.session.rollback()
@@ -1621,7 +1631,7 @@ def stripe_payment_webhook():
     try:
         payload = request.get_data(as_text=True)
         sig_header = request.headers.get("Stripe-Signature")
-        
+
         if Config.STRIPE_WEBHOOK_SECRET:
             if stripe is None:
                 logger.error("[STRIPE] Stripe library not installed")
@@ -1638,10 +1648,10 @@ def stripe_payment_webhook():
                 return jsonify({"error": "Webhook error"}), 400
         else:
             event = json.loads(payload)
-        
+
         event_type = event["type"]
         logger.info(f"[STRIPE] Event: {event_type}")
-        
+
         if event_type == "checkout.session.completed":
             session_data = event["data"]["object"]._to_dict_recursive()
             customer_details = session_data.get("customer_details") or {}
@@ -1651,43 +1661,43 @@ def stripe_payment_webhook():
             last_name = " ".join(name.split()[1:]) if name else ""
             phone = customer_details.get("phone", "")
             country = (customer_details.get("address") or {}).get("country", "")
-            
+
             metadata = session_data.get("metadata") or {}
             plan_name = metadata.get("plan_name", "Unknown Plan")
             plan_duration = metadata.get("plan_duration", "")
             amount_total = (session_data.get("amount_total") or 0) / 100
             currency = (session_data.get("currency") or "eur").upper()
             order_id = session_data.get("id", "")
-            
-            if not email: 
+
+            if not email:
                 return jsonify({"error": "Email required"}), 400
-            
+
             duration_days, subscription_type = parse_duration_to_days(plan_duration)
-            
+
             if subscription_type == "one_time" and plan_name:
                 pl = plan_name.lower()
-                if "monthly" in pl or "maand" in pl: 
+                if "monthly" in pl or "maand" in pl:
                     duration_days, subscription_type = 30, "monthly"
-                elif "yearly" in pl or "jaar" in pl: 
+                elif "yearly" in pl or "jaar" in pl:
                     duration_days, subscription_type = 365, "yearly"
-                elif "lifetime" in pl: 
+                elif "lifetime" in pl:
                     duration_days, subscription_type = 36500, "lifetime"
-            
+
             membership_start = datetime.utcnow()
             membership_end = membership_start + timedelta(days=duration_days)
-            
+
             user = User.query.filter_by(email=email).first()
             is_new = False
-            
+
             if not user:
                 user = User(
-                    email=email, first_name=first_name, last_name=last_name, 
-                    phone=phone, country=country, wix_order_id=order_id, 
-                    wix_payment_id=order_id, email_verified=True, 
-                    membership_status="active", membership_start=membership_start, 
-                    membership_end=membership_end, plan_name=plan_name, 
-                    plan_price=amount_total, currency=currency, 
-                    subscription_type=subscription_type, 
+                    email=email, first_name=first_name, last_name=last_name,
+                    phone=phone, country=country, wix_order_id=order_id,
+                    wix_payment_id=order_id, email_verified=True,
+                    membership_status="active", membership_start=membership_start,
+                    membership_end=membership_end, plan_name=plan_name,
+                    plan_price=amount_total, currency=currency,
+                    subscription_type=subscription_type,
                     subscription_duration_days=duration_days
                 )
                 db.session.add(user)
@@ -1710,35 +1720,35 @@ def stripe_payment_webhook():
                 user.subscription_type = subscription_type
                 user.subscription_duration_days = duration_days
                 db.session.flush()
-            
+
             if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
                 order = Order(
-                    user_id=user.id, wix_order_id=order_id, wix_payment_id=order_id, 
-                    plan_name=plan_name, plan_price=amount_total, currency=currency, 
-                    total_amount=amount_total, subscription_type=subscription_type, 
-                    subscription_duration_days=duration_days, status="completed", 
-                    payment_status="paid", ip_address=request.remote_addr, 
+                    user_id=user.id, wix_order_id=order_id, wix_payment_id=order_id,
+                    plan_name=plan_name, plan_price=amount_total, currency=currency,
+                    total_amount=amount_total, subscription_type=subscription_type,
+                    subscription_duration_days=duration_days, status="completed",
+                    payment_status="paid", ip_address=request.remote_addr,
                     raw_data=json.dumps(session_data)
                 )
                 db.session.add(order)
-            
+
             db.session.commit()
-            
+
             send_email_async(
-                "Welcome to Trading Engine! 🎉", 
+                "Welcome to Trading Engine! 🎉",
                 [email],
                 f"Your {plan_name} is active. Login at {Config.APP_URL}/login",
                 f"<h3>Hi {first_name or 'there'}!</h3><p>Plan: {plan_name}</p><p>Login: {Config.APP_URL}/login</p>"
             )
-            
+
             log_audit(
-                user.id, "stripe_payment", 
-                f"{'New' if is_new else 'Updated'} | {plan_name} | {subscription_type}", 
+                user.id, "stripe_payment",
+                f"{'New' if is_new else 'Updated'} | {plan_name} | {subscription_type}",
                 request.remote_addr
             )
-        
+
         return jsonify({"status": "success"}), 200
-        
+
     except Exception as e:
         logger.error(f"[STRIPE] Error: {e}", exc_info=True)
         db.session.rollback()
@@ -1757,7 +1767,7 @@ def assign_discord_role(discord_id):
         role_req.add_header("Content-Type", "application/json")
         urllib.request.urlopen(role_req)
         return True
-    except Exception as e: 
+    except Exception as e:
         logger.error(f"[DISCORD] Role assignment failed: {e}")
         return False
 
@@ -1765,21 +1775,21 @@ def assign_discord_role(discord_id):
 @app.route("/connect-discord")
 @login_required
 def connect_discord():
-    if not current_user.is_membership_active(): 
+    if not current_user.is_membership_active():
         flash("Active membership required.", "error")
         return redirect(url_for("user_dashboard"))
-    
-    if not Config.DISCORD_CLIENT_ID: 
+
+    if not Config.DISCORD_CLIENT_ID:
         flash("Discord not configured.", "error")
         return redirect(url_for("user_dashboard"))
-    
+
     params = urllib.parse.urlencode({
         "client_id": Config.DISCORD_CLIENT_ID,
         "redirect_uri": Config.DISCORD_REDIRECT_URI,
         "response_type": "code",
         "scope": "identify guilds.join"
     })
-    
+
     return redirect(f"https://discord.com/oauth2/authorize?{params}")
 
 
@@ -1787,10 +1797,10 @@ def connect_discord():
 @login_required
 def discord_callback():
     code = request.args.get("code")
-    if not code: 
+    if not code:
         flash("Discord connection cancelled.", "error")
         return redirect(url_for("user_dashboard"))
-    
+
     try:
         token_data = urllib.parse.urlencode({
             "client_id": Config.DISCORD_CLIENT_ID,
@@ -1799,21 +1809,21 @@ def discord_callback():
             "code": code,
             "redirect_uri": Config.DISCORD_REDIRECT_URI
         }).encode()
-        
+
         token_req = urllib.request.Request(
-            "https://discord.com/api/oauth2/token", 
-            data=token_data, 
+            "https://discord.com/api/oauth2/token",
+            data=token_data,
             method="POST"
         )
         token_req.add_header("Content-Type", "application/x-www-form-urlencoded")
         token_json = json.loads(urllib.request.urlopen(token_req).read())
         access_token = token_json["access_token"]
-        
+
         user_req = urllib.request.Request("https://discord.com/api/users/@me")
         user_req.add_header("Authorization", f"Bearer {access_token}")
         discord_user = json.loads(urllib.request.urlopen(user_req).read())
         discord_id = discord_user["id"]
-        
+
         join_data = json.dumps({"access_token": access_token}).encode()
         join_req = urllib.request.Request(
             f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{discord_id}",
@@ -1822,62 +1832,26 @@ def discord_callback():
         )
         join_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
         join_req.add_header("Content-Type", "application/json")
-        
-        try: 
+
+        try:
             urllib.request.urlopen(join_req)
-        except: 
+        except:
             pass
-        
+
         assign_discord_role(discord_id)
-        
+
         current_user.discord_user_id = discord_id
         current_user.discord_joined = True
         db.session.commit()
-        
+
         flash("Discord connected! 🎉", "success")
-        
-    except Exception as e: 
+
+    except Exception as e:
         logger.error(f"[DISCORD] OAuth failed: {e}", exc_info=True)
         flash("Discord connection failed.", "error")
-    
+
     return redirect(url_for("user_dashboard"))
 
-
-@app.route("/debug/check-license/<license_key>")
-def debug_check_license(license_key):
-    """Check specific license key status"""
-    lic = License.query.filter_by(license_key=license_key.strip().upper()).first()
-    
-    if not lic:
-        return jsonify({
-            "error": "LICENSE NOT FOUND",
-            "key_searched": license_key,
-            "all_licenses_count": License.query.count(),
-            "suggestion": "This license key doesn't exist in the database"
-        })
-    
-    now = datetime.utcnow()
-    
-    return jsonify({
-        "FOUND": True,
-        "license_key_masked": lic.mask_license_key(),
-        "status": lic.status,
-        "created": lic.created_at.isoformat(),
-        "expires": lic.expires_at.isoformat(),
-        "current_time": now.isoformat(),
-        "IS_EXPIRED": lic.expires_at < now,
-        "time_left": str(lic.expires_at - now) if lic.expires_at > now else "EXPIRED " + str(now - lic.expires_at) + " ago",
-        "days_left": (lic.expires_at - now).days,
-        "max_accounts": lic.max_accounts,
-        "accounts_used": lic.accounts.count(),
-        "validation_count": lic.validation_count,
-        "max_validations": lic.max_validations,
-        "VALIDATION_LIMIT_HIT": lic.validation_count >= lic.max_validations,
-        "user_email": lic.user.email,
-        "user_membership_status": lic.user.membership_status,
-        "user_membership_end": lic.user.membership_end.isoformat() if lic.user.membership_end else None,
-        "user_plan": lic.user.plan_name
-    })
 
 # ============================================================================
 # AUTO-INIT DB
@@ -1885,26 +1859,26 @@ def debug_check_license(license_key):
 
 @app.before_request
 def auto_init_db():
-    try: 
+    try:
         db.session.execute(db.text("SELECT 1 FROM users LIMIT 1"))
     except Exception:
         try:
             db.create_all()
             logger.info("✅ DB created!")
-            
+
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             if not User.query.filter_by(email=admin_email).first():
                 admin = User(
-                    email=admin_email, first_name="Admin", is_admin=True, 
-                    email_verified=True, membership_status="active", 
+                    email=admin_email, first_name="Admin", is_admin=True,
+                    email_verified=True, membership_status="active",
                     membership_start=datetime.utcnow(),
                     membership_end=datetime.utcnow() + timedelta(days=3650),
-                    plan_name="Admin", subscription_type="lifetime", 
+                    plan_name="Admin", subscription_type="lifetime",
                     subscription_duration_days=36500
                 )
                 db.session.add(admin)
                 db.session.commit()
-        except Exception as e: 
+        except Exception as e:
             logger.error(f"DB init failed: {e}")
 
 
@@ -1924,3 +1898,71 @@ logger.info("=" * 80)
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=Config.DEBUG)
+
+
+# ============================================================================
+# ⚠️  TEMPORARY ROUTES — REMOVE AFTER USE
+# ============================================================================
+# These routes exist only to help recover from the validation_count issue.
+# Once you have deployed and visited each route once, DELETE this entire section.
+# ============================================================================
+
+@app.route("/debug/check-license/<license_key>")
+def debug_check_license(license_key):
+    """
+    TEMPORARY — check detailed license status.
+    Remove once validation issues are confirmed resolved.
+    """
+    lic = License.query.filter_by(license_key=license_key.strip().upper()).first()
+
+    if not lic:
+        return jsonify({
+            "error": "LICENSE NOT FOUND",
+            "key_searched": license_key,
+            "all_licenses_count": License.query.count(),
+            "suggestion": "This license key doesn't exist in the database"
+        })
+
+    now = datetime.utcnow()
+
+    return jsonify({
+        "FOUND": True,
+        "license_key_masked": lic.mask_license_key(),
+        "status": lic.status,
+        "created": lic.created_at.isoformat(),
+        "expires": lic.expires_at.isoformat(),
+        "current_time": now.isoformat(),
+        "IS_EXPIRED": lic.expires_at < now,
+        "time_left": str(lic.expires_at - now) if lic.expires_at > now else "EXPIRED " + str(now - lic.expires_at) + " ago",
+        "days_left": (lic.expires_at - now).days,
+        "max_accounts": lic.max_accounts,
+        "accounts_used": lic.accounts.count(),
+        "validation_count": lic.validation_count,
+        "max_validations": lic.max_validations,
+        "VALIDATION_LIMIT_HIT": lic.max_validations is not None and lic.validation_count >= lic.max_validations,
+        "user_email": lic.user.email,
+        "user_membership_status": lic.user.membership_status,
+        "user_membership_end": lic.user.membership_end.isoformat() if lic.user.membership_end else None,
+        "user_plan": lic.user.plan_name
+    })
+
+
+@app.route("/admin/remove-validation-limits")
+@admin_required
+def remove_validation_limits():
+    """
+    TEMPORARY — visit once to clear all validation limits from existing licenses.
+    The run_migrations() at startup already does this automatically,
+    but this route lets you trigger it manually if needed.
+    Remove after first use.
+    """
+    licenses = License.query.filter_by(status="active").all()
+    for lic in licenses:
+        lic.validation_count = 0
+        lic.max_validations = None
+    db.session.commit()
+    log_audit(current_user.id, "remove_validation_limits", f"Cleared limits on {len(licenses)} licenses", request.remote_addr)
+    return jsonify({
+        "fixed": len(licenses),
+        "message": "All active licenses now have unlimited validations. You can remove this route."
+    })
