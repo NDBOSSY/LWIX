@@ -1843,6 +1843,40 @@ def discord_callback():
     return redirect(url_for("user_dashboard"))
 
 
+@app.route("/debug/check-license/<license_key>")
+def debug_check_license(license_key):
+    """Check specific license key status"""
+    lic = License.query.filter_by(license_key=license_key.strip().upper()).first()
+    
+    if not lic:
+        return jsonify({
+            "error": "LICENSE NOT FOUND",
+            "key_searched": license_key,
+            "all_licenses_count": License.query.count(),
+            "suggestion": "This license key doesn't exist in the database"
+        })
+    
+    now = datetime.utcnow()
+    
+    return jsonify({
+        "FOUND": True,
+        "license_key_masked": lic.mask_license_key(),
+        "status": lic.status,
+        "created": lic.created_at.isoformat(),
+        "expires": lic.expires_at.isoformat(),
+        "current_time": now.isoformat(),
+        "IS_EXPIRED": lic.expires_at < now,
+        "time_left": str(lic.expires_at - now) if lic.expires_at > now else "EXPIRED " + str(now - lic.expires_at) + " ago",
+        "days_left": (lic.expires_at - now).days,
+        "max_accounts": lic.max_accounts,
+        "accounts_used": lic.accounts.count(),
+        "user_email": lic.user.email,
+        "user_membership_status": lic.user.membership_status,
+        "user_membership_end": lic.user.membership_end.isoformat() if lic.user.membership_end else None,
+        "user_plan": lic.user.plan_name
+    })
+
+
 # ============================================================================
 # AUTO-INIT DB
 # ============================================================================
