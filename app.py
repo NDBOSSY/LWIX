@@ -1870,12 +1870,14 @@ def debug_check_license(license_key):
         "days_left": (lic.expires_at - now).days,
         "max_accounts": lic.max_accounts,
         "accounts_used": lic.accounts.count(),
+        "validation_count": lic.validation_count,
+        "max_validations": lic.max_validations,
+        "VALIDATION_LIMIT_HIT": lic.validation_count >= lic.max_validations,
         "user_email": lic.user.email,
         "user_membership_status": lic.user.membership_status,
         "user_membership_end": lic.user.membership_end.isoformat() if lic.user.membership_end else None,
         "user_plan": lic.user.plan_name
     })
-
 
 # ============================================================================
 # AUTO-INIT DB
