@@ -31,6 +31,7 @@
         --red-light: #fcebe8;
         --amber: #a86200;
         --amber-light: #fcf3e5;
+        --orange: #e67e22;
 
         --shadow-card: 0 2px 6px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04);
         --shadow-raised: 0 8px 20px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.04);
@@ -107,13 +108,11 @@
         font-size: 0.75rem;
         opacity: 0.7;
     }
-    /* card color variants */
     .kpi-card.color-1 { background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #1e3a8a; }
     .kpi-card.color-2 { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #065f46; }
     .kpi-card.color-3 { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
     .kpi-card.color-4 { background: linear-gradient(135deg, #fce7f3, #fbcfe8); color: #831843; }
 
-    /* ---- 2col ---- */
     .grid-2 {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -122,7 +121,6 @@
     }
     @media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
 
-    /* panel */
     .panel {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -130,6 +128,7 @@
         box-shadow: var(--shadow-card);
         overflow: hidden;
         transition: box-shadow 0.2s;
+        margin-bottom: 1.25rem;
     }
     .panel:hover { box-shadow: var(--shadow-raised); }
     .panel-head {
@@ -176,8 +175,8 @@
     .pill-red { background: var(--red-light); color: var(--red); }
     .pill-accent { background: var(--accent-light); color: var(--accent); }
     .pill-neutral { background: var(--surface-sunken); color: var(--ink-muted); border: 1px solid var(--border); }
+    .pill-orange { background: #fff3e0; color: var(--orange); }
 
-    /* license */
     .license-box {
         background: var(--surface-sunken);
         border: 1px solid var(--border);
@@ -220,7 +219,6 @@
     }
     .license-box .key-footer strong { font-family: 'JetBrains Mono', monospace; color: var(--ink); font-weight: 700; }
 
-    /* License accounts list */
     .license-accounts {
         margin-top: 0.75rem;
         padding-top: 0.75rem;
@@ -295,7 +293,6 @@
         color: var(--ink-soft);
     }
 
-    /* EA table */
     .ea-table {
         width: 100%;
         border-collapse: collapse;
@@ -380,6 +377,98 @@
     }
     .upgrade-note a { color: var(--amber); font-weight: 700; text-decoration: underline; }
 
+    /* Support section */
+    .support-section {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, #5865F2, #4752C4);
+        border-radius: 12px;
+        color: white;
+        margin-bottom: 1.25rem;
+    }
+    .support-section .support-info {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+    .support-section .support-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+    .support-section .support-text h4 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    .support-section .support-text p {
+        font-size: 0.78rem;
+        opacity: 0.9;
+        margin: 0.15rem 0 0;
+    }
+
+    /* Membership management */
+    .membership-actions {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+    }
+    .membership-actions .section-title {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin-bottom: 0.75rem;
+    }
+    .membership-actions .cancel-info {
+        font-size: 0.78rem;
+        color: var(--ink-muted);
+        margin-bottom: 0.75rem;
+        line-height: 1.5;
+    }
+    .btn-danger {
+        background: var(--red);
+        color: white;
+        border-color: var(--red);
+    }
+    .btn-danger:hover {
+        background: #a82918;
+        border-color: #a82918;
+    }
+
+    .btn {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.5rem 1.1rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.8rem;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-decoration: none;
+    }
+    .btn-primary { background: var(--ink); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-outline { background: var(--surface); border: 1px solid var(--border-strong); color: var(--ink-secondary); }
+    .btn-outline:hover { border-color: var(--ink); }
+    .btn-discord {
+        background: #5865F2;
+        color: white;
+        border-color: #5865F2;
+    }
+    .btn-discord:hover {
+        background: #4752C4;
+        border-color: #4752C4;
+    }
+
     /* discord */
     .discord-body {
         display: flex;
@@ -402,22 +491,6 @@
     .discord-body .info-text strong { display: block; font-size: 0.85rem; }
     .discord-body .info-text span { font-size: 0.78rem; color: var(--ink-muted); }
 
-    .btn {
-        display: inline-flex; align-items: center; gap: 0.4rem;
-        padding: 0.5rem 1.1rem;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.8rem;
-        border: 1px solid transparent;
-        cursor: pointer;
-        transition: all 0.15s;
-        text-decoration: none;
-    }
-    .btn-primary { background: var(--ink); color: white; }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-outline { background: var(--surface); border: 1px solid var(--border-strong); color: var(--ink-secondary); }
-    .btn-outline:hover { border-color: var(--ink); }
-
     /* modal */
     .modal-overlay {
         display: none; position: fixed; inset: 0;
@@ -427,20 +500,42 @@
         justify-content: center; align-items: center;
     }
     .modal-overlay.show { display: flex; }
-    /* NOTE: named .modal-box (not .modal) because Bootstrap's CSS already
-       defines a .modal class with `display: none; position: fixed;` that
-       would otherwise silently override this and hide the dialog. */
     .modal-box {
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 20px;
         padding: 1.75rem;
-        max-width: 380px;
+        max-width: 440px;
         width: 90%;
         box-shadow: 0 24px 48px rgba(0,0,0,0.12);
     }
     .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
     .modal-box p { color: var(--ink-muted); margin-bottom: 1.2rem; font-size: 0.85rem; }
+    .modal-box .warning-box {
+        background: var(--red-light);
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.2rem;
+    }
+    .modal-box .warning-box .warning-title {
+        font-weight: 600;
+        color: var(--red);
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-bottom: 0.3rem;
+    }
+    .modal-box .warning-box ul {
+        margin: 0;
+        padding-left: 1.2rem;
+        font-size: 0.78rem;
+        color: var(--ink-secondary);
+    }
+    .modal-box .warning-box ul li {
+        margin-bottom: 0.15rem;
+    }
     .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
 
     .loading-overlay {
@@ -468,12 +563,12 @@
         border-radius: 40px; font-weight: 600; font-size: 0.85rem;
         box-shadow: 0 8px 20px rgba(0,0,0,0.2); z-index: 3000;
         opacity: 0; transition: opacity 0.25s;
+        pointer-events: none;
     }
     .toast.show { opacity: 1; }
 
     .fa-fw { width: 1.1rem; text-align: center; }
 
-    /* Error toast styling */
     .toast.error { background: var(--red); }
     .toast.success { background: var(--green); }
     .toast.warning { background: var(--amber); }
@@ -485,31 +580,47 @@
     <!-- greeting -->
     <div class="greeting">
         <div class="greeting-left">
-            <h1>Hey, {{ user.first_name or 'Trader' }} 👋</h1>
+            <h1>Hoi, {{ user.first_name or 'Trader' }} 👋</h1>
             <div class="sub">
                 <span>{{ user.email }}</span>
                 <i class="fas fa-circle" style="font-size: 5px; color: var(--ink-soft);"></i>
-                <span>Member since {{ user.membership_start.strftime('%b %Y') if user.membership_start else 'N/A' }}</span>
+                <span>Lid sinds {{ user.membership_start.strftime('%b %Y') if user.membership_start else 'N/B' }}</span>
             </div>
         </div>
+    </div>
+
+    <!-- Support Banner -->
+    <div class="support-section">
+        <div class="support-info">
+            <div class="support-icon">
+                <i class="fab fa-discord"></i>
+            </div>
+            <div class="support-text">
+                <h4>Hulp nodig?</h4>
+                <p>Heb je vragen of ondersteuning nodig? Join onze Discord!</p>
+            </div>
+        </div>
+        <a href="{{ discord_invite }}" target="_blank" class="btn btn-discord">
+            <i class="fab fa-discord"></i> Open Discord
+        </a>
     </div>
 
     <!-- KPI with background colors -->
     <div class="kpi-grid">
         <div class="kpi-card color-1">
-            <div class="label">Plan level</div>
+            <div class="label">Plan niveau</div>
             <div class="value">{{ plan_level_display if plan_level_display else 'LVL ' + user.get_plan_level()|string }} <span class="unit">/ {{ user.get_plan_level() }}</span></div>
         </div>
         <div class="kpi-card color-2">
-            <div class="label">Subscription</div>
-            <div class="value" style="font-size:1.1rem; font-weight:600;">{{ user.subscription_type|title or 'Standard' }}</div>
+            <div class="label">Abonnement</div>
+            <div class="value" style="font-size:1.1rem; font-weight:600;">{{ user.subscription_type|title or 'Standaard' }}</div>
         </div>
         <div class="kpi-card color-3">
             <div class="label">MT5 accounts</div>
             <div class="value">{{ account_count if license_accounts else 0 }} <span class="unit">/ {{ max_accounts }}</span></div>
         </div>
         <div class="kpi-card color-4">
-            <div class="label">EAs unlocked</div>
+            <div class="label">EA's beschikbaar</div>
             <div class="value">{{ ea_files|length if ea_files else 0 }} <span class="unit">/ {{ all_ea_count if all_ea_count is defined else '—' }}</span></div>
         </div>
     </div>
@@ -519,20 +630,48 @@
         <!-- membership -->
         <div class="panel">
             <div class="panel-head">
-                <div class="title"><i class="fas fa-id-card"></i>Membership</div>
+                <div class="title"><i class="fas fa-id-card"></i>Abonnement</div>
             </div>
             <div class="panel-body">
-                <div class="row-item"><span class="key">Plan level</span><span class="val"><span class="pill {% if user.get_plan_level() >= 2 %}pill-accent{% else %}pill-neutral{% endif %}">LVL {{ user.get_plan_level() }}</span></span></div>
-                <div class="row-item"><span class="key">Subscription type</span><span class="val">{{ user.subscription_type|title or 'Standard' }}</span></div>
-                <div class="row-item"><span class="key">Member since</span><span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</span></div>
-                <div class="row-item"><span class="key">Status</span><span class="val">{% if user.membership_status == 'active' %}<span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> RUNNING</span>{% else %}<span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> INACTIVE</span>{% endif %}</span></div>
+                <div class="row-item"><span class="key">Plan niveau</span><span class="val"><span class="pill {% if user.get_plan_level() >= 2 %}pill-accent{% else %}pill-neutral{% endif %}">LVL {{ user.get_plan_level() }}</span></span></div>
+                <div class="row-item"><span class="key">Abonnementstype</span><span class="val">{{ user.subscription_type|title or 'Standaard' }}</span></div>
+                <div class="row-item"><span class="key">Lid sinds</span><span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_start.strftime('%d %b %Y') if user.membership_start else 'N/B' }}</span></div>
+                <div class="row-item"><span class="key">Verloopt op</span><span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_end.strftime('%d %b %Y') if user.membership_end else 'N/B' }}</span></div>
+                <div class="row-item"><span class="key">Status</span><span class="val">
+                    {% if user.membership_status == 'active' %}
+                    <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> ACTIEF</span>
+                    {% elif user.membership_status == 'cancelled' %}
+                    <span class="pill pill-orange"><i class="fas fa-circle" style="font-size:6px;"></i> GEANNULEERD</span>
+                    {% else %}
+                    <span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> INACTIEF</span>
+                    {% endif %}
+                </span></div>
+                {% if days_remaining is not none %}
+                <div class="row-item"><span class="key">Resterende dagen</span><span class="val" style="font-family:'JetBrains Mono', monospace;">{{ days_remaining }} dagen</span></div>
+                {% endif %}
+
+                <!-- Membership Management -->
+                {% if user.membership_status == 'active' %}
+                <div class="membership-actions">
+                    <div class="section-title"><i class="fas fa-cog fa-fw"></i> Abonnement beheren</div>
+                    <div class="cancel-info">
+                        {% if user.membership_end %}
+                        Je abonnement blijft actief tot <strong>{{ user.membership_end.strftime('%d %B %Y') }}</strong>.
+                        {% endif %}
+                        Bij annulering worden je licenties ingetrokken en verlies je toegang tot Trading Engine.
+                    </div>
+                    <button class="btn btn-danger" onclick="showCancelModal()">
+                        <i class="fas fa-times-circle"></i> Abonnement annuleren
+                    </button>
+                </div>
+                {% endif %}
             </div>
         </div>
 
         <!-- license -->
         <div class="panel">
             <div class="panel-head">
-                <div class="title"><i class="fas fa-key"></i>License key</div>
+                <div class="title"><i class="fas fa-key"></i>Licentiesleutel</div>
             </div>
             <div class="panel-body">
                 {% if license %}
@@ -540,41 +679,40 @@
                     <div class="key-row" onclick="toggleLicense()">
                         <div class="dot-indicator"></div>
                         <span class="key-text">{{ license.license_key }}</span>
-                        <span style="font-size:0.7rem; color:var(--ink-soft); font-weight:500;"><i class="fas fa-eye-slash"></i> reveal</span>
-                        <button class="copy-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="Copy"><i class="fas fa-copy"></i></button>
+                        <span style="font-size:0.7rem; color:var(--ink-soft); font-weight:500;"><i class="fas fa-eye-slash"></i> tonen</span>
+                        <button class="copy-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="Kopiëren"><i class="fas fa-copy"></i></button>
                     </div>
                     <div class="key-footer">
                         <span><i class="fas fa-desktop fa-fw"></i> <strong>{{ max_accounts }}</strong> max accounts</span>
                         {% if license_accounts %}
-                        <span style="color:var(--green);"><i class="fas fa-check-circle fa-fw"></i> <strong>{{ account_count }}</strong> active</span>
+                        <span style="color:var(--green);"><i class="fas fa-check-circle fa-fw"></i> <strong>{{ account_count }}</strong> actief</span>
                         {% endif %}
                     </div>
                 </div>
 
-                <!-- Display activated accounts -->
                 <div class="license-accounts">
                     <div class="accounts-title">
-                        <i class="fas fa-server fa-fw"></i> Activated Accounts
+                        <i class="fas fa-server fa-fw"></i> Geactiveerde Accounts
                     </div>
                     {% if license_accounts %}
                         {% for acc in license_accounts %}
                         <div class="account-item">
                             <span class="account-number"><i class="fas fa-hashtag fa-fw" style="color:var(--ink-soft);"></i> {{ acc.account }}</span>
-                            <span class="account-date">{{ acc.activated.strftime('%b %d, %Y') if acc.activated else 'N/A' }}</span>
-                            <span class="account-badge"><i class="fas fa-check-circle"></i> Active</span>
+                            <span class="account-date">{{ acc.activated.strftime('%d %b %Y') if acc.activated else 'N/B' }}</span>
+                            <span class="account-badge"><i class="fas fa-check-circle"></i> Actief</span>
                         </div>
                         {% endfor %}
                     {% else %}
                         <div class="no-accounts">
-                            <i class="fas fa-circle-plus"></i> No accounts activated yet
+                            <i class="fas fa-circle-plus"></i> Nog geen accounts geactiveerd
                         </div>
                     {% endif %}
                 </div>
                 {% else %}
                 <div class="empty-state">
                     <div class="icon-wrap"><i class="fas fa-lock"></i></div>
-                    <p style="color:var(--ink-muted); font-weight:500;">No license generated</p>
-                    <button class="btn btn-primary" onclick="showLicenseModal()" style="margin-top:0.5rem;"><i class="fas fa-plus"></i>Generate</button>
+                    <p style="color:var(--ink-muted); font-weight:500;">Geen licentie gegenereerd</p>
+                    <button class="btn btn-primary" onclick="showLicenseModal()" style="margin-top:0.5rem;"><i class="fas fa-plus"></i>Genereer</button>
                 </div>
                 {% endif %}
             </div>
@@ -585,11 +723,11 @@
     <div class="panel" style="margin-bottom:1.25rem;">
         <div class="panel-head">
             <div class="title"><i class="fas fa-robot"></i>Expert Advisors</div>
-            <div class="meta" style="font-size:0.75rem; color:var(--ink-soft); font-weight:600;">{{ ea_files|length if ea_files else 0 }}/{{ all_ea_count if all_ea_count is defined else '—' }} AVAILABLE</div>
+            <div class="meta" style="font-size:0.75rem; color:var(--ink-soft); font-weight:600;">{{ ea_files|length if ea_files else 0 }}/{{ all_ea_count if all_ea_count is defined else '—' }} BESCHIKBAAR</div>
         </div>
         {% if ea_files %}
         <table class="ea-table">
-            <thead><tr><th>File</th><th>Version</th><th>Size</th><th>Level</th><th></th></tr></thead>
+            <thead><tr><th>Bestand</th><th>Versie</th><th>Grootte</th><th>Niveau</th><th></th></tr></thead>
             <tbody>
                 {% for ea in ea_files %}
                 <tr>
@@ -597,21 +735,21 @@
                     <td class="num">v{{ ea.version }}</td>
                     <td class="num">{{ (ea.file_size / 1024)|round(1) if ea.file_size else '—' }} KB</td>
                     <td class="num">LVL {{ ea.plan_level }}</td>
-                    <td class="actions">{% if license %}<a href="{{ url_for('download_ea', file_id=ea.id) }}" class="table-btn"><i class="fas fa-download"></i> Download</a>{% else %}<span class="table-btn disabled"><i class="fas fa-lock"></i> Locked</span>{% endif %}</td>
+                    <td class="actions">{% if license %}<a href="{{ url_for('download_ea', file_id=ea.id) }}" class="table-btn"><i class="fas fa-download"></i> Download</a>{% else %}<span class="table-btn disabled"><i class="fas fa-lock"></i> Vergrendeld</span>{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         <div class="table-footer">
             {% if license and ea_files|length > 1 %}
-            <span class="link-download-all" onclick="showDownloadAllModal()"><i class="fas fa-layer-group"></i> Download all ({{ ea_files|length }})</span>
+            <span class="link-download-all" onclick="showDownloadAllModal()"><i class="fas fa-layer-group"></i> Download alles ({{ ea_files|length }})</span>
             {% else %}<span></span>{% endif %}
             {% if all_ea_count is defined and ea_files|length < all_ea_count %}
-            <span class="upgrade-note"><i class="fas fa-lock"></i> {{ all_ea_count - ea_files|length }} more on <a href="#" target="_blank">Level 2</a></span>
+            <span class="upgrade-note"><i class="fas fa-lock"></i> {{ all_ea_count - ea_files|length }} meer op <a href="#" target="_blank">Level 2</a></span>
             {% endif %}
         </div>
         {% else %}
-        <div class="empty-state"><div class="icon-wrap"><i class="fas fa-box-open"></i></div><p style="color:var(--ink-muted);">No EAs available</p></div>
+        <div class="empty-state"><div class="icon-wrap"><i class="fas fa-box-open"></i></div><p style="color:var(--ink-muted);">Geen EA's beschikbaar</p></div>
         {% endif %}
     </div>
 
@@ -623,58 +761,87 @@
                 <div class="discord-icon"><i class="fab fa-discord"></i></div>
                 <div class="info-text">
                     {% if user.discord_joined %}
-                    <strong>Connected</strong><span>Private channel access</span>
+                    <strong>Verbonden</strong><span>Toegang tot privé kanalen</span>
                     {% elif license %}
-                    <strong>Not connected</strong><span>Connect for private channels</span>
+                    <strong>Niet verbonden</strong><span>Verbind voor privé kanalen</span>
                     {% else %}
-                    <strong>Locked</strong><span>Generate license to unlock</span>
+                    <strong>Vergrendeld</strong><span>Genereer licentie om te ontgrendelen</span>
                     {% endif %}
                 </div>
             </div>
             {% if user.discord_joined %}
             <a href="{{ discord_invite }}" target="_blank" class="btn btn-primary"><i class="fab fa-discord"></i>Open Discord</a>
             {% elif license %}
-            <a href="{{ url_for('connect_discord') }}" class="btn btn-primary"><i class="fab fa-discord"></i>Connect</a>
+            <a href="{{ url_for('connect_discord') }}" class="btn btn-primary"><i class="fab fa-discord"></i>Verbinden</a>
             {% else %}
-            <button class="btn btn-outline" onclick="showLicenseModal()"><i class="fas fa-key"></i>Get license</button>
+            <button class="btn btn-outline" onclick="showLicenseModal()"><i class="fas fa-key"></i>Licentie nodig</button>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- modals -->
+<!-- License generation modal -->
 <div class="modal-overlay" id="licenseModal">
     <div class="modal-box">
-        <h3>Generate license key</h3>
-        <p>Unlock all EA downloads, Discord access, and up to <strong>{{ 2 if user.get_plan_level() == 1 else 4 }}</strong> MT5 accounts.</p>
+        <h3>Genereer licentiesleutel</h3>
+        <p>Ontgrendel alle EA downloads, Discord toegang, en tot <strong>{{ 2 if user.get_plan_level() == 1 else 4 }}</strong> MT5 accounts.</p>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeLicenseModal()">Cancel</button>
-            <button class="btn btn-primary" id="generateBtn" onclick="confirmGenerateLicense()">Generate</button>
+            <button class="btn btn-outline" onclick="closeLicenseModal()">Annuleren</button>
+            <button class="btn btn-primary" id="generateBtn" onclick="confirmGenerateLicense()">Genereer</button>
         </div>
     </div>
 </div>
+
+<!-- Download all modal -->
 <div class="modal-overlay" id="downloadAllModal">
     <div class="modal-box">
-        <h3>Download all EAs</h3>
-        <p>Get all <strong id="downloadCountBadge">{{ ea_files|length if ea_files else 0 }}</strong> Expert Advisors at once.</p>
+        <h3>Download alle EA's</h3>
+        <p>Download alle <strong id="downloadCountBadge">{{ ea_files|length if ea_files else 0 }}</strong> Expert Advisors in één keer.</p>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeDownloadAllModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="confirmDownloadAll()">Download all</button>
+            <button class="btn btn-outline" onclick="closeDownloadAllModal()">Annuleren</button>
+            <button class="btn btn-primary" onclick="confirmDownloadAll()">Download alles</button>
         </div>
     </div>
 </div>
+
+<!-- Cancel membership modal -->
+<div class="modal-overlay" id="cancelModal">
+    <div class="modal-box">
+        <h3><i class="fas fa-exclamation-triangle" style="color: var(--red);"></i> Abonnement annuleren</h3>
+        <p>Weet je zeker dat je je abonnement wilt annuleren?</p>
+        <div class="warning-box">
+            <div class="warning-title">
+                <i class="fas fa-exclamation-circle"></i> Dit gebeurt er:
+            </div>
+            <ul>
+                <li>Je abonnement blijft actief tot <strong id="cancelEndDate">{{ user.membership_end.strftime('%d %B %Y') if user.membership_end else 'de einddatum' }}</strong></li>
+                <li>Alle actieve licenties worden ingetrokken</li>
+                <li>Na de einddatum verlies je toegang tot Trading Engine</li>
+                <li>Je ontvangt een bevestiging per e-mail</li>
+            </ul>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeCancelModal()">Behouden</button>
+            <button class="btn btn-danger" id="cancelBtn" onclick="confirmCancelMembership()">
+                <i class="fas fa-times-circle"></i> Definitief annuleren
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
-    <p id="loadingMessage">Generating your license key…</p>
+    <p id="loadingMessage">Bezig met verwerken…</p>
 </div>
+
+<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
     // ==========================================
-    // FIXED JAVASCRIPT - LICENSE GENERATION
+    // LICENSE REVEAL
     // ==========================================
-    
-    // License reveal
     let licenseVisible = false;
     function toggleLicense() {
         licenseVisible = !licenseVisible;
@@ -687,9 +854,8 @@
     function copyToClipboard(text) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(() => {
-                showToast('License copied! ✓', 'success');
+                showToast('Licentie gekopieerd! ✓', 'success');
             }).catch(() => {
-                // Fallback
                 fallbackCopy(text);
             });
         } else {
@@ -706,57 +872,56 @@
         textarea.select();
         try {
             document.execCommand('copy');
-            showToast('License copied! ✓', 'success');
+            showToast('Licentie gekopieerd! ✓', 'success');
         } catch (err) {
-            showToast('Failed to copy', 'error');
+            showToast('Kopiëren mislukt', 'error');
         }
         document.body.removeChild(textarea);
     }
 
-    // Modal controls
+    // ==========================================
+    // MODAL CONTROLS
+    // ==========================================
     function showLicenseModal() { 
         document.getElementById('licenseModal').classList.add('show'); 
     }
-    
     function closeLicenseModal() { 
         document.getElementById('licenseModal').classList.remove('show'); 
     }
-    
     function showDownloadAllModal() {
         const eaCount = document.querySelectorAll('a[href*="download-ea"]').length;
         document.getElementById('downloadCountBadge').textContent = eaCount;
         document.getElementById('downloadAllModal').classList.add('show');
     }
-    
     function closeDownloadAllModal() { 
         document.getElementById('downloadAllModal').classList.remove('show'); 
     }
+    function showCancelModal() {
+        document.getElementById('cancelModal').classList.add('show');
+    }
+    function closeCancelModal() {
+        document.getElementById('cancelModal').classList.remove('show');
+    }
 
     // ==========================================
-    // License generation with proper error handling
+    // LICENSE GENERATION
     // ==========================================
     function confirmGenerateLicense() {
-        console.log('[DEBUG] Generate license clicked');
+        console.log('[DEBUG] Licentie genereren gestart');
         
-        // Close modal
         closeLicenseModal();
         
-        // Show loading overlay
         const loadingOverlay = document.getElementById('loadingOverlay');
         const loadingMessage = document.getElementById('loadingMessage');
         const generateBtn = document.getElementById('generateBtn');
         
         loadingOverlay.style.display = 'flex';
-        loadingMessage.textContent = 'Generating your license key…';
+        loadingMessage.textContent = 'Licentiesleutel genereren…';
         
-        // Disable button to prevent double-click
         if (generateBtn) {
             generateBtn.disabled = true;
-            generateBtn.textContent = 'Generating...';
+            generateBtn.textContent = 'Genereren...';
         }
-        
-        // Make the API call
-        console.log('[DEBUG] Sending request to /generate-license');
         
         fetch('/generate-license', {
             method: 'POST',
@@ -765,77 +930,130 @@
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            // No body needed for this endpoint
         })
         .then(response => {
-            console.log('[DEBUG] Response status:', response.status);
-            console.log('[DEBUG] Response headers:', response.headers);
-            
-            // Check if response is OK
             if (!response.ok) {
                 return response.json().then(data => {
-                    throw new Error(data.error || `Server error (${response.status})`);
+                    throw new Error(data.error || `Server fout (${response.status})`);
                 }).catch(err => {
                     if (err.message && !err.message.includes('Unexpected')) {
                         throw err;
                     }
-                    throw new Error(`Server error (${response.status})`);
+                    throw new Error(`Server fout (${response.status})`);
                 });
             }
-            
             return response.json();
         })
         .then(data => {
-            console.log('[DEBUG] Response data:', data);
-            
-            // Hide loading
             loadingOverlay.style.display = 'none';
             
             if (data.success) {
-                console.log('[DEBUG] License generated successfully!');
-                showToast('License generated successfully! 🎉', 'success');
-                
-                // Reload after short delay to show the license
+                console.log('[DEBUG] Licentie succesvol gegenereerd!');
+                showToast('Licentie gegenereerd! 🎉', 'success');
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
             } else {
-                console.error('[DEBUG] License generation failed:', data.error);
-                showToast(data.error || 'Failed to generate license', 'error');
-                
-                // Re-enable button
+                console.error('[DEBUG] Licentie generatie mislukt:', data.error);
+                showToast(data.error || 'Kon licentie niet genereren', 'error');
                 if (generateBtn) {
                     generateBtn.disabled = false;
-                    generateBtn.textContent = 'Generate';
+                    generateBtn.textContent = 'Genereer';
                 }
             }
         })
         .catch(error => {
             console.error('[DEBUG] Fetch error:', error);
-            
-            // Hide loading
             loadingOverlay.style.display = 'none';
-            
-            // Show error
-            showToast(error.message || 'Network error. Please try again.', 'error');
-            
-            // Re-enable button
+            showToast(error.message || 'Netwerkfout. Probeer opnieuw.', 'error');
             if (generateBtn) {
                 generateBtn.disabled = false;
-                generateBtn.textContent = 'Generate';
+                generateBtn.textContent = 'Genereer';
             }
         });
     }
 
+    // ==========================================
+    // MEMBERSHIP CANCELLATION
+    // ==========================================
+    function confirmCancelMembership() {
+        console.log('[DEBUG] Annulering abonnement gestart');
+        
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const cancelBtn = document.getElementById('cancelBtn');
+        
+        closeCancelModal();
+        loadingOverlay.style.display = 'flex';
+        loadingMessage.textContent = 'Abonnement annuleren…';
+        
+        if (cancelBtn) {
+            cancelBtn.disabled = true;
+            cancelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Annuleren...';
+        }
+        
+        fetch('/cancel-membership', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || `Server fout (${response.status})`);
+                }).catch(err => {
+                    if (err.message && !err.message.includes('Unexpected')) {
+                        throw err;
+                    }
+                    throw new Error(`Server fout (${response.status})`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadingOverlay.style.display = 'none';
+            
+            if (data.success) {
+                console.log('[DEBUG] Abonnement succesvol geannuleerd!');
+                showToast('Abonnement geannuleerd. Bevestiging per e-mail verzonden. 📧', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                console.error('[DEBUG] Annulering mislukt:', data.error);
+                showToast(data.error || 'Kon abonnement niet annuleren', 'error');
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> Definitief annuleren';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('[DEBUG] Fetch error:', error);
+            loadingOverlay.style.display = 'none';
+            showToast(error.message || 'Netwerkfout. Probeer opnieuw.', 'error');
+            if (cancelBtn) {
+                cancelBtn.disabled = false;
+                cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> Definitief annuleren';
+            }
+        });
+    }
+
+    // ==========================================
+    // DOWNLOAD ALL
+    // ==========================================
     function confirmDownloadAll() {
         closeDownloadAllModal();
         const links = document.querySelectorAll('a[href*="download-ea"]');
         if (!links.length) { 
-            showToast('No EAs available', 'warning'); 
+            showToast('Geen EA\'s beschikbaar', 'warning'); 
             return; 
         }
         
-        showToast(`Starting ${links.length} downloads…`, 'success');
+        showToast(`${links.length} downloads gestart…`, 'success');
         
         links.forEach((link, i) => {
             setTimeout(() => {
@@ -851,24 +1069,21 @@
     }
 
     // ==========================================
-    // Toast notifications with better styling
+    // TOAST NOTIFICATIONS
     // ==========================================
     function showToast(msg, type = 'success') {
         console.log(`[TOAST] ${type}: ${msg}`);
         
         const t = document.getElementById('toast');
         if (!t) {
-            console.error('[TOAST] Toast element not found!');
-            alert(msg); // Fallback
+            console.error('[TOAST] Toast element niet gevonden!');
+            alert(msg);
             return;
         }
         
         t.textContent = msg;
-        
-        // Reset classes
         t.className = 'toast';
         
-        // Add type-specific class
         if (type === 'error') {
             t.classList.add('error');
         } else if (type === 'success') {
@@ -877,31 +1092,30 @@
             t.classList.add('warning');
         }
         
-        // Show toast
         t.classList.add('show');
         
-        // Clear existing timeout
         if (t._hideTimeout) {
             clearTimeout(t._hideTimeout);
         }
         
-        // Auto-hide
         t._hideTimeout = setTimeout(() => {
             t.classList.remove('show');
-        }, 3000);
+        }, 4000);
     }
 
     // ==========================================
-    // Event Listeners
+    // EVENT LISTENERS
     // ==========================================
     
     // Close modals when clicking overlay
     document.getElementById('licenseModal')?.addEventListener('click', function(e) { 
         if (e.target === this) closeLicenseModal(); 
     });
-    
     document.getElementById('downloadAllModal')?.addEventListener('click', function(e) { 
         if (e.target === this) closeDownloadAllModal(); 
+    });
+    document.getElementById('cancelModal')?.addEventListener('click', function(e) { 
+        if (e.target === this) closeCancelModal(); 
     });
     
     // Close modals with Escape key
@@ -909,30 +1123,37 @@
         if (e.key === 'Escape') { 
             closeLicenseModal(); 
             closeDownloadAllModal(); 
+            closeCancelModal();
         } 
     });
     
-    // Close loading overlay on Escape (emergency escape)
+    // Emergency escape for loading overlay
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && e.ctrlKey) {
             const loadingOverlay = document.getElementById('loadingOverlay');
             if (loadingOverlay && loadingOverlay.style.display === 'flex') {
                 loadingOverlay.style.display = 'none';
-                showToast('Operation cancelled', 'warning');
+                showToast('Bewerking geannuleerd', 'warning');
                 
                 const generateBtn = document.getElementById('generateBtn');
                 if (generateBtn) {
                     generateBtn.disabled = false;
-                    generateBtn.textContent = 'Generate';
+                    generateBtn.textContent = 'Genereer';
+                }
+                const cancelBtn = document.getElementById('cancelBtn');
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> Definitief annuleren';
                 }
             }
         }
     });
     
-    // Debug: Log when page is ready
-    console.log('[DEBUG] Dashboard page loaded');
-    console.log('[DEBUG] User level:', {{ user.get_plan_level() }});
-    console.log('[DEBUG] Has license:', {{ 'true' if license else 'false' }});
+    // Debug logging
+    console.log('[DEBUG] Dashboard pagina geladen');
+    console.log('[DEBUG] Gebruikersniveau:', {{ user.get_plan_level() }});
+    console.log('[DEBUG] Heeft licentie:', {{ 'true' if license else 'false' }});
     console.log('[DEBUG] Max accounts:', {{ max_accounts }});
+    console.log('[DEBUG] Membership status:', '{{ user.membership_status }}');
 </script>
 {% endblock %}
