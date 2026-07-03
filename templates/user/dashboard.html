@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Trading Engine{% endblock %}
+{% block title %}
+{% if current_language == 'nl' %}Dashboard{% else %}Dashboard{% endif %} - Trading Engine
+{% endblock %}
 
 {% block extra_css %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,6 +46,59 @@
         padding: 1.5rem 1.75rem 4rem;
     }
 
+    /* ---- Top bar with language toggle ---- */
+    .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .language-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.3rem;
+        box-shadow: var(--shadow-card);
+    }
+    .language-toggle .lang-option {
+        padding: 0.4rem 0.9rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        border: none;
+        background: transparent;
+        color: var(--ink-muted);
+        white-space: nowrap;
+    }
+    .language-toggle .lang-option:hover {
+        background: var(--surface-sunken);
+        color: var(--ink);
+    }
+    .language-toggle .lang-option.active {
+        background: var(--ink);
+        color: white;
+    }
+    .language-toggle .lang-option .flag {
+        font-size: 1rem;
+        line-height: 1;
+    }
+    .language-toggle .divider {
+        width: 1px;
+        height: 20px;
+        background: var(--border);
+        margin: 0 0.1rem;
+    }
+
     /* ---- greeting ---- */
     .greeting {
         display: flex;
@@ -71,7 +126,7 @@
         font-size: 0.75rem;
     }
 
-    /* ---- KPI cards with background colors ---- */
+    /* ---- KPI cards ---- */
     .kpi-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -577,14 +632,41 @@
 
 {% block content %}
 <div class="dashboard-wrapper">
+    <!-- Top Bar with Language Toggle -->
+    <div class="top-bar">
+        <div></div> <!-- Empty div for flex spacing -->
+        <div class="language-toggle" id="languageToggle">
+            <button 
+                class="lang-option {{ 'active' if current_language == 'en' else '' }}" 
+                onclick="setLanguage('en')"
+                data-lang="en"
+            >
+                <span class="flag">🇬🇧</span> English
+            </button>
+            <div class="divider"></div>
+            <button 
+                class="lang-option {{ 'active' if current_language == 'nl' else '' }}" 
+                onclick="setLanguage('nl')"
+                data-lang="nl"
+            >
+                <span class="flag">🇳🇱</span> Nederlands
+            </button>
+        </div>
+    </div>
+
     <!-- greeting -->
     <div class="greeting">
         <div class="greeting-left">
-            <h1>Hoi, {{ user.first_name or 'Trader' }} 👋</h1>
+            <h1 data-en="Hey, {{ user.first_name or 'Trader' }} 👋" data-nl="Hoi, {{ user.first_name or 'Trader' }} 👋">
+                {{ 'Hoi' if current_language == 'nl' else 'Hey' }}, {{ user.first_name or 'Trader' }} 👋
+            </h1>
             <div class="sub">
                 <span>{{ user.email }}</span>
                 <i class="fas fa-circle" style="font-size: 5px; color: var(--ink-soft);"></i>
-                <span>Lid sinds {{ user.membership_start.strftime('%b %Y') if user.membership_start else 'N/B' }}</span>
+                <span data-en="Member since {{ user.membership_start.strftime('%b %Y') if user.membership_start else 'N/A' }}" 
+                      data-nl="Lid sinds {{ user.membership_start.strftime('%b %Y') if user.membership_start else 'N/B' }}">
+                    {{ 'Lid sinds' if current_language == 'nl' else 'Member since' }} {{ user.membership_start.strftime('%b %Y') if user.membership_start else 'N/B' }}
+                </span>
             </div>
         </div>
     </div>
@@ -596,31 +678,52 @@
                 <i class="fab fa-discord"></i>
             </div>
             <div class="support-text">
-                <h4>Hulp nodig?</h4>
-                <p>Heb je vragen of ondersteuning nodig? Join onze Discord!</p>
+                <h4 data-en="Need Help?" data-nl="Hulp nodig?">
+                    {{ 'Hulp nodig?' if current_language == 'nl' else 'Need Help?' }}
+                </h4>
+                <p data-en="Have questions or need support? Join our Discord!" 
+                   data-nl="Heb je vragen of ondersteuning nodig? Join onze Discord!">
+                    {{ 'Heb je vragen of ondersteuning nodig? Join onze Discord!' if current_language == 'nl' else 'Have questions or need support? Join our Discord!' }}
+                </p>
             </div>
         </div>
         <a href="{{ discord_invite }}" target="_blank" class="btn btn-discord">
-            <i class="fab fa-discord"></i> Open Discord
+            <i class="fab fa-discord"></i> 
+            <span data-en="Open Discord" data-nl="Open Discord">Open Discord</span>
         </a>
     </div>
 
-    <!-- KPI with background colors -->
+    <!-- KPI cards -->
     <div class="kpi-grid">
         <div class="kpi-card color-1">
-            <div class="label">Plan niveau</div>
+            <div class="label" data-en="Plan Level" data-nl="Plan Niveau">
+                {{ 'Plan Niveau' if current_language == 'nl' else 'Plan Level' }}
+            </div>
             <div class="value">{{ plan_level_display if plan_level_display else 'LVL ' + user.get_plan_level()|string }} <span class="unit">/ {{ user.get_plan_level() }}</span></div>
         </div>
         <div class="kpi-card color-2">
-            <div class="label">Abonnement</div>
-            <div class="value" style="font-size:1.1rem; font-weight:600;">{{ user.subscription_type|title or 'Standaard' }}</div>
+            <div class="label" data-en="Subscription" data-nl="Abonnement">
+                {{ 'Abonnement' if current_language == 'nl' else 'Subscription' }}
+            </div>
+            <div class="value" style="font-size:1.1rem; font-weight:600;">
+                {% if current_language == 'nl' %}
+                    {% if user.subscription_type == 'lifetime' %}Levenslang
+                    {% elif user.subscription_type == 'monthly' %}Maandelijks
+                    {% elif user.subscription_type == 'yearly' %}Jaarlijks
+                    {% else %}{{ user.subscription_type|title or 'Standaard' }}{% endif %}
+                {% else %}
+                    {{ user.subscription_type|title or 'Standard' }}
+                {% endif %}
+            </div>
         </div>
         <div class="kpi-card color-3">
-            <div class="label">MT5 accounts</div>
+            <div class="label">MT5 Accounts</div>
             <div class="value">{{ account_count if license_accounts else 0 }} <span class="unit">/ {{ max_accounts }}</span></div>
         </div>
         <div class="kpi-card color-4">
-            <div class="label">EA's beschikbaar</div>
+            <div class="label" data-en="EAs Available" data-nl="EA's Beschikbaar">
+                {{ "EA's Beschikbaar" if current_language == 'nl' else 'EAs Available' }}
+            </div>
             <div class="value">{{ ea_files|length if ea_files else 0 }} <span class="unit">/ {{ all_ea_count if all_ea_count is defined else '—' }}</span></div>
         </div>
     </div>
@@ -630,38 +733,87 @@
         <!-- membership -->
         <div class="panel">
             <div class="panel-head">
-                <div class="title"><i class="fas fa-id-card"></i>Abonnement</div>
+                <div class="title"><i class="fas fa-id-card"></i>
+                    <span data-en="Membership" data-nl="Abonnement">{{ 'Abonnement' if current_language == 'nl' else 'Membership' }}</span>
+                </div>
             </div>
             <div class="panel-body">
-                <div class="row-item"><span class="key">Plan niveau</span><span class="val"><span class="pill {% if user.get_plan_level() >= 2 %}pill-accent{% else %}pill-neutral{% endif %}">LVL {{ user.get_plan_level() }}</span></span></div>
-                <div class="row-item"><span class="key">Abonnementstype</span><span class="val">{{ user.subscription_type|title or 'Standaard' }}</span></div>
-                <div class="row-item"><span class="key">Lid sinds</span><span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_start.strftime('%d %b %Y') if user.membership_start else 'N/B' }}</span></div>
-                <div class="row-item"><span class="key">Verloopt op</span><span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_end.strftime('%d %b %Y') if user.membership_end else 'N/B' }}</span></div>
-                <div class="row-item"><span class="key">Status</span><span class="val">
-                    {% if user.membership_status == 'active' %}
-                    <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> ACTIEF</span>
-                    {% elif user.membership_status == 'cancelled' %}
-                    <span class="pill pill-orange"><i class="fas fa-circle" style="font-size:6px;"></i> GEANNULEERD</span>
-                    {% else %}
-                    <span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> INACTIEF</span>
-                    {% endif %}
-                </span></div>
+                <div class="row-item">
+                    <span class="key" data-en="Plan Level" data-nl="Plan Niveau">{{ 'Plan Niveau' if current_language == 'nl' else 'Plan Level' }}</span>
+                    <span class="val"><span class="pill {% if user.get_plan_level() >= 2 %}pill-accent{% else %}pill-neutral{% endif %}">LVL {{ user.get_plan_level() }}</span></span>
+                </div>
+                <div class="row-item">
+                    <span class="key" data-en="Subscription Type" data-nl="Abonnementstype">{{ 'Abonnementstype' if current_language == 'nl' else 'Subscription Type' }}</span>
+                    <span class="val">
+                        {% if current_language == 'nl' %}
+                            {% if user.subscription_type == 'lifetime' %}Levenslang
+                            {% elif user.subscription_type == 'monthly' %}Maandelijks
+                            {% elif user.subscription_type == 'yearly' %}Jaarlijks
+                            {% else %}{{ user.subscription_type|title or 'Standaard' }}{% endif %}
+                        {% else %}
+                            {{ user.subscription_type|title or 'Standard' }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="row-item">
+                    <span class="key" data-en="Member Since" data-nl="Lid Sinds">{{ 'Lid Sinds' if current_language == 'nl' else 'Member Since' }}</span>
+                    <span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_start.strftime('%d %b %Y') if user.membership_start else 'N/B' }}</span>
+                </div>
+                <div class="row-item">
+                    <span class="key" data-en="Expires On" data-nl="Verloopt Op">{{ 'Verloopt Op' if current_language == 'nl' else 'Expires On' }}</span>
+                    <span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_end.strftime('%d %b %Y') if user.membership_end else 'N/B' }}</span>
+                </div>
+                <div class="row-item">
+                    <span class="key" data-en="Status" data-nl="Status">{{ 'Status' if current_language == 'nl' else 'Status' }}</span>
+                    <span class="val">
+                        {% if user.membership_status == 'active' %}
+                        <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'ACTIEF' if current_language == 'nl' else 'ACTIVE' }}</span>
+                        {% elif user.membership_status == 'cancelled' %}
+                        <span class="pill pill-orange"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'GEANNULEERD' if current_language == 'nl' else 'CANCELLED' }}</span>
+                        {% else %}
+                        <span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'INACTIEF' if current_language == 'nl' else 'INACTIVE' }}</span>
+                        {% endif %}
+                    </span>
+                </div>
                 {% if days_remaining is not none %}
-                <div class="row-item"><span class="key">Resterende dagen</span><span class="val" style="font-family:'JetBrains Mono', monospace;">{{ days_remaining }} dagen</span></div>
+                <div class="row-item">
+                    <span class="key" data-en="Days Remaining" data-nl="Resterende Dagen">{{ 'Resterende Dagen' if current_language == 'nl' else 'Days Remaining' }}</span>
+                    <span class="val" style="font-family:'JetBrains Mono', monospace;">
+                        {% if current_language == 'nl' %}
+                            {{ days_remaining }} dagen
+                        {% else %}
+                            {{ days_remaining }} days
+                        {% endif %}
+                    </span>
+                </div>
                 {% endif %}
 
                 <!-- Membership Management -->
                 {% if user.membership_status == 'active' %}
                 <div class="membership-actions">
-                    <div class="section-title"><i class="fas fa-cog fa-fw"></i> Abonnement beheren</div>
+                    <div class="section-title"><i class="fas fa-cog fa-fw"></i> 
+                        <span data-en="Manage Membership" data-nl="Abonnement Beheren">
+                            {{ 'Abonnement Beheren' if current_language == 'nl' else 'Manage Membership' }}
+                        </span>
+                    </div>
                     <div class="cancel-info">
-                        {% if user.membership_end %}
-                        Je abonnement blijft actief tot <strong>{{ user.membership_end.strftime('%d %B %Y') }}</strong>.
+                        {% if current_language == 'nl' %}
+                            {% if user.membership_end %}
+                            Je abonnement blijft actief tot <strong>{{ user.membership_end.strftime('%d %B %Y') }}</strong>.
+                            {% endif %}
+                            Bij annulering worden je licenties ingetrokken en verlies je toegang tot Trading Engine.
+                        {% else %}
+                            {% if user.membership_end %}
+                            Your membership remains active until <strong>{{ user.membership_end.strftime('%B %d, %Y') }}</strong>.
+                            {% endif %}
+                            Upon cancellation, your licenses will be revoked and you will lose access to Trading Engine.
                         {% endif %}
-                        Bij annulering worden je licenties ingetrokken en verlies je toegang tot Trading Engine.
                     </div>
                     <button class="btn btn-danger" onclick="showCancelModal()">
-                        <i class="fas fa-times-circle"></i> Abonnement annuleren
+                        <i class="fas fa-times-circle"></i> 
+                        <span data-en="Cancel Membership" data-nl="Abonnement Annuleren">
+                            {{ 'Abonnement Annuleren' if current_language == 'nl' else 'Cancel Membership' }}
+                        </span>
                     </button>
                 </div>
                 {% endif %}
@@ -671,7 +823,9 @@
         <!-- license -->
         <div class="panel">
             <div class="panel-head">
-                <div class="title"><i class="fas fa-key"></i>Licentiesleutel</div>
+                <div class="title"><i class="fas fa-key"></i>
+                    <span data-en="License Key" data-nl="Licentiesleutel">{{ 'Licentiesleutel' if current_language == 'nl' else 'License Key' }}</span>
+                </div>
             </div>
             <div class="panel-body">
                 {% if license %}
@@ -679,40 +833,54 @@
                     <div class="key-row" onclick="toggleLicense()">
                         <div class="dot-indicator"></div>
                         <span class="key-text">{{ license.license_key }}</span>
-                        <span style="font-size:0.7rem; color:var(--ink-soft); font-weight:500;"><i class="fas fa-eye-slash"></i> tonen</span>
-                        <button class="copy-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="Kopiëren"><i class="fas fa-copy"></i></button>
+                        <span style="font-size:0.7rem; color:var(--ink-soft); font-weight:500;">
+                            <i class="fas fa-eye-slash"></i> 
+                            <span data-en="reveal" data-nl="tonen">{{ 'tonen' if current_language == 'nl' else 'reveal' }}</span>
+                        </span>
+                        <button class="copy-btn" onclick="event.stopPropagation(); copyToClipboard('{{ license.license_key }}')" title="{{ 'Kopiëren' if current_language == 'nl' else 'Copy' }}"><i class="fas fa-copy"></i></button>
                     </div>
                     <div class="key-footer">
-                        <span><i class="fas fa-desktop fa-fw"></i> <strong>{{ max_accounts }}</strong> max accounts</span>
+                        <span><i class="fas fa-desktop fa-fw"></i> <strong>{{ max_accounts }}</strong> <span data-en="max accounts" data-nl="max accounts">max accounts</span></span>
                         {% if license_accounts %}
-                        <span style="color:var(--green);"><i class="fas fa-check-circle fa-fw"></i> <strong>{{ account_count }}</strong> actief</span>
+                        <span style="color:var(--green);"><i class="fas fa-check-circle fa-fw"></i> <strong>{{ account_count }}</strong> <span data-en="active" data-nl="actief">{{ 'actief' if current_language == 'nl' else 'active' }}</span></span>
                         {% endif %}
                     </div>
                 </div>
 
                 <div class="license-accounts">
                     <div class="accounts-title">
-                        <i class="fas fa-server fa-fw"></i> Geactiveerde Accounts
+                        <i class="fas fa-server fa-fw"></i> 
+                        <span data-en="Activated Accounts" data-nl="Geactiveerde Accounts">
+                            {{ 'Geactiveerde Accounts' if current_language == 'nl' else 'Activated Accounts' }}
+                        </span>
                     </div>
                     {% if license_accounts %}
                         {% for acc in license_accounts %}
                         <div class="account-item">
                             <span class="account-number"><i class="fas fa-hashtag fa-fw" style="color:var(--ink-soft);"></i> {{ acc.account }}</span>
                             <span class="account-date">{{ acc.activated.strftime('%d %b %Y') if acc.activated else 'N/B' }}</span>
-                            <span class="account-badge"><i class="fas fa-check-circle"></i> Actief</span>
+                            <span class="account-badge"><i class="fas fa-check-circle"></i> <span data-en="Active" data-nl="Actief">{{ 'Actief' if current_language == 'nl' else 'Active' }}</span></span>
                         </div>
                         {% endfor %}
                     {% else %}
                         <div class="no-accounts">
-                            <i class="fas fa-circle-plus"></i> Nog geen accounts geactiveerd
+                            <i class="fas fa-circle-plus"></i> 
+                            <span data-en="No accounts activated yet" data-nl="Nog geen accounts geactiveerd">
+                                {{ 'Nog geen accounts geactiveerd' if current_language == 'nl' else 'No accounts activated yet' }}
+                            </span>
                         </div>
                     {% endif %}
                 </div>
                 {% else %}
                 <div class="empty-state">
                     <div class="icon-wrap"><i class="fas fa-lock"></i></div>
-                    <p style="color:var(--ink-muted); font-weight:500;">Geen licentie gegenereerd</p>
-                    <button class="btn btn-primary" onclick="showLicenseModal()" style="margin-top:0.5rem;"><i class="fas fa-plus"></i>Genereer</button>
+                    <p style="color:var(--ink-muted); font-weight:500;" data-en="No license generated" data-nl="Geen licentie gegenereerd">
+                        {{ 'Geen licentie gegenereerd' if current_language == 'nl' else 'No license generated' }}
+                    </p>
+                    <button class="btn btn-primary" onclick="showLicenseModal()" style="margin-top:0.5rem;">
+                        <i class="fas fa-plus"></i> 
+                        <span data-en="Generate" data-nl="Genereer">{{ 'Genereer' if current_language == 'nl' else 'Generate' }}</span>
+                    </button>
                 </div>
                 {% endif %}
             </div>
@@ -722,12 +890,25 @@
     <!-- EA panel -->
     <div class="panel" style="margin-bottom:1.25rem;">
         <div class="panel-head">
-            <div class="title"><i class="fas fa-robot"></i>Expert Advisors</div>
-            <div class="meta" style="font-size:0.75rem; color:var(--ink-soft); font-weight:600;">{{ ea_files|length if ea_files else 0 }}/{{ all_ea_count if all_ea_count is defined else '—' }} BESCHIKBAAR</div>
+            <div class="title"><i class="fas fa-robot"></i>
+                <span data-en="Expert Advisors" data-nl="Expert Advisors">Expert Advisors</span>
+            </div>
+            <div class="meta" style="font-size:0.75rem; color:var(--ink-soft); font-weight:600;">
+                {{ ea_files|length if ea_files else 0 }}/{{ all_ea_count if all_ea_count is defined else '—' }} 
+                <span data-en="AVAILABLE" data-nl="BESCHIKBAAR">{{ 'BESCHIKBAAR' if current_language == 'nl' else 'AVAILABLE' }}</span>
+            </div>
         </div>
         {% if ea_files %}
         <table class="ea-table">
-            <thead><tr><th>Bestand</th><th>Versie</th><th>Grootte</th><th>Niveau</th><th></th></tr></thead>
+            <thead>
+                <tr>
+                    <th data-en="File" data-nl="Bestand">{{ 'Bestand' if current_language == 'nl' else 'File' }}</th>
+                    <th data-en="Version" data-nl="Versie">{{ 'Versie' if current_language == 'nl' else 'Version' }}</th>
+                    <th data-en="Size" data-nl="Grootte">{{ 'Grootte' if current_language == 'nl' else 'Size' }}</th>
+                    <th data-en="Level" data-nl="Niveau">{{ 'Niveau' if current_language == 'nl' else 'Level' }}</th>
+                    <th></th>
+                </tr>
+            </thead>
             <tbody>
                 {% for ea in ea_files %}
                 <tr>
@@ -735,46 +916,91 @@
                     <td class="num">v{{ ea.version }}</td>
                     <td class="num">{{ (ea.file_size / 1024)|round(1) if ea.file_size else '—' }} KB</td>
                     <td class="num">LVL {{ ea.plan_level }}</td>
-                    <td class="actions">{% if license %}<a href="{{ url_for('download_ea', file_id=ea.id) }}" class="table-btn"><i class="fas fa-download"></i> Download</a>{% else %}<span class="table-btn disabled"><i class="fas fa-lock"></i> Vergrendeld</span>{% endif %}</td>
+                    <td class="actions">
+                        {% if license %}
+                        <a href="{{ url_for('download_ea', file_id=ea.id) }}" class="table-btn">
+                            <i class="fas fa-download"></i> 
+                            <span data-en="Download" data-nl="Download">Download</span>
+                        </a>
+                        {% else %}
+                        <span class="table-btn disabled">
+                            <i class="fas fa-lock"></i> 
+                            <span data-en="Locked" data-nl="Vergrendeld">{{ 'Vergrendeld' if current_language == 'nl' else 'Locked' }}</span>
+                        </span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         <div class="table-footer">
             {% if license and ea_files|length > 1 %}
-            <span class="link-download-all" onclick="showDownloadAllModal()"><i class="fas fa-layer-group"></i> Download alles ({{ ea_files|length }})</span>
+            <span class="link-download-all" onclick="showDownloadAllModal()">
+                <i class="fas fa-layer-group"></i> 
+                <span data-en="Download all" data-nl="Download alles">{{ 'Download alles' if current_language == 'nl' else 'Download all' }}</span> ({{ ea_files|length }})
+            </span>
             {% else %}<span></span>{% endif %}
             {% if all_ea_count is defined and ea_files|length < all_ea_count %}
-            <span class="upgrade-note"><i class="fas fa-lock"></i> {{ all_ea_count - ea_files|length }} meer op <a href="#" target="_blank">Level 2</a></span>
+            <span class="upgrade-note">
+                <i class="fas fa-lock"></i> 
+                {{ all_ea_count - ea_files|length }} 
+                <span data-en="more on" data-nl="meer op">{{ 'meer op' if current_language == 'nl' else 'more on' }}</span> 
+                <a href="#" target="_blank">Level 2</a>
+            </span>
             {% endif %}
         </div>
         {% else %}
-        <div class="empty-state"><div class="icon-wrap"><i class="fas fa-box-open"></i></div><p style="color:var(--ink-muted);">Geen EA's beschikbaar</p></div>
+        <div class="empty-state">
+            <div class="icon-wrap"><i class="fas fa-box-open"></i></div>
+            <p style="color:var(--ink-muted);" data-en="No EAs available" data-nl="Geen EA's beschikbaar">
+                {{ "Geen EA's beschikbaar" if current_language == 'nl' else 'No EAs available' }}
+            </p>
+        </div>
         {% endif %}
     </div>
 
     <!-- discord -->
     <div class="panel">
-        <div class="panel-head"><div class="title"><i class="fab fa-discord"></i>Discord community</div></div>
+        <div class="panel-head">
+            <div class="title"><i class="fab fa-discord"></i><span data-en="Discord Community" data-nl="Discord Community">Discord Community</span></div>
+        </div>
         <div class="panel-body discord-body">
             <div class="info">
                 <div class="discord-icon"><i class="fab fa-discord"></i></div>
                 <div class="info-text">
                     {% if user.discord_joined %}
-                    <strong>Verbonden</strong><span>Toegang tot privé kanalen</span>
+                    <strong data-en="Connected" data-nl="Verbonden">{{ 'Verbonden' if current_language == 'nl' else 'Connected' }}</strong>
+                    <span data-en="Private channel access" data-nl="Toegang tot privé kanalen">
+                        {{ 'Toegang tot privé kanalen' if current_language == 'nl' else 'Private channel access' }}
+                    </span>
                     {% elif license %}
-                    <strong>Niet verbonden</strong><span>Verbind voor privé kanalen</span>
+                    <strong data-en="Not Connected" data-nl="Niet Verbonden">{{ 'Niet Verbonden' if current_language == 'nl' else 'Not Connected' }}</strong>
+                    <span data-en="Connect for private channels" data-nl="Verbind voor privé kanalen">
+                        {{ 'Verbind voor privé kanalen' if current_language == 'nl' else 'Connect for private channels' }}
+                    </span>
                     {% else %}
-                    <strong>Vergrendeld</strong><span>Genereer licentie om te ontgrendelen</span>
+                    <strong data-en="Locked" data-nl="Vergrendeld">{{ 'Vergrendeld' if current_language == 'nl' else 'Locked' }}</strong>
+                    <span data-en="Generate license to unlock" data-nl="Genereer licentie om te ontgrendelen">
+                        {{ 'Genereer licentie om te ontgrendelen' if current_language == 'nl' else 'Generate license to unlock' }}
+                    </span>
                     {% endif %}
                 </div>
             </div>
             {% if user.discord_joined %}
-            <a href="{{ discord_invite }}" target="_blank" class="btn btn-primary"><i class="fab fa-discord"></i>Open Discord</a>
+            <a href="{{ discord_invite }}" target="_blank" class="btn btn-primary">
+                <i class="fab fa-discord"></i> 
+                <span data-en="Open Discord" data-nl="Open Discord">Open Discord</span>
+            </a>
             {% elif license %}
-            <a href="{{ url_for('connect_discord') }}" class="btn btn-primary"><i class="fab fa-discord"></i>Verbinden</a>
+            <a href="{{ url_for('connect_discord') }}" class="btn btn-primary">
+                <i class="fab fa-discord"></i> 
+                <span data-en="Connect" data-nl="Verbinden">{{ 'Verbinden' if current_language == 'nl' else 'Connect' }}</span>
+            </a>
             {% else %}
-            <button class="btn btn-outline" onclick="showLicenseModal()"><i class="fas fa-key"></i>Licentie nodig</button>
+            <button class="btn btn-outline" onclick="showLicenseModal()">
+                <i class="fas fa-key"></i> 
+                <span data-en="Get License" data-nl="Licentie Nodig">{{ 'Licentie Nodig' if current_language == 'nl' else 'Get License' }}</span>
+            </button>
             {% endif %}
         </div>
     </div>
@@ -783,11 +1009,20 @@
 <!-- License generation modal -->
 <div class="modal-overlay" id="licenseModal">
     <div class="modal-box">
-        <h3>Genereer licentiesleutel</h3>
-        <p>Ontgrendel alle EA downloads, Discord toegang, en tot <strong>{{ 2 if user.get_plan_level() == 1 else 4 }}</strong> MT5 accounts.</p>
+        <h3 data-en="Generate License Key" data-nl="Genereer Licentiesleutel">
+            {{ 'Genereer Licentiesleutel' if current_language == 'nl' else 'Generate License Key' }}
+        </h3>
+        <p data-en="Unlock all EA downloads, Discord access, and up to" data-nl="Ontgrendel alle EA downloads, Discord toegang, en tot">
+            {{ 'Ontgrendel alle EA downloads, Discord toegang, en tot' if current_language == 'nl' else 'Unlock all EA downloads, Discord access, and up to' }}
+            <strong>{{ 2 if user.get_plan_level() == 1 else 4 }}</strong> MT5 accounts.
+        </p>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeLicenseModal()">Annuleren</button>
-            <button class="btn btn-primary" id="generateBtn" onclick="confirmGenerateLicense()">Genereer</button>
+            <button class="btn btn-outline" onclick="closeLicenseModal()">
+                <span data-en="Cancel" data-nl="Annuleren">{{ 'Annuleren' if current_language == 'nl' else 'Cancel' }}</span>
+            </button>
+            <button class="btn btn-primary" id="generateBtn" onclick="confirmGenerateLicense()">
+                <span data-en="Generate" data-nl="Genereer">{{ 'Genereer' if current_language == 'nl' else 'Generate' }}</span>
+            </button>
         </div>
     </div>
 </div>
@@ -795,11 +1030,23 @@
 <!-- Download all modal -->
 <div class="modal-overlay" id="downloadAllModal">
     <div class="modal-box">
-        <h3>Download alle EA's</h3>
-        <p>Download alle <strong id="downloadCountBadge">{{ ea_files|length if ea_files else 0 }}</strong> Expert Advisors in één keer.</p>
+        <h3 data-en="Download All EAs" data-nl="Download Alle EA's">
+            {{ "Download Alle EA's" if current_language == 'nl' else 'Download All EAs' }}
+        </h3>
+        <p data-en="Download all" data-nl="Download alle">
+            {{ 'Download alle' if current_language == 'nl' else 'Download all' }}
+            <strong id="downloadCountBadge">{{ ea_files|length if ea_files else 0 }}</strong> 
+            <span data-en="Expert Advisors at once." data-nl="Expert Advisors in één keer.">
+                {{ 'Expert Advisors in één keer.' if current_language == 'nl' else 'Expert Advisors at once.' }}
+            </span>
+        </p>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeDownloadAllModal()">Annuleren</button>
-            <button class="btn btn-primary" onclick="confirmDownloadAll()">Download alles</button>
+            <button class="btn btn-outline" onclick="closeDownloadAllModal()">
+                <span data-en="Cancel" data-nl="Annuleren">{{ 'Annuleren' if current_language == 'nl' else 'Cancel' }}</span>
+            </button>
+            <button class="btn btn-primary" onclick="confirmDownloadAll()">
+                <span data-en="Download All" data-nl="Download Alles">{{ 'Download Alles' if current_language == 'nl' else 'Download All' }}</span>
+            </button>
         </div>
     </div>
 </div>
@@ -807,23 +1054,46 @@
 <!-- Cancel membership modal -->
 <div class="modal-overlay" id="cancelModal">
     <div class="modal-box">
-        <h3><i class="fas fa-exclamation-triangle" style="color: var(--red);"></i> Abonnement annuleren</h3>
-        <p>Weet je zeker dat je je abonnement wilt annuleren?</p>
+        <h3>
+            <i class="fas fa-exclamation-triangle" style="color: var(--red);"></i> 
+            <span data-en="Cancel Membership" data-nl="Abonnement Annuleren">
+                {{ 'Abonnement Annuleren' if current_language == 'nl' else 'Cancel Membership' }}
+            </span>
+        </h3>
+        <p data-en="Are you sure you want to cancel your membership?" 
+           data-nl="Weet je zeker dat je je abonnement wilt annuleren?">
+            {{ 'Weet je zeker dat je je abonnement wilt annuleren?' if current_language == 'nl' else 'Are you sure you want to cancel your membership?' }}
+        </p>
         <div class="warning-box">
             <div class="warning-title">
-                <i class="fas fa-exclamation-circle"></i> Dit gebeurt er:
+                <i class="fas fa-exclamation-circle"></i> 
+                <span data-en="This is what happens:" data-nl="Dit gebeurt er:">
+                    {{ 'Dit gebeurt er:' if current_language == 'nl' else 'This is what happens:' }}
+                </span>
             </div>
             <ul>
+                {% if current_language == 'nl' %}
                 <li>Je abonnement blijft actief tot <strong id="cancelEndDate">{{ user.membership_end.strftime('%d %B %Y') if user.membership_end else 'de einddatum' }}</strong></li>
                 <li>Alle actieve licenties worden ingetrokken</li>
                 <li>Na de einddatum verlies je toegang tot Trading Engine</li>
                 <li>Je ontvangt een bevestiging per e-mail</li>
+                {% else %}
+                <li>Your membership remains active until <strong id="cancelEndDate">{{ user.membership_end.strftime('%B %d, %Y') if user.membership_end else 'the end date' }}</strong></li>
+                <li>All active licenses will be revoked</li>
+                <li>After the end date, you will lose access to Trading Engine</li>
+                <li>You will receive a confirmation email</li>
+                {% endif %}
             </ul>
         </div>
         <div class="modal-actions">
-            <button class="btn btn-outline" onclick="closeCancelModal()">Behouden</button>
+            <button class="btn btn-outline" onclick="closeCancelModal()">
+                <span data-en="Keep Membership" data-nl="Behouden">{{ 'Behouden' if current_language == 'nl' else 'Keep Membership' }}</span>
+            </button>
             <button class="btn btn-danger" id="cancelBtn" onclick="confirmCancelMembership()">
-                <i class="fas fa-times-circle"></i> Definitief annuleren
+                <i class="fas fa-times-circle"></i> 
+                <span data-en="Cancel Permanently" data-nl="Definitief Annuleren">
+                    {{ 'Definitief Annuleren' if current_language == 'nl' else 'Cancel Permanently' }}
+                </span>
             </button>
         </div>
     </div>
@@ -832,13 +1102,87 @@
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
-    <p id="loadingMessage">Bezig met verwerken…</p>
+    <p id="loadingMessage" data-en="Processing..." data-nl="Bezig met verwerken…">
+        {{ 'Bezig met verwerken…' if current_language == 'nl' else 'Processing...' }}
+    </p>
 </div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
+    // ==========================================
+    // LANGUAGE MANAGEMENT
+    // ==========================================
+    let currentLanguage = '{{ current_language }}';
+
+    function setLanguage(lang) {
+        if (lang === currentLanguage) return;
+        
+        console.log('[LANG] Switching to:', lang);
+        
+        fetch('/api/set-language', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ language: lang })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('[LANG] Language updated successfully');
+                
+                // Update active button state
+                document.querySelectorAll('.lang-option').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.lang === lang) {
+                        btn.classList.add('active');
+                    }
+                });
+                
+                // Update current language
+                currentLanguage = lang;
+                
+                // Update all translatable elements
+                updateAllTranslations(lang);
+                
+                // Show confirmation
+                const msg = lang === 'nl' ? 'Taal gewijzigd naar Nederlands 🇳🇱' : 'Language changed to English 🇬🇧';
+                showToast(msg, 'success');
+                
+                // Update loading message
+                updateLoadingMessage();
+            } else {
+                console.error('[LANG] Failed to update language');
+                showToast('Failed to change language', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('[LANG] Error:', error);
+            showToast('Failed to change language', 'error');
+        });
+    }
+
+    function updateAllTranslations(lang) {
+        // Find all elements with data-en and data-nl attributes
+        document.querySelectorAll('[data-en][data-nl]').forEach(el => {
+            const translation = el.getAttribute(`data-${lang}`);
+            if (translation) {
+                el.textContent = translation;
+            }
+        });
+    }
+
+    function updateLoadingMessage() {
+        const loadingMsg = document.getElementById('loadingMessage');
+        if (loadingMsg) {
+            loadingMsg.textContent = currentLanguage === 'nl' ? 'Bezig met verwerken…' : 'Processing...';
+        }
+    }
+
     // ==========================================
     // LICENSE REVEAL
     // ==========================================
@@ -854,7 +1198,8 @@
     function copyToClipboard(text) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(() => {
-                showToast('Licentie gekopieerd! ✓', 'success');
+                const msg = currentLanguage === 'nl' ? 'Licentie gekopieerd! ✓' : 'License copied! ✓';
+                showToast(msg, 'success');
             }).catch(() => {
                 fallbackCopy(text);
             });
@@ -872,9 +1217,11 @@
         textarea.select();
         try {
             document.execCommand('copy');
-            showToast('Licentie gekopieerd! ✓', 'success');
+            const msg = currentLanguage === 'nl' ? 'Licentie gekopieerd! ✓' : 'License copied! ✓';
+            showToast(msg, 'success');
         } catch (err) {
-            showToast('Kopiëren mislukt', 'error');
+            const msg = currentLanguage === 'nl' ? 'Kopiëren mislukt' : 'Failed to copy';
+            showToast(msg, 'error');
         }
         document.body.removeChild(textarea);
     }
@@ -907,7 +1254,7 @@
     // LICENSE GENERATION
     // ==========================================
     function confirmGenerateLicense() {
-        console.log('[DEBUG] Licentie genereren gestart');
+        console.log('[DEBUG] License generation started');
         
         closeLicenseModal();
         
@@ -916,11 +1263,11 @@
         const generateBtn = document.getElementById('generateBtn');
         
         loadingOverlay.style.display = 'flex';
-        loadingMessage.textContent = 'Licentiesleutel genereren…';
+        loadingMessage.textContent = currentLanguage === 'nl' ? 'Licentiesleutel genereren…' : 'Generating license key…';
         
         if (generateBtn) {
             generateBtn.disabled = true;
-            generateBtn.textContent = 'Genereren...';
+            generateBtn.textContent = currentLanguage === 'nl' ? 'Genereren...' : 'Generating...';
         }
         
         fetch('/generate-license', {
@@ -934,12 +1281,12 @@
         .then(response => {
             if (!response.ok) {
                 return response.json().then(data => {
-                    throw new Error(data.error || `Server fout (${response.status})`);
+                    throw new Error(data.error || `Server error (${response.status})`);
                 }).catch(err => {
                     if (err.message && !err.message.includes('Unexpected')) {
                         throw err;
                     }
-                    throw new Error(`Server fout (${response.status})`);
+                    throw new Error(`Server error (${response.status})`);
                 });
             }
             return response.json();
@@ -948,27 +1295,30 @@
             loadingOverlay.style.display = 'none';
             
             if (data.success) {
-                console.log('[DEBUG] Licentie succesvol gegenereerd!');
-                showToast('Licentie gegenereerd! 🎉', 'success');
+                console.log('[DEBUG] License generated successfully!');
+                const msg = currentLanguage === 'nl' ? 'Licentie gegenereerd! 🎉' : 'License generated! 🎉';
+                showToast(msg, 'success');
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
             } else {
-                console.error('[DEBUG] Licentie generatie mislukt:', data.error);
-                showToast(data.error || 'Kon licentie niet genereren', 'error');
+                console.error('[DEBUG] License generation failed:', data.error);
+                const msg = currentLanguage === 'nl' ? 'Kon licentie niet genereren' : 'Failed to generate license';
+                showToast(data.error || msg, 'error');
                 if (generateBtn) {
                     generateBtn.disabled = false;
-                    generateBtn.textContent = 'Genereer';
+                    generateBtn.textContent = currentLanguage === 'nl' ? 'Genereer' : 'Generate';
                 }
             }
         })
         .catch(error => {
             console.error('[DEBUG] Fetch error:', error);
             loadingOverlay.style.display = 'none';
-            showToast(error.message || 'Netwerkfout. Probeer opnieuw.', 'error');
+            const msg = currentLanguage === 'nl' ? 'Netwerkfout. Probeer opnieuw.' : 'Network error. Please try again.';
+            showToast(error.message || msg, 'error');
             if (generateBtn) {
                 generateBtn.disabled = false;
-                generateBtn.textContent = 'Genereer';
+                generateBtn.textContent = currentLanguage === 'nl' ? 'Genereer' : 'Generate';
             }
         });
     }
@@ -977,7 +1327,7 @@
     // MEMBERSHIP CANCELLATION
     // ==========================================
     function confirmCancelMembership() {
-        console.log('[DEBUG] Annulering abonnement gestart');
+        console.log('[DEBUG] Membership cancellation started');
         
         const loadingOverlay = document.getElementById('loadingOverlay');
         const loadingMessage = document.getElementById('loadingMessage');
@@ -985,11 +1335,11 @@
         
         closeCancelModal();
         loadingOverlay.style.display = 'flex';
-        loadingMessage.textContent = 'Abonnement annuleren…';
+        loadingMessage.textContent = currentLanguage === 'nl' ? 'Abonnement annuleren…' : 'Cancelling membership…';
         
         if (cancelBtn) {
             cancelBtn.disabled = true;
-            cancelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Annuleren...';
+            cancelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (currentLanguage === 'nl' ? 'Annuleren...' : 'Cancelling...');
         }
         
         fetch('/cancel-membership', {
@@ -1003,12 +1353,12 @@
         .then(response => {
             if (!response.ok) {
                 return response.json().then(data => {
-                    throw new Error(data.error || `Server fout (${response.status})`);
+                    throw new Error(data.error || `Server error (${response.status})`);
                 }).catch(err => {
                     if (err.message && !err.message.includes('Unexpected')) {
                         throw err;
                     }
-                    throw new Error(`Server fout (${response.status})`);
+                    throw new Error(`Server error (${response.status})`);
                 });
             }
             return response.json();
@@ -1017,27 +1367,38 @@
             loadingOverlay.style.display = 'none';
             
             if (data.success) {
-                console.log('[DEBUG] Abonnement succesvol geannuleerd!');
-                showToast('Abonnement geannuleerd. Bevestiging per e-mail verzonden. 📧', 'success');
+                console.log('[DEBUG] Membership cancelled successfully!');
+                const msg = currentLanguage === 'nl' 
+                    ? 'Abonnement geannuleerd. Bevestiging per e-mail verzonden. 📧' 
+                    : 'Membership cancelled. Confirmation email sent. 📧';
+                showToast(msg, 'success');
                 setTimeout(() => {
                     window.location.reload();
                 }, 2000);
             } else {
-                console.error('[DEBUG] Annulering mislukt:', data.error);
-                showToast(data.error || 'Kon abonnement niet annuleren', 'error');
+                console.error('[DEBUG] Cancellation failed:', data.error);
+                const msg = currentLanguage === 'nl' 
+                    ? 'Kon abonnement niet annuleren' 
+                    : 'Failed to cancel membership';
+                showToast(data.error || msg, 'error');
                 if (cancelBtn) {
                     cancelBtn.disabled = false;
-                    cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> Definitief annuleren';
+                    cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + 
+                        (currentLanguage === 'nl' ? 'Definitief annuleren' : 'Cancel Permanently');
                 }
             }
         })
         .catch(error => {
             console.error('[DEBUG] Fetch error:', error);
             loadingOverlay.style.display = 'none';
-            showToast(error.message || 'Netwerkfout. Probeer opnieuw.', 'error');
+            const msg = currentLanguage === 'nl' 
+                ? 'Netwerkfout. Probeer opnieuw.' 
+                : 'Network error. Please try again.';
+            showToast(error.message || msg, 'error');
             if (cancelBtn) {
                 cancelBtn.disabled = false;
-                cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> Definitief annuleren';
+                cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + 
+                    (currentLanguage === 'nl' ? 'Definitief annuleren' : 'Cancel Permanently');
             }
         });
     }
@@ -1049,11 +1410,15 @@
         closeDownloadAllModal();
         const links = document.querySelectorAll('a[href*="download-ea"]');
         if (!links.length) { 
-            showToast('Geen EA\'s beschikbaar', 'warning'); 
+            const msg = currentLanguage === 'nl' ? "Geen EA's beschikbaar" : 'No EAs available';
+            showToast(msg, 'warning'); 
             return; 
         }
         
-        showToast(`${links.length} downloads gestart…`, 'success');
+        const msg = currentLanguage === 'nl' 
+            ? `${links.length} downloads gestart…` 
+            : `Starting ${links.length} downloads…`;
+        showToast(msg, 'success');
         
         links.forEach((link, i) => {
             setTimeout(() => {
@@ -1076,7 +1441,7 @@
         
         const t = document.getElementById('toast');
         if (!t) {
-            console.error('[TOAST] Toast element niet gevonden!');
+            console.error('[TOAST] Toast element not found!');
             alert(msg);
             return;
         }
@@ -1133,26 +1498,29 @@
             const loadingOverlay = document.getElementById('loadingOverlay');
             if (loadingOverlay && loadingOverlay.style.display === 'flex') {
                 loadingOverlay.style.display = 'none';
-                showToast('Bewerking geannuleerd', 'warning');
+                const msg = currentLanguage === 'nl' ? 'Bewerking geannuleerd' : 'Operation cancelled';
+                showToast(msg, 'warning');
                 
                 const generateBtn = document.getElementById('generateBtn');
                 if (generateBtn) {
                     generateBtn.disabled = false;
-                    generateBtn.textContent = 'Genereer';
+                    generateBtn.textContent = currentLanguage === 'nl' ? 'Genereer' : 'Generate';
                 }
                 const cancelBtn = document.getElementById('cancelBtn');
                 if (cancelBtn) {
                     cancelBtn.disabled = false;
-                    cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> Definitief annuleren';
+                    cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + 
+                        (currentLanguage === 'nl' ? 'Definitief annuleren' : 'Cancel Permanently');
                 }
             }
         }
     });
     
     // Debug logging
-    console.log('[DEBUG] Dashboard pagina geladen');
-    console.log('[DEBUG] Gebruikersniveau:', {{ user.get_plan_level() }});
-    console.log('[DEBUG] Heeft licentie:', {{ 'true' if license else 'false' }});
+    console.log('[DEBUG] Dashboard page loaded');
+    console.log('[DEBUG] Current language:', currentLanguage);
+    console.log('[DEBUG] User level:', {{ user.get_plan_level() }});
+    console.log('[DEBUG] Has license:', {{ 'true' if license else 'false' }});
     console.log('[DEBUG] Max accounts:', {{ max_accounts }});
     console.log('[DEBUG] Membership status:', '{{ user.membership_status }}');
 </script>
