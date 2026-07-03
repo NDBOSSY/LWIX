@@ -458,16 +458,18 @@
     .discord-body .info-text strong { display: block; font-size: 0.85rem; }
     .discord-body .info-text span { font-size: 0.78rem; color: var(--ink-muted); }
 
-    /* Support section */
+    /* Support section - moved to bottom */
     .support-section {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 1rem 1.25rem;
+        padding: 1.25rem 1.5rem;
         background: linear-gradient(135deg, #5865F2, #4752C4);
-        border-radius: 12px;
+        border-radius: 16px;
         color: white;
-        margin-bottom: 1.25rem;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: var(--shadow-raised);
     }
     .support-section .support-info {
         display: flex;
@@ -475,22 +477,23 @@
         gap: 0.8rem;
     }
     .support-section .support-icon {
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         background: rgba(255,255,255,0.2);
-        border-radius: 10px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.1rem;
+        font-size: 1.2rem;
+        flex-shrink: 0;
     }
     .support-section .support-text h4 {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         font-weight: 600;
         margin: 0;
     }
     .support-section .support-text p {
-        font-size: 0.78rem;
+        font-size: 0.8rem;
         opacity: 0.9;
         margin: 0.15rem 0 0;
     }
@@ -567,6 +570,15 @@
     .btn-primary:hover { background: var(--accent-hover); }
     .btn-outline { background: var(--surface); border: 1px solid var(--border-strong); color: var(--ink-secondary); }
     .btn-outline:hover { border-color: var(--ink); }
+    .btn-support {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+    .btn-support:hover {
+        background: rgba(255,255,255,0.3);
+        border-color: rgba(255,255,255,0.5);
+    }
     .btn-discord {
         background: #5865F2;
         color: white;
@@ -719,28 +731,6 @@
         </div>
     </div>
 
-    <!-- Support Banner -->
-    <div class="support-section">
-        <div class="support-info">
-            <div class="support-icon">
-                <i class="fab fa-discord"></i>
-            </div>
-            <div class="support-text">
-                <h4 data-en="Need Help?" data-nl="Hulp nodig?">
-                    {{ 'Hulp nodig?' if current_language == 'nl' else 'Need Help?' }}
-                </h4>
-                <p data-en="Have questions or need support? Join our Discord!" 
-                   data-nl="Heb je vragen of ondersteuning nodig? Join onze Discord!">
-                    {{ 'Heb je vragen of ondersteuning nodig? Join onze Discord!' if current_language == 'nl' else 'Have questions or need support? Join our Discord!' }}
-                </p>
-            </div>
-        </div>
-        <a href="{{ discord_invite }}" target="_blank" class="btn btn-discord">
-            <i class="fab fa-discord"></i> 
-            <span data-en="Open Discord" data-nl="Open Discord">Open Discord</span>
-        </a>
-    </div>
-
     <!-- KPI cards -->
     <div class="kpi-grid">
         <div class="kpi-card color-1">
@@ -792,14 +782,20 @@
                     <span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_start.strftime('%d %b %Y') if user.membership_start else 'N/B' }}</span>
                 </div>
                 <div class="row-item">
-                    <span class="key" data-en="Access Until" data-nl="Toegang Tot">{{ 'Toegang Tot' if current_language == 'nl' else 'Access Until' }}</span>
+                    <span class="key">
+                        {% if user.membership_status == 'cancelled' %}
+                            <span data-en="Access Until" data-nl="Toegang Tot">{{ 'Toegang Tot' if current_language == 'nl' else 'Access Until' }}</span>
+                        {% else %}
+                            <span data-en="Renews On" data-nl="Verlengt Op">{{ 'Verlengt Op' if current_language == 'nl' else 'Renews On' }}</span>
+                        {% endif %}
+                    </span>
                     <span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_end.strftime('%d %b %Y') if user.membership_end else 'N/B' }}</span>
                 </div>
                 <div class="row-item">
                     <span class="key" data-en="Status" data-nl="Status">{{ 'Status' if current_language == 'nl' else 'Status' }}</span>
                     <span class="val">
                         {% if user.membership_status == 'active' %}
-                        <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'ACTIEF' if current_language == 'nl' else 'ACTIVE' }}</span>
+                        <span class="pill pill-green"><i class="fas fa-sync-alt fa-spin" style="font-size:6px;"></i> {{ 'ACTIEF' if current_language == 'nl' else 'ACTIVE' }}</span>
                         {% elif user.membership_status == 'cancelled' %}
                         <span class="pill pill-orange"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'GEANNULEERD' if current_language == 'nl' else 'CANCELLED' }}</span>
                         {% else %}
@@ -825,12 +821,12 @@
                     </div>
 
                     {% if user.membership_status == 'active' %}
-                    <!-- Active membership - show cancel option with corrected messaging -->
+                    <!-- Active membership - auto-renews, show cancel option -->
                     <div class="retain-info">
-                        <i class="fas fa-check-circle"></i>
-                        <span data-en="Cancelling stops auto-renewal. You keep full access until your paid period ends." 
-                              data-nl="Annuleren stopt automatische verlenging. Je behoudt volledige toegang tot je betaalde periode eindigt.">
-                            {{ 'Annuleren stopt automatische verlenging. Je behoudt volledige toegang tot je betaalde periode eindigt.' if current_language == 'nl' else 'Cancelling stops auto-renewal. You keep full access until your paid period ends.' }}
+                        <i class="fas fa-sync-alt"></i>
+                        <span data-en="Your subscription auto-renews. Cancelling stops auto-renewal but you keep full access until the paid period ends." 
+                              data-nl="Je abonnement wordt automatisch verlengd. Annuleren stopt automatische verlenging maar je behoudt volledige toegang tot je betaalde periode eindigt.">
+                            {{ 'Je abonnement wordt automatisch verlengd. Annuleren stopt automatische verlenging maar je behoudt volledige toegang tot je betaalde periode eindigt.' if current_language == 'nl' else 'Your subscription auto-renews. Cancelling stops auto-renewal but you keep full access until the paid period ends.' }}
                         </span>
                     </div>
                     <button class="btn btn-danger" onclick="showCancelModal()">
@@ -840,7 +836,7 @@
                         </span>
                     </button>
                     {% elif user.membership_status == 'cancelled' %}
-                    <!-- Already cancelled - show status message -->
+                    <!-- Already cancelled - shows access end info -->
                     <div class="already-cancelled">
                         <i class="fas fa-info-circle"></i>
                         <span data-en="Auto-renewal is cancelled. Your access continues until the end date shown above." 
@@ -1045,6 +1041,30 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- Support Section - Moved to bottom -->
+    <div class="support-section">
+        <div class="support-info">
+            <div class="support-icon">
+                <i class="fas fa-headset"></i>
+            </div>
+            <div class="support-text">
+                <h4 data-en="Need Help?" data-nl="Hulp nodig?">
+                    {{ 'Hulp nodig?' if current_language == 'nl' else 'Need Help?' }}
+                </h4>
+                <p data-en="Have questions or need support? We're here to help!" 
+                   data-nl="Heb je vragen of ondersteuning nodig? We staan voor je klaar!">
+                    {{ 'Heb je vragen of ondersteuning nodig? We staan voor je klaar!' if current_language == 'nl' else "Have questions or need support? We're here to help!" }}
+                </p>
+            </div>
+        </div>
+        <a href="mailto:support@tradingengine.nl" class="btn btn-support">
+            <i class="fas fa-envelope"></i> 
+            <span data-en="Contact Us" data-nl="Contact Opnemen">
+                {{ 'Contact Opnemen' if current_language == 'nl' else 'Contact Us' }}
+            </span>
+        </a>
+    </div>
 </div>
 
 <!-- License generation modal -->
@@ -1092,7 +1112,7 @@
     </div>
 </div>
 
-<!-- Cancel membership modal - CORRECTED: Stop auto-renewal, keep access -->
+<!-- Cancel membership modal -->
 <div class="modal-overlay" id="cancelModal">
     <div class="modal-box">
         <h3>
@@ -1389,7 +1409,7 @@
     }
 
     // ==========================================
-    // MEMBERSHIP CANCELLATION - FIXED
+    // MEMBERSHIP CANCELLATION
     // ==========================================
     function confirmCancelMembership() {
         console.log('[DEBUG] Membership cancellation started');
