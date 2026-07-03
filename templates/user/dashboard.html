@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}
-{% if current_language == 'nl' %}Dashboard{% else %}Dashboard{% endif %} - Trading Engine
-{% endblock %}
+{% block title %}Dashboard - Trading Engine{% endblock %}
 
 {% block extra_css %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -126,7 +124,7 @@
         font-size: 0.75rem;
     }
 
-    /* ---- KPI cards ---- */
+    /* ---- KPI cards with background colors ---- */
     .kpi-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -163,11 +161,13 @@
         font-size: 0.75rem;
         opacity: 0.7;
     }
+    /* card color variants */
     .kpi-card.color-1 { background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #1e3a8a; }
     .kpi-card.color-2 { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #065f46; }
     .kpi-card.color-3 { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
     .kpi-card.color-4 { background: linear-gradient(135deg, #fce7f3, #fbcfe8); color: #831843; }
 
+    /* ---- 2col ---- */
     .grid-2 {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -176,6 +176,7 @@
     }
     @media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
 
+    /* panel */
     .panel {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -232,6 +233,7 @@
     .pill-neutral { background: var(--surface-sunken); color: var(--ink-muted); border: 1px solid var(--border); }
     .pill-orange { background: #fff3e0; color: var(--orange); }
 
+    /* license */
     .license-box {
         background: var(--surface-sunken);
         border: 1px solid var(--border);
@@ -274,6 +276,7 @@
     }
     .license-box .key-footer strong { font-family: 'JetBrains Mono', monospace; color: var(--ink); font-weight: 700; }
 
+    /* License accounts list */
     .license-accounts {
         margin-top: 0.75rem;
         padding-top: 0.75rem;
@@ -348,6 +351,7 @@
         color: var(--ink-soft);
     }
 
+    /* EA table */
     .ea-table {
         width: 100%;
         border-collapse: collapse;
@@ -432,6 +436,28 @@
     }
     .upgrade-note a { color: var(--amber); font-weight: 700; text-decoration: underline; }
 
+    /* discord */
+    .discord-body {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+    .discord-body .info {
+        display: flex; align-items: center; gap: 0.8rem;
+    }
+    .discord-body .discord-icon {
+        width: 42px; height: 42px;
+        border-radius: 12px;
+        background: #5865F2;
+        color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem;
+    }
+    .discord-body .info-text strong { display: block; font-size: 0.85rem; }
+    .discord-body .info-text span { font-size: 0.78rem; color: var(--ink-muted); }
+
     /* Support section */
     .support-section {
         display: flex;
@@ -489,6 +515,33 @@
         margin-bottom: 0.75rem;
         line-height: 1.5;
     }
+    .membership-actions .retain-info {
+        background: var(--green-light);
+        border: 1px solid #d1fae5;
+        border-radius: 8px;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.78rem;
+        color: var(--green);
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .membership-actions .retain-info i {
+        flex-shrink: 0;
+        margin-top: 0.15rem;
+    }
+    .membership-actions .already-cancelled {
+        background: #fff3e0;
+        border: 1px solid #ffe0b2;
+        border-radius: 8px;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.78rem;
+        color: var(--orange);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
     .btn-danger {
         background: var(--red);
         color: white;
@@ -524,28 +577,6 @@
         border-color: #4752C4;
     }
 
-    /* discord */
-    .discord-body {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-    .discord-body .info {
-        display: flex; align-items: center; gap: 0.8rem;
-    }
-    .discord-body .discord-icon {
-        width: 42px; height: 42px;
-        border-radius: 12px;
-        background: #5865F2;
-        color: white;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.2rem;
-    }
-    .discord-body .info-text strong { display: block; font-size: 0.85rem; }
-    .discord-body .info-text span { font-size: 0.78rem; color: var(--ink-muted); }
-
     /* modal */
     .modal-overlay {
         display: none; position: fixed; inset: 0;
@@ -567,28 +598,44 @@
     .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
     .modal-box p { color: var(--ink-muted); margin-bottom: 1.2rem; font-size: 0.85rem; }
     .modal-box .warning-box {
-        background: var(--red-light);
-        border: 1px solid #f5c6cb;
+        background: var(--amber-light);
+        border: 1px solid #ffe0b2;
         border-radius: 8px;
         padding: 0.75rem 1rem;
         margin-bottom: 1.2rem;
     }
     .modal-box .warning-box .warning-title {
         font-weight: 600;
-        color: var(--red);
+        color: var(--amber);
         font-size: 0.8rem;
         display: flex;
         align-items: center;
         gap: 0.4rem;
         margin-bottom: 0.3rem;
     }
-    .modal-box .warning-box ul {
+    .modal-box .info-box {
+        background: var(--green-light);
+        border: 1px solid #d1fae5;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.2rem;
+    }
+    .modal-box .info-box .info-title {
+        font-weight: 600;
+        color: var(--green);
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-bottom: 0.3rem;
+    }
+    .modal-box ul {
         margin: 0;
         padding-left: 1.2rem;
         font-size: 0.78rem;
         color: var(--ink-secondary);
     }
-    .modal-box .warning-box ul li {
+    .modal-box ul li {
         margin-bottom: 0.15rem;
     }
     .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
@@ -624,6 +671,7 @@
 
     .fa-fw { width: 1.1rem; text-align: center; }
 
+    /* Error toast styling */
     .toast.error { background: var(--red); }
     .toast.success { background: var(--green); }
     .toast.warning { background: var(--amber); }
@@ -706,14 +754,7 @@
                 {{ 'Abonnement' if current_language == 'nl' else 'Subscription' }}
             </div>
             <div class="value" style="font-size:1.1rem; font-weight:600;">
-                {% if current_language == 'nl' %}
-                    {% if user.subscription_type == 'lifetime' %}Levenslang
-                    {% elif user.subscription_type == 'monthly' %}Maandelijks
-                    {% elif user.subscription_type == 'yearly' %}Jaarlijks
-                    {% else %}{{ user.subscription_type|title or 'Standaard' }}{% endif %}
-                {% else %}
-                    {{ user.subscription_type|title or 'Standard' }}
-                {% endif %}
+                {{ user.get_subscription_type_display(current_language) }}
             </div>
         </div>
         <div class="kpi-card color-3">
@@ -744,23 +785,14 @@
                 </div>
                 <div class="row-item">
                     <span class="key" data-en="Subscription Type" data-nl="Abonnementstype">{{ 'Abonnementstype' if current_language == 'nl' else 'Subscription Type' }}</span>
-                    <span class="val">
-                        {% if current_language == 'nl' %}
-                            {% if user.subscription_type == 'lifetime' %}Levenslang
-                            {% elif user.subscription_type == 'monthly' %}Maandelijks
-                            {% elif user.subscription_type == 'yearly' %}Jaarlijks
-                            {% else %}{{ user.subscription_type|title or 'Standaard' }}{% endif %}
-                        {% else %}
-                            {{ user.subscription_type|title or 'Standard' }}
-                        {% endif %}
-                    </span>
+                    <span class="val">{{ user.get_subscription_type_display(current_language) }}</span>
                 </div>
                 <div class="row-item">
                     <span class="key" data-en="Member Since" data-nl="Lid Sinds">{{ 'Lid Sinds' if current_language == 'nl' else 'Member Since' }}</span>
                     <span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_start.strftime('%d %b %Y') if user.membership_start else 'N/B' }}</span>
                 </div>
                 <div class="row-item">
-                    <span class="key" data-en="Expires On" data-nl="Verloopt Op">{{ 'Verloopt Op' if current_language == 'nl' else 'Expires On' }}</span>
+                    <span class="key" data-en="Access Until" data-nl="Toegang Tot">{{ 'Toegang Tot' if current_language == 'nl' else 'Access Until' }}</span>
                     <span class="val" style="font-family:'JetBrains Mono', monospace;">{{ user.membership_end.strftime('%d %b %Y') if user.membership_end else 'N/B' }}</span>
                 </div>
                 <div class="row-item">
@@ -779,44 +811,45 @@
                 <div class="row-item">
                     <span class="key" data-en="Days Remaining" data-nl="Resterende Dagen">{{ 'Resterende Dagen' if current_language == 'nl' else 'Days Remaining' }}</span>
                     <span class="val" style="font-family:'JetBrains Mono', monospace;">
-                        {% if current_language == 'nl' %}
-                            {{ days_remaining }} dagen
-                        {% else %}
-                            {{ days_remaining }} days
-                        {% endif %}
+                        {{ days_remaining }} {{ 'dagen' if current_language == 'nl' else 'days' }}
                     </span>
                 </div>
                 {% endif %}
 
                 <!-- Membership Management -->
-                {% if user.membership_status == 'active' %}
                 <div class="membership-actions">
                     <div class="section-title"><i class="fas fa-cog fa-fw"></i> 
                         <span data-en="Manage Membership" data-nl="Abonnement Beheren">
                             {{ 'Abonnement Beheren' if current_language == 'nl' else 'Manage Membership' }}
                         </span>
                     </div>
-                    <div class="cancel-info">
-                        {% if current_language == 'nl' %}
-                            {% if user.membership_end %}
-                            Je abonnement blijft actief tot <strong>{{ user.membership_end.strftime('%d %B %Y') }}</strong>.
-                            {% endif %}
-                            Bij annulering worden je licenties ingetrokken en verlies je toegang tot Trading Engine.
-                        {% else %}
-                            {% if user.membership_end %}
-                            Your membership remains active until <strong>{{ user.membership_end.strftime('%B %d, %Y') }}</strong>.
-                            {% endif %}
-                            Upon cancellation, your licenses will be revoked and you will lose access to Trading Engine.
-                        {% endif %}
+
+                    {% if user.membership_status == 'active' %}
+                    <!-- Active membership - show cancel option with corrected messaging -->
+                    <div class="retain-info">
+                        <i class="fas fa-check-circle"></i>
+                        <span data-en="Cancelling stops auto-renewal. You keep full access until your paid period ends." 
+                              data-nl="Annuleren stopt automatische verlenging. Je behoudt volledige toegang tot je betaalde periode eindigt.">
+                            {{ 'Annuleren stopt automatische verlenging. Je behoudt volledige toegang tot je betaalde periode eindigt.' if current_language == 'nl' else 'Cancelling stops auto-renewal. You keep full access until your paid period ends.' }}
+                        </span>
                     </div>
                     <button class="btn btn-danger" onclick="showCancelModal()">
                         <i class="fas fa-times-circle"></i> 
-                        <span data-en="Cancel Membership" data-nl="Abonnement Annuleren">
-                            {{ 'Abonnement Annuleren' if current_language == 'nl' else 'Cancel Membership' }}
+                        <span data-en="Cancel Auto-Renewal" data-nl="Abonnement Annuleren">
+                            {{ 'Abonnement Annuleren' if current_language == 'nl' else 'Cancel Auto-Renewal' }}
                         </span>
                     </button>
+                    {% elif user.membership_status == 'cancelled' %}
+                    <!-- Already cancelled - show status message -->
+                    <div class="already-cancelled">
+                        <i class="fas fa-info-circle"></i>
+                        <span data-en="Auto-renewal is cancelled. Your access continues until the end date shown above." 
+                              data-nl="Automatische verlenging is geannuleerd. Je toegang loopt door tot de einddatum hierboven.">
+                            {{ 'Automatische verlenging is geannuleerd. Je toegang loopt door tot de einddatum hierboven.' if current_language == 'nl' else 'Auto-renewal is cancelled. Your access continues until the end date shown above.' }}
+                        </span>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
         </div>
 
@@ -847,6 +880,7 @@
                     </div>
                 </div>
 
+                <!-- Display activated accounts -->
                 <div class="license-accounts">
                     <div class="accounts-title">
                         <i class="fas fa-server fa-fw"></i> 
@@ -912,7 +946,12 @@
             <tbody>
                 {% for ea in ea_files %}
                 <tr>
-                    <td><div class="file-cell"><div class="file-icon"><i class="fas fa-file-code"></i></div><span class="fname">{{ ea.filename }}</span></div></td>
+                    <td>
+                        <div class="file-cell">
+                            <div class="file-icon"><i class="fas fa-file-code"></i></div>
+                            <span class="fname">{{ ea.filename }}</span>
+                        </div>
+                    </td>
                     <td class="num">v{{ ea.version }}</td>
                     <td class="num">{{ (ea.file_size / 1024)|round(1) if ea.file_size else '—' }} KB</td>
                     <td class="num">LVL {{ ea.plan_level }}</td>
@@ -962,7 +1001,9 @@
     <!-- discord -->
     <div class="panel">
         <div class="panel-head">
-            <div class="title"><i class="fab fa-discord"></i><span data-en="Discord Community" data-nl="Discord Community">Discord Community</span></div>
+            <div class="title"><i class="fab fa-discord"></i>
+                <span data-en="Discord Community" data-nl="Discord Community">Discord Community</span>
+            </div>
         </div>
         <div class="panel-body discord-body">
             <div class="info">
@@ -1051,48 +1092,72 @@
     </div>
 </div>
 
-<!-- Cancel membership modal -->
+<!-- Cancel membership modal - CORRECTED: Stop auto-renewal, keep access -->
 <div class="modal-overlay" id="cancelModal">
     <div class="modal-box">
         <h3>
-            <i class="fas fa-exclamation-triangle" style="color: var(--red);"></i> 
-            <span data-en="Cancel Membership" data-nl="Abonnement Annuleren">
-                {{ 'Abonnement Annuleren' if current_language == 'nl' else 'Cancel Membership' }}
+            <i class="fas fa-exclamation-triangle" style="color: var(--amber);"></i> 
+            <span data-en="Cancel Auto-Renewal" data-nl="Abonnement Annuleren">
+                {{ 'Abonnement Annuleren' if current_language == 'nl' else 'Cancel Auto-Renewal' }}
             </span>
         </h3>
-        <p data-en="Are you sure you want to cancel your membership?" 
-           data-nl="Weet je zeker dat je je abonnement wilt annuleren?">
-            {{ 'Weet je zeker dat je je abonnement wilt annuleren?' if current_language == 'nl' else 'Are you sure you want to cancel your membership?' }}
+        <p data-en="Are you sure you want to cancel auto-renewal?" 
+           data-nl="Weet je zeker dat je automatische verlenging wilt stopzetten?">
+            {{ 'Weet je zeker dat je automatische verlenging wilt stopzetten?' if current_language == 'nl' else 'Are you sure you want to cancel auto-renewal?' }}
         </p>
-        <div class="warning-box">
-            <div class="warning-title">
-                <i class="fas fa-exclamation-circle"></i> 
-                <span data-en="This is what happens:" data-nl="Dit gebeurt er:">
-                    {{ 'Dit gebeurt er:' if current_language == 'nl' else 'This is what happens:' }}
+        
+        <!-- What you keep (green box) -->
+        <div class="info-box">
+            <div class="info-title">
+                <i class="fas fa-check-circle"></i> 
+                <span data-en="What you keep:" data-nl="Wat je behoudt:">
+                    {{ 'Wat je behoudt:' if current_language == 'nl' else 'What you keep:' }}
                 </span>
             </div>
             <ul>
                 {% if current_language == 'nl' %}
-                <li>Je abonnement blijft actief tot <strong id="cancelEndDate">{{ user.membership_end.strftime('%d %B %Y') if user.membership_end else 'de einddatum' }}</strong></li>
-                <li>Alle actieve licenties worden ingetrokken</li>
-                <li>Na de einddatum verlies je toegang tot Trading Engine</li>
-                <li>Je ontvangt een bevestiging per e-mail</li>
+                <li>Volledige toegang tot <strong id="cancelEndDateNl">{{ user.membership_end.strftime('%d %B %Y') if user.membership_end else 'de einddatum' }}</strong></li>
+                <li>Al je actieve licenties blijven werken</li>
+                <li>Je kunt je Expert Advisors blijven gebruiken</li>
+                <li>Toegang tot alle downloads blijft behouden</li>
                 {% else %}
-                <li>Your membership remains active until <strong id="cancelEndDate">{{ user.membership_end.strftime('%B %d, %Y') if user.membership_end else 'the end date' }}</strong></li>
-                <li>All active licenses will be revoked</li>
-                <li>After the end date, you will lose access to Trading Engine</li>
-                <li>You will receive a confirmation email</li>
+                <li>Full access until <strong id="cancelEndDateEn">{{ user.membership_end.strftime('%B %d, %Y') if user.membership_end else 'the end date' }}</strong></li>
+                <li>All active licenses continue working</li>
+                <li>You can keep using your Expert Advisors</li>
+                <li>Access to all downloads remains</li>
                 {% endif %}
             </ul>
         </div>
+        
+        <!-- What this means (amber box) -->
+        <div class="warning-box">
+            <div class="warning-title">
+                <i class="fas fa-exclamation-circle"></i> 
+                <span data-en="This means:" data-nl="Dit betekent:">
+                    {{ 'Dit betekent:' if current_language == 'nl' else 'This means:' }}
+                </span>
+            </div>
+            <ul>
+                {% if current_language == 'nl' %}
+                <li>Je abonnement wordt niet automatisch verlengd</li>
+                <li>Na de einddatum verloopt je toegang</li>
+                <li>Je kunt later altijd een nieuw abonnement afsluiten</li>
+                {% else %}
+                <li>Your subscription will not auto-renew</li>
+                <li>Access expires after the end date</li>
+                <li>You can always sign up for a new subscription later</li>
+                {% endif %}
+            </ul>
+        </div>
+        
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="closeCancelModal()">
-                <span data-en="Keep Membership" data-nl="Behouden">{{ 'Behouden' if current_language == 'nl' else 'Keep Membership' }}</span>
+                <span data-en="Keep Subscription" data-nl="Behouden">{{ 'Behouden' if current_language == 'nl' else 'Keep Subscription' }}</span>
             </button>
             <button class="btn btn-danger" id="cancelBtn" onclick="confirmCancelMembership()">
                 <i class="fas fa-times-circle"></i> 
-                <span data-en="Cancel Permanently" data-nl="Definitief Annuleren">
-                    {{ 'Definitief Annuleren' if current_language == 'nl' else 'Cancel Permanently' }}
+                <span data-en="Cancel Auto-Renewal" data-nl="Definitief Annuleren">
+                    {{ 'Definitief Annuleren' if current_language == 'nl' else 'Cancel Auto-Renewal' }}
                 </span>
             </button>
         </div>
@@ -1149,12 +1214,12 @@
                 // Update all translatable elements
                 updateAllTranslations(lang);
                 
+                // Update loading message
+                updateLoadingMessage();
+                
                 // Show confirmation
                 const msg = lang === 'nl' ? 'Taal gewijzigd naar Nederlands 🇳🇱' : 'Language changed to English 🇬🇧';
                 showToast(msg, 'success');
-                
-                // Update loading message
-                updateLoadingMessage();
             } else {
                 console.error('[LANG] Failed to update language');
                 showToast('Failed to change language', 'error');
@@ -1324,7 +1389,7 @@
     }
 
     // ==========================================
-    // MEMBERSHIP CANCELLATION
+    // MEMBERSHIP CANCELLATION - FIXED
     // ==========================================
     function confirmCancelMembership() {
         console.log('[DEBUG] Membership cancellation started');
@@ -1369,8 +1434,8 @@
             if (data.success) {
                 console.log('[DEBUG] Membership cancelled successfully!');
                 const msg = currentLanguage === 'nl' 
-                    ? 'Abonnement geannuleerd. Bevestiging per e-mail verzonden. 📧' 
-                    : 'Membership cancelled. Confirmation email sent. 📧';
+                    ? 'Abonnement geannuleerd. Je behoudt volledige toegang! 📧' 
+                    : 'Membership cancelled. You retain full access! 📧';
                 showToast(msg, 'success');
                 setTimeout(() => {
                     window.location.reload();
@@ -1384,7 +1449,7 @@
                 if (cancelBtn) {
                     cancelBtn.disabled = false;
                     cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + 
-                        (currentLanguage === 'nl' ? 'Definitief annuleren' : 'Cancel Permanently');
+                        (currentLanguage === 'nl' ? 'Definitief Annuleren' : 'Cancel Auto-Renewal');
                 }
             }
         })
@@ -1398,7 +1463,7 @@
             if (cancelBtn) {
                 cancelBtn.disabled = false;
                 cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + 
-                    (currentLanguage === 'nl' ? 'Definitief annuleren' : 'Cancel Permanently');
+                    (currentLanguage === 'nl' ? 'Definitief Annuleren' : 'Cancel Auto-Renewal');
             }
         });
     }
@@ -1510,7 +1575,7 @@
                 if (cancelBtn) {
                     cancelBtn.disabled = false;
                     cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + 
-                        (currentLanguage === 'nl' ? 'Definitief annuleren' : 'Cancel Permanently');
+                        (currentLanguage === 'nl' ? 'Definitief Annuleren' : 'Cancel Auto-Renewal');
                 }
             }
         }
