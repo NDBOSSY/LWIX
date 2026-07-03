@@ -12,6 +12,9 @@ ACCOUNT SLOT LOGIC:
 FIXED: Proper MT5 account tracking with unique account_number
 FIXED: Unlimited validations (max_validations=None skips the check)
 FIXED: Heartbeats no longer increment validation_count
+ADDED: Language toggle support (English/Nederlands)
+ADDED: Membership cancellation with Dutch confirmation email
+ADDED: "Need Help?" Discord support section
 """
 
 import os
@@ -101,6 +104,12 @@ class Config:
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
+    # Supported languages
+    LANGUAGES = {
+        'en': 'English',
+        'nl': 'Nederlands'
+    }
+
     @staticmethod
     def is_railway():
         return bool(os.getenv("RAILWAY_STATIC_URL"))
@@ -154,6 +163,35 @@ logger.info("=" * 80)
 
 
 # ============================================================================
+# LANGUAGE HELPER
+# ============================================================================
+
+def get_user_language():
+    """Get the user's preferred language"""
+    # Check session first
+    if 'language' in session:
+        return session['language']
+    
+    # Check if user is logged in and has preference
+    if current_user.is_authenticated and hasattr(current_user, 'language_preference'):
+        if current_user.language_preference in Config.LANGUAGES:
+            return current_user.language_preference
+    
+    # Fall back to browser preference
+    browser_lang = request.accept_languages.best_match(Config.LANGUAGES.keys()) if request else 'en'
+    return browser_lang or 'en'
+
+
+@app.context_processor
+def inject_globals():
+    """Make variables available to all templates"""
+    return {
+        'current_language': get_user_language(),
+        'supported_languages': Config.LANGUAGES
+    }
+
+
+# ============================================================================
 # MODELS
 # ============================================================================
 
@@ -185,6 +223,7 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime, nullable=True)
     login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
+    language_preference = db.Column(db.String(5), default='en')
 
     otp_tokens = db.relationship("OTPToken", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     licenses = db.relationship("License", backref="user", lazy="dynamic", cascade="all, delete-orphan")
@@ -222,12 +261,27 @@ class User(UserMixin, db.Model):
             return 3
         return 1
 
-    def get_membership_duration_display(self):
-        if not self.subscription_duration_days: return "Standaard"
-        if self.subscription_type == "lifetime": return "Levenslang"
-        if self.subscription_duration_days >= 365: return f"{self.subscription_duration_days / 365:.0f} Jaar"
-        if self.subscription_duration_days >= 30: return f"{self.subscription_duration_days / 30:.0f} Maand"
-        return f"{self.subscription_duration_days} Dagen"
+    def get_membership_duration_display(self, lang='en'):
+        if not self.subscription_duration_days:
+            return "Standaard" if lang == 'nl' else "Default"
+        if self.subscription_type == "lifetime":
+            return "Levenslang" if lang == 'nl' else "Lifetime"
+        if self.subscription_duration_days >= 365:
+            return f"{self.subscription_duration_days / 365:.0f} Jaar" if lang == 'nl' else f"{self.subscription_duration_days / 365:.0f} Year"
+        if self.subscription_duration_days >= 30:
+            return f"{self.subscription_duration_days / 30:.0f} Maand" if lang == 'nl' else f"{self.subscription_duration_days / 30:.0f} Month"
+        return f"{self.subscription_duration_days} Dagen" if lang == 'nl' else f"{self.subscription_duration_days} Days"
+
+    def get_subscription_type_display(self, lang='en'):
+        if not self.subscription_type:
+            return "Standaard" if lang == 'nl' else "Standard"
+        translations = {
+            'lifetime': {'en': 'Lifetime', 'nl': 'Levenslang'},
+            'monthly': {'en': 'Monthly', 'nl': 'Maandelijks'},
+            'yearly': {'en': 'Yearly', 'nl': 'Jaarlijks'},
+            'standard': {'en': 'Standard', 'nl': 'Standaard'}
+        }
+        return translations.get(self.subscription_type.lower(), {}).get(lang, self.subscription_type.title())
 
     def to_dict(self):
         return {
@@ -235,7 +289,8 @@ class User(UserMixin, db.Model):
             "last_name": self.last_name, "full_name": self.get_full_name(),
             "plan_level": self.get_plan_level(), "membership_status": self.membership_status,
             "plan_name": self.plan_name, "subscription_type": self.subscription_type,
-            "is_active": self.is_membership_active()
+            "is_active": self.is_membership_active(),
+            "language_preference": self.language_preference
         }
 
 
@@ -268,7 +323,6 @@ class License(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     revoked_at = db.Column(db.DateTime, nullable=True)
     validation_count = db.Column(db.Integer, default=0)
-    # FIX: max_validations=None means unlimited — the check is skipped entirely
     max_validations = db.Column(db.Integer, nullable=True, default=None)
     ea_version = db.Column(db.String(20), nullable=True)
 
@@ -281,7 +335,6 @@ class License(db.Model):
             self.status = "expired"
             db.session.commit()
             return False
-        # FIX: only enforce the cap when max_validations is explicitly set
         if self.max_validations is not None and self.validation_count >= self.max_validations:
             return False
         return True
@@ -301,7 +354,7 @@ class LicenseAccount(db.Model):
     __tablename__ = "license_accounts"
     id = db.Column(db.Integer, primary_key=True)
     license_id = db.Column(db.Integer, db.ForeignKey("licenses.id"), nullable=False)
-    account_number = db.Column(db.String(50), nullable=False)  # MT5 account login number
+    account_number = db.Column(db.String(50), nullable=False)
     activated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     sessions = db.relationship("EASession", backref="license_account", lazy="dynamic", cascade="all, delete-orphan")
@@ -463,6 +516,22 @@ def get_plan_level_display(plan_level):
     level_names = {1: "LVL 1", 2: "LVL 2", 3: "LVL 3", 4: "PREMIUM"}
     return level_names.get(plan_level, f"LVL {plan_level}")
 
+def format_date_dutch(date_obj):
+    """Format a date in Dutch: '31 oktober 2026'"""
+    if not date_obj:
+        return "N/B"
+    months_nl = [
+        "januari", "februari", "maart", "april", "mei", "juni",
+        "juli", "augustus", "september", "oktober", "november", "december"
+    ]
+    return f"{date_obj.day} {months_nl[date_obj.month - 1]} {date_obj.year}"
+
+def format_date_english(date_obj):
+    """Format a date in English: 'October 31, 2026'"""
+    if not date_obj:
+        return "N/A"
+    return date_obj.strftime("%B %d, %Y")
+
 
 # ============================================================================
 # AUTO-CLEANUP
@@ -548,6 +617,16 @@ def run_migrations():
                 db.session.commit()
                 logger.info("✅ ea_sessions table created")
 
+            # Add language_preference column if it doesn't exist
+            columns = [col['name'] for col in inspector.get_columns('users')]
+            if 'language_preference' not in columns:
+                logger.info("Adding language_preference column to users table...")
+                db.session.execute(db.text("""
+                    ALTER TABLE users ADD COLUMN language_preference VARCHAR(5) DEFAULT 'en'
+                """))
+                db.session.commit()
+                logger.info("✅ language_preference column added")
+
             # Fix existing licenses with invalid max_accounts
             bad_licenses = License.query.filter(
                 (License.max_accounts == None) | (License.max_accounts <= 0)
@@ -565,7 +644,7 @@ def run_migrations():
                 db.session.commit()
                 logger.info(f"✅ Fixed {len(bad_licenses)} licenses")
 
-            # FIX: Remove validation limits from all existing licenses on every startup
+            # Remove validation limits from all existing licenses on every startup
             capped_licenses = License.query.filter(
                 License.max_validations != None
             ).all()
@@ -637,6 +716,47 @@ def health():
 
 
 # ============================================================================
+# LANGUAGE ROUTES
+# ============================================================================
+
+@app.route("/set-language/<lang>")
+def set_language(lang):
+    """Set the user's preferred language via URL"""
+    if lang in Config.LANGUAGES:
+        session['language'] = lang
+        if current_user.is_authenticated:
+            current_user.language_preference = lang
+            db.session.commit()
+        logger.info(f"[LANG] Language set to: {lang} for user: {current_user.email if current_user.is_authenticated else 'anonymous'}")
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route("/api/set-language", methods=["POST"])
+def api_set_language():
+    """API endpoint to set language preference"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "Invalid request"}), 400
+            
+        lang = data.get('language', 'en')
+        
+        if lang in Config.LANGUAGES:
+            session['language'] = lang
+            if current_user.is_authenticated:
+                current_user.language_preference = lang
+                db.session.commit()
+            
+            logger.info(f"[LANG] API language set to: {lang}")
+            return jsonify({"success": True, "language": lang})
+        
+        return jsonify({"success": False, "error": "Invalid language"}), 400
+    except Exception as e:
+        logger.error(f"[LANG] Error setting language: {e}")
+        return jsonify({"success": False, "error": "Server error"}), 500
+
+
+# ============================================================================
 # LOGIN ROUTES
 # ============================================================================
 
@@ -652,7 +772,7 @@ def user_login():
         try:
             email = validate_email(email).email
         except EmailNotValidError:
-            flash("Ongeldig e-mailadres.", "error")
+            flash("Ongeldig e-mailadres." if get_user_language() == 'nl' else "Invalid email address.", "error")
             return render_template("user/login.html")
 
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
@@ -661,16 +781,18 @@ def user_login():
             return redirect(url_for("admin_password"))
 
         user = User.query.filter_by(email=email).first()
+        lang = get_user_language()
+        
         if not user:
-            flash("Geen account gevonden. Schaf eerst een abonnement aan.", "error")
+            flash("Geen account gevonden. Schaf eerst een abonnement aan." if lang == 'nl' else "No account found. Purchase a plan first.", "error")
             return render_template("user/login.html")
 
         if not user.email_verified:
-            flash("Account niet actief. Voltooi eerst je aankoop.", "error")
+            flash("Account niet actief. Voltooi eerst je aankoop." if lang == 'nl' else "Account not active. Complete purchase first.", "error")
             return render_template("user/login.html")
 
         if user.locked_until and user.locked_until > datetime.utcnow():
-            flash("Account vergrendeld. Probeer later opnieuw.", "error")
+            flash("Account vergrendeld. Probeer later opnieuw." if lang == 'nl' else "Account locked. Try later.", "error")
             return render_template("user/login.html")
 
         try:
@@ -684,19 +806,18 @@ def user_login():
             db.session.add(otp_token)
             db.session.commit()
 
-            send_email_async(
-                "Jouw OTP Code - Trading Engine",
-                [email],
-                f"Jouw OTP code is: {otp}\n\nDeze code is {Config.OTP_EXPIRY_MINUTES} minuten geldig.",
-                f"<h3>Jouw OTP Code</h3><p><strong>{otp}</strong></p><p>Deze code is {Config.OTP_EXPIRY_MINUTES} minuten geldig.</p>"
-            )
+            subject = "Jouw OTP Code - Trading Engine" if lang == 'nl' else "Your OTP - Trading Engine"
+            body = f"Jouw OTP code is: {otp}\n\nDeze code is {Config.OTP_EXPIRY_MINUTES} minuten geldig." if lang == 'nl' else f"Your OTP is: {otp}\n\nThis code expires in {Config.OTP_EXPIRY_MINUTES} minutes."
+            html = f"<h3>Jouw OTP Code</h3><p><strong>{otp}</strong></p><p>Deze code is {Config.OTP_EXPIRY_MINUTES} minuten geldig.</p>" if lang == 'nl' else f"<h3>Your OTP Code</h3><p><strong>{otp}</strong></p><p>This code expires in {Config.OTP_EXPIRY_MINUTES} minutes.</p>"
+            
+            send_email_async(subject, [email], body, html)
 
             session["pending_email"] = email
-            flash("OTP code is verzonden naar je e-mail.", "success")
+            flash("OTP code is verzonden naar je e-mail." if lang == 'nl' else "OTP sent to your email.", "success")
             return redirect(url_for("verify_otp"))
         except Exception as e:
             logger.error(f"[LOGIN] OTP error: {e}", exc_info=True)
-            flash("Kon OTP niet verzenden. Probeer opnieuw.", "error")
+            flash("Kon OTP niet verzenden. Probeer opnieuw." if lang == 'nl' else "Failed to send OTP. Please try again.", "error")
 
     return render_template("user/login.html")
 
@@ -706,10 +827,11 @@ def user_login():
 def admin_password():
     admin_email = session.get("admin_email") or os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
     admin_user = User.query.filter_by(email=admin_email).first()
+    lang = get_user_language()
 
     if admin_user and admin_user.locked_until and admin_user.locked_until > datetime.utcnow():
         session.pop("admin_email", None)
-        flash("Admin account vergrendeld.", "error")
+        flash("Admin account vergrendeld." if lang == 'nl' else "Admin account locked.", "error")
         return redirect(url_for("user_login"))
 
     if request.method == "POST":
@@ -742,19 +864,20 @@ def admin_password():
             session["pending_email"] = admin_email
             session["is_admin_login"] = True
             session.pop("admin_email", None)
-            flash("OTP code verzonden.", "success")
+            flash("OTP code verzonden." if lang == 'nl' else "OTP sent.", "success")
             return redirect(url_for("verify_otp"))
         else:
             if admin_user:
                 admin_user.login_attempts += 1
                 if admin_user.login_attempts >= Config.MAX_LOGIN_ATTEMPTS:
                     admin_user.locked_until = datetime.utcnow() + timedelta(minutes=30)
-                    flash("Account vergrendeld voor 30 minuten.", "error")
+                    flash("Account vergrendeld voor 30 minuten." if lang == 'nl' else "Account locked for 30 minutes.", "error")
                 else:
-                    flash(f"Onjuist wachtwoord. Nog {Config.MAX_LOGIN_ATTEMPTS - admin_user.login_attempts} pogingen.", "error")
+                    remaining = Config.MAX_LOGIN_ATTEMPTS - admin_user.login_attempts
+                    flash(f"Onjuist wachtwoord. Nog {remaining} pogingen." if lang == 'nl' else f"Wrong password. {remaining} attempts left.", "error")
                 db.session.commit()
             else:
-                flash("Ongeldig wachtwoord.", "error")
+                flash("Ongeldig wachtwoord." if lang == 'nl' else "Invalid password.", "error")
 
     return render_template("admin/password.html")
 
@@ -767,32 +890,33 @@ def verify_otp():
         return redirect(url_for("user_login"))
 
     is_admin = session.get("is_admin_login", False)
+    lang = get_user_language()
 
     if request.method == "POST":
         otp_code = request.form.get("otp", "").strip()
         if len(otp_code) != 6:
-            flash("Ongeldige OTP code.", "error")
+            flash("Ongeldige OTP code." if lang == 'nl' else "Invalid OTP code.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
 
         user = User.query.filter_by(email=email).first()
         if not user:
-            flash("Gebruiker niet gevonden.", "error")
+            flash("Gebruiker niet gevonden." if lang == 'nl' else "User not found.", "error")
             return redirect(url_for("user_login"))
 
         otp_token = OTPToken.query.filter_by(user_id=user.id, used=False).order_by(OTPToken.created_at.desc()).first()
         if not otp_token:
-            flash("Geen OTP code gevonden. Vraag een nieuwe aan.", "error")
+            flash("Geen OTP code gevonden. Vraag een nieuwe aan." if lang == 'nl' else "No OTP found. Request a new one.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
 
         if otp_token.attempts >= 3:
             otp_token.used = True
             db.session.commit()
-            flash("Te veel pogingen. Vraag een nieuwe OTP aan.", "error")
+            flash("Te veel pogingen. Vraag een nieuwe OTP aan." if lang == 'nl' else "Too many attempts. Request a new OTP.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
 
         if otp_token.token == otp_code:
             if not otp_token.is_valid():
-                flash("OTP code is verlopen.", "error")
+                flash("OTP code is verlopen." if lang == 'nl' else "OTP code expired.", "error")
                 return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
 
             otp_token.used = True
@@ -808,16 +932,16 @@ def verify_otp():
 
             log_audit(user.id, "login", f"{'Admin' if user.is_admin else 'Gebruiker'} login", request.remote_addr)
 
-            flash(f"Welkom terug, {user.first_name or 'daar'}!", "success")
+            flash(f"Welkom terug, {user.first_name or 'daar'}!" if lang == 'nl' else f"Welcome back, {user.first_name or 'there'}!", "success")
             return redirect(url_for("admin_dashboard") if user.is_admin else url_for("user_dashboard"))
         else:
             otp_token.attempts += 1
             user.login_attempts += 1
             if user.login_attempts >= Config.MAX_LOGIN_ATTEMPTS:
                 user.locked_until = datetime.utcnow() + timedelta(minutes=30)
-                flash("Account vergrendeld voor 30 minuten.", "error")
+                flash("Account vergrendeld voor 30 minuten." if lang == 'nl' else "Account locked for 30 minutes.", "error")
             else:
-                flash("Ongeldige OTP code.", "error")
+                flash("Ongeldige OTP code." if lang == 'nl' else "Invalid OTP code.", "error")
             db.session.commit()
 
     return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
@@ -825,6 +949,7 @@ def verify_otp():
 
 @app.route("/logout")
 def logout():
+    lang = get_user_language()
     if current_user.is_authenticated:
         log_audit(current_user.id, "logout", request.remote_addr)
     logout_user()
@@ -832,7 +957,7 @@ def logout():
     resp = make_response(redirect(url_for("user_login")))
     resp.delete_cookie("session")
     resp.delete_cookie("remember_token")
-    flash("Je bent uitgelogd.", "success")
+    flash("Je bent uitgelogd." if lang == 'nl' else "You have been logged out.", "success")
     return resp
 
 
@@ -849,6 +974,7 @@ def user_dashboard():
     user = current_user
     license = user.get_active_license()
     user_level = user.get_plan_level()
+    lang = get_user_language()
 
     ea_files = EAFile.query.filter(
         EAFile.is_active == True,
@@ -881,7 +1007,6 @@ def user_dashboard():
             db.session.commit()
             max_accounts = default_max
 
-    # Calculate days remaining for membership
     days_remaining = None
     if user.membership_end and user.membership_status == "active":
         delta = user.membership_end - datetime.utcnow()
@@ -901,7 +1026,8 @@ def user_dashboard():
         account_count=account_count,
         max_accounts=max_accounts,
         days_remaining=days_remaining,
-        membership_end_date=user.membership_end
+        membership_end_date=user.membership_end,
+        current_language=lang
     )
 
 
@@ -914,10 +1040,11 @@ def user_dashboard():
 @limiter.limit("3 per day")
 def generate_license():
     logger.info(f"[LICENSE GEN] User: {current_user.email}")
+    lang = get_user_language()
 
     if not current_user.is_membership_active():
         return jsonify({
-            "error": "Actief abonnement vereist",
+            "error": "Actief abonnement vereist" if lang == 'nl' else "Active membership required",
             "debug": {
                 "status": current_user.membership_status,
                 "end_date": current_user.membership_end.isoformat() if current_user.membership_end else None
@@ -925,7 +1052,7 @@ def generate_license():
         }), 403
 
     if current_user.get_active_license():
-        return jsonify({"error": "Je hebt al een actieve licentie"}), 400
+        return jsonify({"error": "Je hebt al een actieve licentie" if lang == 'nl' else "You already have an active license"}), 400
 
     try:
         test_mode = Setting.query.filter_by(key="test_mode").first()
@@ -944,14 +1071,14 @@ def generate_license():
             ea_version="1.0.0",
             license_type=license_type,
             max_accounts=max_accounts,
-            max_validations=None,   # FIX: no validation cap
+            max_validations=None,
             validation_count=0,
         )
 
         db.session.add(lic)
         db.session.commit()
 
-        logger.info(f"[LICENSE GEN] ✅ {lic.mask_license_key()} | max_acc={max_accounts} | level={user_level} | onbeperkte validaties")
+        logger.info(f"[LICENSE GEN] ✅ {lic.mask_license_key()} | max_acc={max_accounts} | level={user_level} | unlimited validations")
 
         log_audit(
             current_user.id, "license_generated",
@@ -959,12 +1086,11 @@ def generate_license():
             request.remote_addr
         )
 
-        send_email_async(
-            "Jouw Licentiesleutel - Trading Engine",
-            [current_user.email],
-            f"Licentiesleutel: {key}\nVerloopt: {lic.expires_at.strftime('%d %B %Y')}\nMax MT5 Accounts: {max_accounts}\n\nBewaar deze sleutel veilig.",
-            f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {lic.expires_at.strftime('%d %B %Y')}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Bewaar deze sleutel veilig.</p>"
-        )
+        subject = "Jouw Licentiesleutel - Trading Engine" if lang == 'nl' else "Your License Key - Trading Engine"
+        body = f"Licentiesleutel: {key}\nVerloopt: {format_date_dutch(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}\n\nBewaar deze sleutel veilig." if lang == 'nl' else f"License Key: {key}\nExpires: {format_date_english(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}\n\nKeep this key safe."
+        html = f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {format_date_dutch(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Bewaar deze sleutel veilig.</p>" if lang == 'nl' else f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Keep this key safe.</p>"
+        
+        send_email_async(subject, [current_user.email], body, html)
 
         return jsonify({
             "success": True,
@@ -977,32 +1103,29 @@ def generate_license():
     except Exception as e:
         logger.error(f"[LICENSE GEN] Error: {e}", exc_info=True)
         db.session.rollback()
-        return jsonify({"error": "Kon licentie niet genereren"}), 500
+        return jsonify({"error": "Kon licentie niet genereren" if lang == 'nl' else "Failed to generate license"}), 500
 
 
 # ============================================================================
-# CANCEL MEMBERSHIP (NEW)
+# CANCEL MEMBERSHIP
 # ============================================================================
 
 @app.route("/cancel-membership", methods=["POST"])
 @login_required
 @limiter.limit("5 per day")
 def cancel_membership():
-    """Cancel the current user's membership with Dutch confirmation email"""
+    """Cancel the current user's membership with bilingual confirmation email"""
     if current_user.is_admin:
-        return jsonify({"error": "Admin accounts kunnen niet op deze manier worden geannuleerd"}), 400
+        return jsonify({"error": "Admin accounts cannot be cancelled this way"}), 400
+
+    lang = get_user_language()
 
     try:
         user = current_user
-
-        # Store the end date before changing status
         membership_end_date = user.membership_end
 
-        # Update membership status to cancelled
-        # Keep the membership_end date as-is so they can still use until that date
         user.membership_status = "cancelled"
 
-        # Revoke any active licenses
         active_licenses = License.query.filter_by(
             user_id=user.id,
             status="active"
@@ -1016,90 +1139,108 @@ def cancel_membership():
 
         db.session.commit()
 
-        # Format the end date in Dutch
-        months_nl = [
-            "januari", "februari", "maart", "april", "mei", "juni",
-            "juli", "augustus", "september", "oktober", "november", "december"
-        ]
+        # Format dates in both languages
+        formatted_date_nl = format_date_dutch(membership_end_date) if membership_end_date else "binnenkort"
+        formatted_date_en = format_date_english(membership_end_date) if membership_end_date else "soon"
 
-        if membership_end_date:
-            day = membership_end_date.day
-            month = months_nl[membership_end_date.month - 1]
-            year = membership_end_date.year
-            formatted_date = f"{day} {month} {year}"
-        else:
-            formatted_date = "binnenkort"
-
-        # Send Dutch cancellation confirmation email
-        email_subject = "Bevestiging van je annulering - Trading Engine"
-
-        email_body_plain = (
-            f"Beste {user.first_name or 'handelaar'},\n\n"
-            f"Je abonnement is succesvol geannuleerd.\n\n"
-            f"Je abonnement blijft actief tot {formatted_date}. "
-            f"Na deze datum vervallen je licentie(s) en toegang tot Trading Engine automatisch.\n\n"
-            f"Bedankt dat je deel uitmaakte van Trading Engine.\n\n"
-            f"Met vriendelijke groet,\n"
-            f"Het Trading Engine Team"
-        )
-
-        email_body_html = f"""
-        <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #0b121a;">Bevestiging van je annulering</h2>
-            <p>Beste <strong>{user.first_name or 'handelaar'}</strong>,</p>
-            
-            <p>Je abonnement is <strong>succesvol geannuleerd</strong>.</p>
-            
-            <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 15px; color: #1e2a36;">
-                    Je abonnement blijft actief tot <strong>{formatted_date}</strong>.
+        # Send bilingual or language-specific email
+        if lang == 'nl':
+            email_subject = "Bevestiging van je annulering - Trading Engine"
+            email_body_plain = (
+                f"Beste {user.first_name or 'handelaar'},\n\n"
+                f"Je abonnement is succesvol geannuleerd.\n\n"
+                f"Je abonnement blijft actief tot {formatted_date_nl}. "
+                f"Na deze datum vervallen je licentie(s) en toegang tot Trading Engine automatisch.\n\n"
+                f"Bedankt dat je deel uitmaakte van Trading Engine.\n\n"
+                f"Met vriendelijke groet,\n"
+                f"Het Trading Engine Team"
+            )
+            email_body_html = f"""
+            <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #0b121a;">Bevestiging van je annulering</h2>
+                <p>Beste <strong>{user.first_name or 'handelaar'}</strong>,</p>
+                <p>Je abonnement is <strong>succesvol geannuleerd</strong>.</p>
+                <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
+                    <p style="margin: 0; font-size: 15px; color: #1e2a36;">
+                        Je abonnement blijft actief tot <strong>{formatted_date_nl}</strong>.
+                    </p>
+                    <p style="margin: 8px 0 0; font-size: 14px; color: #5b6f7e;">
+                        Na deze datum vervallen je licentie(s) en toegang tot Trading Engine automatisch.
+                    </p>
+                </div>
+                <p style="color: #5b6f7e;">Bedankt dat je deel uitmaakte van Trading Engine.</p>
+                <p style="color: #5b6f7e; margin-top: 30px;">
+                    Met vriendelijke groet,<br>
+                    <strong style="color: #0b121a;">Het Trading Engine Team</strong>
                 </p>
-                <p style="margin: 8px 0 0; font-size: 14px; color: #5b6f7e;">
-                    Na deze datum vervallen je licentie(s) en toegang tot Trading Engine automatisch.
+                <hr style="border: none; border-top: 1px solid #e6eaef; margin: 20px 0;">
+                <p style="font-size: 12px; color: #96a6b5;">
+                    Als je deze annulering niet zelf hebt aangevraagd, neem dan direct contact met ons op via Discord.
                 </p>
             </div>
-            
-            <p style="color: #5b6f7e;">Bedankt dat je deel uitmaakte van Trading Engine.</p>
-            
-            <p style="color: #5b6f7e; margin-top: 30px;">
-                Met vriendelijke groet,<br>
-                <strong style="color: #0b121a;">Het Trading Engine Team</strong>
-            </p>
-            
-            <hr style="border: none; border-top: 1px solid #e6eaef; margin: 20px 0;">
-            <p style="font-size: 12px; color: #96a6b5;">
-                Als je deze annulering niet zelf hebt aangevraagd, neem dan direct contact met ons op via Discord.
-            </p>
-        </div>
-        """
+            """
+        else:
+            email_subject = "Membership Cancellation Confirmation - Trading Engine"
+            email_body_plain = (
+                f"Dear {user.first_name or 'trader'},\n\n"
+                f"Your membership has been successfully cancelled.\n\n"
+                f"Your membership will remain active until {formatted_date_en}. "
+                f"After this date, your license(s) and access to Trading Engine will automatically end.\n\n"
+                f"Thank you for being part of Trading Engine.\n\n"
+                f"Best regards,\n"
+                f"The Trading Engine Team"
+            )
+            email_body_html = f"""
+            <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #0b121a;">Membership Cancellation Confirmation</h2>
+                <p>Dear <strong>{user.first_name or 'trader'}</strong>,</p>
+                <p>Your membership has been <strong>successfully cancelled</strong>.</p>
+                <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
+                    <p style="margin: 0; font-size: 15px; color: #1e2a36;">
+                        Your membership will remain active until <strong>{formatted_date_en}</strong>.
+                    </p>
+                    <p style="margin: 8px 0 0; font-size: 14px; color: #5b6f7e;">
+                        After this date, your license(s) and access to Trading Engine will automatically end.
+                    </p>
+                </div>
+                <p style="color: #5b6f7e;">Thank you for being part of Trading Engine.</p>
+                <p style="color: #5b6f7e; margin-top: 30px;">
+                    Best regards,<br>
+                    <strong style="color: #0b121a;">The Trading Engine Team</strong>
+                </p>
+                <hr style="border: none; border-top: 1px solid #e6eaef; margin: 20px 0;">
+                <p style="font-size: 12px; color: #96a6b5;">
+                    If you did not request this cancellation, please contact us immediately via Discord.
+                </p>
+            </div>
+            """
 
-        send_email_async(
-            email_subject,
-            [user.email],
-            email_body_plain,
-            email_body_html
-        )
+        send_email_async(email_subject, [user.email], email_body_plain, email_body_html)
 
         log_audit(
             user.id,
             "membership_cancelled",
-            f"Gebruiker annuleerde abonnement | Einddatum: {formatted_date} | {revoked_count} licenties ingetrokken",
+            f"User cancelled membership | End date: {formatted_date_en} | {revoked_count} licenses revoked",
             request.remote_addr
         )
 
-        logger.info(f"[CANCEL] Gebruiker {user.email} annuleerde abonnement. Actief tot {formatted_date}")
+        logger.info(f"[CANCEL] User {user.email} cancelled membership. Active until {formatted_date_en}")
 
+        success_msg = f"Je abonnement is geannuleerd. Het blijft actief tot {formatted_date_nl}." if lang == 'nl' else f"Membership cancelled. Active until {formatted_date_en}."
+        
         return jsonify({
             "success": True,
-            "message": f"Je abonnement is geannuleerd. Het blijft actief tot {formatted_date}.",
-            "end_date": formatted_date,
+            "message": success_msg,
+            "end_date_nl": formatted_date_nl,
+            "end_date_en": formatted_date_en,
             "licenses_revoked": revoked_count
         })
 
     except Exception as e:
-        logger.error(f"[CANCEL] Fout bij annuleren abonnement: {e}", exc_info=True)
+        logger.error(f"[CANCEL] Error cancelling membership: {e}", exc_info=True)
         db.session.rollback()
-        return jsonify({"error": "Kon abonnement niet annuleren. Probeer opnieuw."}), 500
+        error_msg = "Kon abonnement niet annuleren. Probeer opnieuw." if lang == 'nl' else "Failed to cancel membership. Please try again."
+        return jsonify({"error": error_msg}), 500
 
 
 # ============================================================================
@@ -1109,22 +1250,24 @@ def cancel_membership():
 @app.route("/download-ea/<int:file_id>")
 @login_required
 def download_ea(file_id):
+    lang = get_user_language()
+    
     if not current_user.is_membership_active():
-        flash("Actief abonnement vereist.", "error")
+        flash("Actief abonnement vereist." if lang == 'nl' else "Active membership required.", "error")
         return redirect(url_for("user_dashboard"))
 
     ea = db.session.get(EAFile, file_id)
     if not ea or not ea.is_active:
-        flash("EA niet gevonden.", "error")
+        flash("EA niet gevonden." if lang == 'nl' else "EA not found.", "error")
         return redirect(url_for("user_dashboard"))
 
     if ea.plan_level > current_user.get_plan_level():
-        flash("Vereist een hoger plan niveau.", "error")
+        flash("Vereist een hoger plan niveau." if lang == 'nl' else "Requires higher plan level.", "error")
         return redirect(url_for("user_dashboard"))
 
     file_path = os.path.join(Config.UPLOAD_FOLDER, ea.file_path)
     if not os.path.exists(file_path):
-        flash("Bestand ontbreekt. Neem contact op met support.", "error")
+        flash("Bestand ontbreekt. Neem contact op met support." if lang == 'nl' else "File missing. Contact support.", "error")
         return redirect(url_for("user_dashboard"))
 
     ea.download_count += 1
@@ -1393,7 +1536,7 @@ def api_validate_license():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({"valid": False, "error": "Ongeldig verzoek"}), 400
+            return jsonify({"valid": False, "error": "Invalid request"}), 400
 
         license_key = data.get("license_key", "").strip()
         account_number = data.get("account_number", "").strip()
@@ -1407,26 +1550,26 @@ def api_validate_license():
             magic_number = None
 
         if not license_key:
-            return jsonify({"valid": False, "error": "Licentiesleutel vereist"}), 400
+            return jsonify({"valid": False, "error": "License key required"}), 400
 
         unique_account_id = account_number if account_number else machine_id
 
         if not unique_account_id:
-            return jsonify({"valid": False, "error": "account_number of machine_id vereist"}), 400
+            return jsonify({"valid": False, "error": "account_number or machine_id required"}), 400
 
         if not session_id:
-            return jsonify({"valid": False, "error": "session_id vereist"}), 400
+            return jsonify({"valid": False, "error": "session_id required"}), 400
 
         logger.info(f"[VALIDATE] License: {license_key[:10]}... | MT5 Account: {unique_account_id} | EA: {session_id[:8]}...")
 
         lic = License.query.filter_by(license_key=license_key).first()
         if not lic:
             logger.warning(f"[VALIDATE] License not found")
-            return jsonify({"valid": False, "error": "Licentie niet gevonden"}), 404
+            return jsonify({"valid": False, "error": "License not found"}), 404
 
         if not lic.is_valid():
             logger.warning(f"[VALIDATE] License invalid: {lic.mask_license_key()} status={lic.status}")
-            return jsonify({"valid": False, "error": "Licentie niet actief of verlopen"}), 403
+            return jsonify({"valid": False, "error": "License not active or expired"}), 403
 
         account = LicenseAccount.query.filter_by(
             license_id=lic.id,
@@ -1434,9 +1577,7 @@ def api_validate_license():
         ).first()
 
         if account:
-            # ==========================================
             # EXISTING MT5 ACCOUNT - Share the slot
-            # ==========================================
             existing_session = EASession.query.filter_by(
                 license_account_id=account.id,
                 session_id=session_id
@@ -1474,9 +1615,7 @@ def api_validate_license():
                 "sessions_on_this_account": account.sessions.count(),
             })
 
-        # ==========================================
         # NEW MT5 ACCOUNT - Need a free slot
-        # ==========================================
         total_slots = lic.accounts.count()
 
         logger.info(f"[VALIDATE] New MT5 account: {unique_account_id} | Slots: {total_slots}/{lic.max_accounts}")
@@ -1485,7 +1624,7 @@ def api_validate_license():
             logger.warning(f"[VALIDATE] 🚫 MAX SLOTS: {total_slots}/{lic.max_accounts}")
             return jsonify({
                 "valid": False,
-                "error": f"Maximum {lic.max_accounts} MT5 accounts bereikt. Momenteel {total_slots} in gebruik.",
+                "error": f"Maximum {lic.max_accounts} MT5 accounts reached. Currently using {total_slots}.",
                 "accounts_used": total_slots,
                 "accounts_max": lic.max_accounts,
                 "accounts_remaining": 0,
@@ -1506,7 +1645,7 @@ def api_validate_license():
         ))
 
         lic.last_validated = datetime.utcnow()
-        lic.validation_count += 1  # New account registration — count this
+        lic.validation_count += 1
         db.session.commit()
 
         new_total = lic.accounts.count()
@@ -1526,7 +1665,7 @@ def api_validate_license():
     except Exception as e:
         logger.error(f"[VALIDATE] ❌ Error: {e}", exc_info=True)
         db.session.rollback()
-        return jsonify({"valid": False, "error": "Server fout"}), 500
+        return jsonify({"valid": False, "error": "Server error"}), 500
 
 
 @app.route("/api/release-license", methods=["POST"])
@@ -1540,7 +1679,7 @@ def api_release_license():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({"success": False, "error": "Ongeldig verzoek"}), 400
+            return jsonify({"success": False, "error": "Invalid request"}), 400
 
         license_key = data.get("license_key", "").strip()
         account_number = data.get("account_number", "").strip()
@@ -1552,12 +1691,12 @@ def api_release_license():
         if not license_key or not unique_account_id or not session_id:
             return jsonify({
                 "success": False,
-                "error": "license_key, account_number (of machine_id), en session_id vereist"
+                "error": "license_key, account_number (or machine_id), and session_id required"
             }), 400
 
         lic = License.query.filter_by(license_key=license_key).first()
         if not lic:
-            return jsonify({"success": False, "error": "Licentie niet gevonden"}), 404
+            return jsonify({"success": False, "error": "License not found"}), 404
 
         account = LicenseAccount.query.filter_by(
             license_id=lic.id,
@@ -1568,7 +1707,7 @@ def api_release_license():
             logger.info(f"[RELEASE] No slot for: {unique_account_id}")
             return jsonify({
                 "success": True, "session_released": False, "slot_freed": False,
-                "message": "Geen actieve slot voor dit account",
+                "message": "No active slot for this account",
                 "accounts_used": lic.accounts.count(),
                 "accounts_max": lic.max_accounts,
                 "accounts_remaining": lic.max_accounts - lic.accounts.count(),
@@ -1583,7 +1722,7 @@ def api_release_license():
             logger.info(f"[RELEASE] Session not found: {session_id[:8]}... on {unique_account_id}")
             return jsonify({
                 "success": True, "session_released": False, "slot_freed": False,
-                "message": "Sessie niet gevonden",
+                "message": "Session not found",
                 "sessions_remaining": account.sessions.count(),
                 "accounts_used": lic.accounts.count(),
                 "accounts_max": lic.max_accounts,
@@ -1624,7 +1763,7 @@ def api_release_license():
     except Exception as e:
         logger.error(f"[RELEASE] ❌ Error: {e}", exc_info=True)
         db.session.rollback()
-        return jsonify({"success": False, "error": "Server fout"}), 500
+        return jsonify({"success": False, "error": "Server error"}), 500
 
 
 @app.route("/api/user/info")
@@ -1653,7 +1792,7 @@ def wix_payment_webhook():
 
         email = data.get("contact_email", "").strip().lower()
         if not email:
-            return jsonify({"error": "Email vereist"}), 400
+            return jsonify({"error": "Email required"}), 400
 
         first_name = data.get("contact_first_name", "")
         last_name = data.get("contact_last_name", "")
@@ -1772,10 +1911,10 @@ def stripe_payment_webhook():
                 )
             except stripe.error.SignatureVerificationError as e:
                 logger.warning(f"[STRIPE] Invalid signature: {e}")
-                return jsonify({"error": "Ongeldige handtekening"}), 400
+                return jsonify({"error": "Invalid signature"}), 400
             except Exception as e:
                 logger.error(f"[STRIPE] Webhook error: {e}")
-                return jsonify({"error": "Webhook fout"}), 400
+                return jsonify({"error": "Webhook error"}), 400
         else:
             event = json.loads(payload)
 
@@ -1793,14 +1932,14 @@ def stripe_payment_webhook():
             country = (customer_details.get("address") or {}).get("country", "")
 
             metadata = session_data.get("metadata") or {}
-            plan_name = metadata.get("plan_name", "Onbekend Plan")
+            plan_name = metadata.get("plan_name", "Unknown Plan")
             plan_duration = metadata.get("plan_duration", "")
             amount_total = (session_data.get("amount_total") or 0) / 100
             currency = (session_data.get("currency") or "eur").upper()
             order_id = session_data.get("id", "")
 
             if not email:
-                return jsonify({"error": "Email vereist"}), 400
+                return jsonify({"error": "Email required"}), 400
 
             duration_days, subscription_type = parse_duration_to_days(plan_duration)
 
@@ -1905,12 +2044,14 @@ def assign_discord_role(discord_id):
 @app.route("/connect-discord")
 @login_required
 def connect_discord():
+    lang = get_user_language()
+    
     if not current_user.is_membership_active():
-        flash("Actief abonnement vereist.", "error")
+        flash("Actief abonnement vereist." if lang == 'nl' else "Active membership required.", "error")
         return redirect(url_for("user_dashboard"))
 
     if not Config.DISCORD_CLIENT_ID:
-        flash("Discord niet geconfigureerd.", "error")
+        flash("Discord niet geconfigureerd." if lang == 'nl' else "Discord not configured.", "error")
         return redirect(url_for("user_dashboard"))
 
     params = urllib.parse.urlencode({
@@ -1926,9 +2067,11 @@ def connect_discord():
 @app.route("/discord/callback")
 @login_required
 def discord_callback():
+    lang = get_user_language()
     code = request.args.get("code")
+    
     if not code:
-        flash("Discord verbinding geannuleerd.", "error")
+        flash("Discord verbinding geannuleerd." if lang == 'nl' else "Discord connection cancelled.", "error")
         return redirect(url_for("user_dashboard"))
 
     try:
@@ -1974,11 +2117,11 @@ def discord_callback():
         current_user.discord_joined = True
         db.session.commit()
 
-        flash("Discord verbonden! 🎉", "success")
+        flash("Discord verbonden! 🎉" if lang == 'nl' else "Discord connected! 🎉", "success")
 
     except Exception as e:
         logger.error(f"[DISCORD] OAuth failed: {e}", exc_info=True)
-        flash("Discord verbinding mislukt.", "error")
+        flash("Discord verbinding mislukt." if lang == 'nl' else "Discord connection failed.", "error")
 
     return redirect(url_for("user_dashboard"))
 
