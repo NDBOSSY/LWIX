@@ -1,110 +1,328 @@
 {% extends "base.html" %}
 
-{% block title %}All Users - Admin{% endblock %}
+{% block title %}User Management - Trading Engine{% endblock %}
 
 {% block extra_css %}
 <style>
-    .users-container { max-width: 1400px; margin: 0 auto; padding: 2rem 1rem; }
-    .users-header { background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%); border-radius: 20px; padding: 1.5rem 2rem; color: white; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
-    .card { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; }
-    .table { margin-bottom: 0; background: white; }
-    .table thead th { background: #5534A5; color: white; border: none; padding: 0.6rem 0.8rem; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
-    .table tbody td { padding: 0.6rem 0.8rem; vertical-align: middle; font-size: 0.85rem; background: white; }
-    .table tbody tr:hover td{background:#FFF8ED;}
-    .badge-active{background:linear-gradient(135deg,#3FBFB3 0%,#6FDFDF 100%);color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
-    .badge-expired{background:#807F80;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
-    .badge-revoked{background:#EF4444;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
-    .badge-pending{background:#F59E0B;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
-    .badge-level1{background:#6B7280;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
-    .badge-level2{background:#8B5CF6;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
-    .badge-vps-active{background:#3FBFB3;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
-    .badge-vps-provisioning{background:#F59E0B;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
-    .badge-vps-none{background:#E5E7EB;color:#6B7280;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
-    .search-box{background:white;border:1.5px solid #E5E7EB;border-radius:10px;padding:0.5rem 0.9rem;font-size:0.85rem;width:260px;}
-    .btn-view{background:linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%);border:none;border-radius:8px;padding:0.3rem 0.7rem;font-size:0.75rem;color:white;text-decoration:none;display:inline-block;}
-    .btn-view:hover{color:white;opacity:0.9;}
+    .user-mgmt-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .search-bar {
+        background: white;
+        border: 1.5px solid #E5E7EB;
+        border-radius: 12px;
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+        width: 300px;
+        transition: all 0.3s;
+    }
+
+    .search-bar:focus {
+        border-color: #6FDFDF;
+        box-shadow: 0 0 0 3px rgba(111, 223, 223, 0.1);
+        outline: none;
+    }
+
+    .badge-active {
+        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+
+    .badge-expired {
+        background: #807F80;
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+
+    .badge-revoked {
+        background: #EF4444;
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+
+    .badge-monthly { background: #4B7BE5; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+
+    .btn-outline-danger {
+        border: 1.5px solid #EF4444;
+        color: #EF4444;
+        border-radius: 8px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
+        transition: all 0.3s;
+        background: white;
+    }
+
+    .btn-outline-danger:hover {
+        background: #EF4444;
+        color: white;
+    }
+
+    .btn-outline-info {
+        border: 1.5px solid #4B7BE5;
+        color: #4B7BE5;
+        border-radius: 8px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
+        transition: all 0.3s;
+        background: white;
+    }
+
+    .btn-outline-info:hover {
+        background: #4B7BE5;
+        color: white;
+    }
+
+    .btn-outline-success {
+        border: 1.5px solid #10B981;
+        color: #10B981;
+        border-radius: 8px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
+        transition: all 0.3s;
+        background: white;
+    }
+
+    .btn-outline-success:hover {
+        background: #10B981;
+        color: white;
+    }
+
+    .copy-btn {
+        padding: 0;
+        font-size: 0.65rem;
+        color: #4B7BE5;
+        border: none;
+        background: none;
+        cursor: pointer;
+        margin-left: 4px;
+    }
+
+    .copy-btn:hover {
+        color: #5534A5;
+    }
+
+    .license-key-cell code {
+        font-size: 0.72rem;
+    }
+
+    .actions-cell {
+        white-space: nowrap;
+    }
+
+    .card {
+        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
+        border-radius: 20px;
+        border: 1px solid #E5E7EB;
+        overflow: hidden;
+    }
+
+    .table {
+        margin-bottom: 0;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .table thead th {
+        background: #5534A5;
+        color: white;
+        border: none;
+        padding: 0.6rem 0.8rem;
+        font-weight: 600;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .table tbody td {
+        padding: 0.6rem 0.8rem;
+        vertical-align: middle;
+        font-size: 0.85rem;
+        background: white;
+    }
+
+    .table tbody tr:hover td {
+        background: #FFF8ED;
+    }
+
+    @media (max-width: 768px) {
+        .search-bar {
+            width: 200px;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="users-container">
-    <div class="users-header">
+<div class="user-mgmt-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold mb-1"><i class="fas fa-users me-2"></i>All Users</h3>
-            <p class="mb-0 opacity-75">{{ users|length }} total user{{ 's' if users|length != 1 else '' }}</p>
+            <h2 class="fw-bold mb-1">
+                <i class="fas fa-users-cog me-2"></i>User Management
+            </h2>
+            <p class="text-muted mb-0">{{ users|length }} total users</p>
         </div>
-        <div>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-light btn-sm"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
+        <div class="d-flex gap-2 align-items-center">
+            <i class="fas fa-search text-muted"></i>
+            <input type="text" class="search-bar" id="searchUsers" placeholder="Search by email, name, plan...">
         </div>
     </div>
 
     <div class="card">
         <div class="card-body p-0">
-            <div class="p-3 border-bottom bg-white">
-                <input type="text" id="userSearch" class="search-box" placeholder="🔍 Search by email or name..." onkeyup="filterUsers()">
-            </div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0" id="usersTable">
                     <thead>
                         <tr>
-                            <th>Email</th>
-                            <th>Name</th>
+                            <th>User</th>
                             <th>Plan</th>
                             <th>Status</th>
-                            <th>VPS</th>
-                            <th>Created</th>
-                            <th>Membership Ends</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Licenses</th>
+                            <th>Discord</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for u in users %}
+                        {% for user in users %}
                         <tr>
-                            <td>{{ u.email }}</td>
-                            <td>{{ u.get_full_name() or 'N/A' }}</td>
+                            <!-- User Column -->
                             <td>
-                                <span class="badge {% if u.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}">
-                                    Level {{ u.get_plan_level() }}
+                                <strong>{{ user.email }}</strong>
+                                <button class="copy-btn" onclick="copyToClipboard('{{ user.email }}')" title="Copy Email">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                {% if user.get_full_name() and user.get_full_name() != user.email %}
+                                <br><small style="color: #807F80;">{{ user.get_full_name() }}</small>
+                                {% endif %}
+                                {% if user.country %}
+                                <br><small style="color: #A0A0A0;"><i class="fas fa-globe me-1"></i>{{ user.country }}</small>
+                                {% endif %}
+                                {% if user.email_verified %}
+                                <i class="fas fa-check-circle text-success ms-1" title="Email verified"></i>
+                                {% endif %}
+                            </td>
+
+                            <!-- Plan Column -->
+                            <td>
+                                {% if user.plan_name %}
+                                <small>{{ user.plan_name }}</small>
+                                {% if user.subscription_type %}
+                                <br><span class="badge 
+                                    {% if user.subscription_type == 'monthly' %}badge-monthly
+                                    {% elif user.subscription_type == 'yearly' %}badge-yearly
+                                    {% elif user.subscription_type == 'lifetime' %}badge-lifetime
+                                    {% endif %}">
+                                    {{ user.subscription_type|title }}
+                                </span>
+                                {% endif %}
+                                {% if user.plan_price and user.plan_price > 0 %}
+                                <br><small style="color: #807F80;">{{ user.currency or 'EUR' }} {{ "%.2f"|format(user.plan_price) }}</small>
+                                {% endif %}
+                                {% else %}
+                                <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+
+                            <!-- Status Column -->
+                            <td>
+                                <span class="badge 
+                                    {% if user.membership_status == 'active' %}badge-active
+                                    {% elif user.membership_status == 'revoked' %}badge-revoked
+                                    {% else %}badge-expired{% endif %}">
+                                    {{ user.membership_status|title }}
                                 </span>
                             </td>
+
+                            <!-- Start Date Column -->
                             <td>
-                                {% if u.membership_status == 'active' %}
-                                    <span class="badge badge-active">Active</span>
-                                {% elif u.membership_status == 'cancelled' %}
-                                    <span class="badge badge-pending">Cancelled</span>
-                                {% elif u.membership_status == 'expired' %}
-                                    <span class="badge badge-expired">Expired</span>
-                                {% elif u.membership_status == 'revoked' %}
-                                    <span class="badge badge-revoked">Revoked</span>
+                                {% if user.membership_start %}
+                                <small>{{ user.membership_start.strftime('%b %d, %Y') }}</small>
                                 {% else %}
-                                    <span class="badge badge-expired">{{ u.membership_status|title }}</span>
+                                <small class="text-muted">N/A</small>
                                 {% endif %}
                             </td>
+
+                            <!-- End Date Column -->
                             <td>
-                                {% if u.vps_status == 'active' %}
-                                    <span class="badge badge-vps-active"><i class="fas fa-server me-1"></i>Active</span>
-                                {% elif u.vps_status == 'provisioning' %}
-                                    <span class="badge badge-vps-provisioning"><i class="fas fa-spinner fa-spin me-1"></i>Provisioning</span>
-                                {% elif u.vps_id %}
-                                    <span class="badge badge-vps-none">{{ u.vps_status|title }}</span>
+                                {% if user.membership_end %}
+                                <small>{{ user.membership_end.strftime('%b %d, %Y') }}</small>
+                                {% if user.membership_end > now and user.membership_status == 'active' %}
+                                <br><small style="color: #3FBFB3;">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ (user.membership_end - now).days }} days left
+                                </small>
+                                {% endif %}
                                 {% else %}
-                                    <span class="badge badge-vps-none">None</span>
+                                <small class="text-muted">N/A</small>
                                 {% endif %}
                             </td>
-                            <td>{{ u.created_at.strftime('%b %d, %Y') if u.created_at else 'N/A' }}</td>
-                            <td>{{ u.membership_end.strftime('%b %d, %Y') if u.membership_end else 'N/A' }}</td>
+
+                            <!-- Licenses Column -->
+                            <td class="license-key-cell">
+                                <span class="badge bg-primary">{{ user.licenses.count() }}</span>
+                                {% set active_lic = user.get_active_license() %}
+                                {% if active_lic %}
+                                <br><code>{{ active_lic.license_key }}</code>
+                                <br><button class="copy-btn" onclick="copyToClipboard('{{ active_lic.license_key }}')" title="Copy License Key">
+                                    <i class="fas fa-copy me-1"></i>Copy Key
+                                </button>
+                                {% endif %}
+                            </td>
+
+                            <!-- Discord Column -->
                             <td>
-                                <a href="{{ url_for('admin_user_detail', user_id=u.id) }}" class="btn-view">
-                                    <i class="fas fa-eye me-1"></i>View
-                                </a>
+                                {% if user.discord_joined %}
+                                <span style="color: #5865F2;">
+                                    <i class="fab fa-discord"></i> Joined
+                                </span>
+                                {% else %}
+                                <span class="text-muted">
+                                    <i class="fas fa-times"></i>
+                                </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Actions Column -->
+                            <td class="actions-cell">
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-outline-info btn-sm" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if user.membership_status == 'active' %}
+                                    <form method="POST" action="{{ url_for('revoke_membership', user_id=user.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                            onclick="return confirm('Revoke membership for {{ user.email }}?\n\nThis will:\n- Revoke all active licenses\n- Remove from Discord\n- End membership immediately')"
+                                            title="Revoke Membership">
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if user.membership_status == 'revoked' %}
+                                    <form method="POST" action="{{ url_for('reactivate_membership', user_id=user.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-success btn-sm"
+                                            onclick="return confirm('Reactivate membership for {{ user.email }}?')"
+                                            title="Reactivate Membership">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
-                        {% if not users %}
-                        <tr><td colspan="8" class="text-center text-muted py-4">
-                            <i class="fas fa-user-slash fa-2x mb-2 d-block"></i>No users found
-                        </td></tr>
-                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -113,13 +331,12 @@
 </div>
 
 <script>
-function filterUsers() {
-    const query = document.getElementById('userSearch').value.toLowerCase();
-    const rows = document.querySelectorAll('#usersTable tbody tr');
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(query) ? '' : 'none';
+    // Search functionality
+    document.getElementById('searchUsers').addEventListener('keyup', function () {
+        const term = this.value.toLowerCase();
+        document.querySelectorAll('#usersTable tbody tr').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+        });
     });
-}
 </script>
 {% endblock %}
