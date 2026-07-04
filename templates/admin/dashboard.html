@@ -21,16 +21,16 @@
     .test-mode-label { font-size: 0.9rem; font-weight: 600; color: white; }
     .test-mode-status { font-size: 0.8rem; opacity: 0.85; }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .stats-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
     .stat-card { background: linear-gradient(135deg, #CFF7F7 0%, #E8F6FF 100%); border-radius: 14px; padding: 0.8rem 1rem; border: 1px solid #E5E7EB; transition: all 0.3s; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 0.8rem; }
     .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(75,123,229,0.1); border-color: #6FDFDF; }
     .stat-card::after { content: ''; position: absolute; top: 0; right: 0; width: 50px; height: 50px; border-radius: 0 0 0 50px; opacity: 0.08; }
-    .stat-card.users::after{background:#4B7BE5;} .stat-card.active::after{background:#3FBFB3;} .stat-card.licenses::after{background:#A85CF9;} .stat-card.orders::after{background:#10B981;} .stat-card.revenue::after{background:#F59E0B;} .stat-card.downloads::after{background:#5534A5;}
+    .stat-card.users::after{background:#4B7BE5;} .stat-card.active::after{background:#3FBFB3;} .stat-card.licenses::after{background:#A85CF9;} .stat-card.orders::after{background:#10B981;} .stat-card.revenue::after{background:#F59E0B;} .stat-card.downloads::after{background:#5534A5;} .stat-card.vps::after{background:#3FBFB3;}
     .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
     .stat-icon.blue{background:rgba(75,123,229,0.1);color:#4B7BE5;} .stat-icon.teal{background:rgba(63,191,179,0.1);color:#3FBFB3;} .stat-icon.purple{background:rgba(168,92,249,0.1);color:#A85CF9;} .stat-icon.green{background:rgba(16,185,129,0.1);color:#10B981;} .stat-icon.gold{background:rgba(245,158,11,0.1);color:#F59E0B;} .stat-icon.dark-purple{background:rgba(85,52,165,0.1);color:#5534A5;}
     .stat-info{flex:1;} .stat-value{font-size:1.3rem;font-weight:700;color:#2D2D2D;line-height:1.2;} .stat-label{color:#807F80;font-size:0.75rem;font-weight:500;line-height:1.2;}
 
-    @media(max-width:1200px){.stats-grid{grid-template-columns:repeat(3,1fr);}}
+    @media(max-width:1300px){.stats-grid{grid-template-columns:repeat(4,1fr);}}
     @media(max-width:600px){.stats-grid{grid-template-columns:1fr 1fr;gap:0.6rem;}.stat-card{padding:0.6rem 0.8rem;}.stat-icon{width:32px;height:32px;font-size:0.9rem;}.stat-value{font-size:1.1rem;}}
 
     .card { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; }
@@ -67,6 +67,7 @@
     .badge-active{background:linear-gradient(135deg,#3FBFB3 0%,#6FDFDF 100%);color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
     .badge-expired{background:#807F80;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
     .badge-revoked{background:#EF4444;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
+    .badge-provisioning{background:#F59E0B;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
     .badge-monthly{background:#4B7BE5;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
     .badge-yearly{background:#A85CF9;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
     .badge-lifetime{background:#F59E0B;color:white;padding:0.2rem 0.5rem;border-radius:12px;font-size:0.7rem;}
@@ -80,6 +81,10 @@
     .sub-breakdown-item .sub-revenue{font-size:0.8rem;color:#807F80;}
 
     .ea-file-row{display:flex;align-items:center;gap:0.5rem;}
+
+    .btn-retry-vps{background:linear-gradient(135deg,#3FBFB3 0%,#6FDFDF 100%);border:none;border-radius:8px;padding:0.35rem 0.8rem;font-size:0.75rem;font-weight:600;color:white;transition:all 0.2s;white-space:nowrap;}
+    .btn-retry-vps:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(63,191,179,0.35);color:white;}
+    .vps-error-text{color:#EF4444;font-size:0.72rem;max-width:260px;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 </style>
 {% endblock %}
 
@@ -117,6 +122,7 @@
         <div class="stat-card orders"><div class="stat-icon green"><i class="fas fa-shopping-cart"></i></div><div class="stat-info"><div class="stat-value">{{ total_orders }}</div><div class="stat-label">Total Orders</div></div></div>
         <div class="stat-card revenue"><div class="stat-icon gold"><i class="fas fa-euro-sign"></i></div><div class="stat-info"><div class="stat-value">€{{ "%.0f"|format(total_revenue) }}</div><div class="stat-label">Total Revenue</div></div></div>
         <div class="stat-card downloads"><div class="stat-icon dark-purple"><i class="fas fa-download"></i></div><div class="stat-info"><div class="stat-value">{{ total_downloads }}</div><div class="stat-label">Downloads</div></div></div>
+        <div class="stat-card vps"><div class="stat-icon teal"><i class="fas fa-server"></i></div><div class="stat-info"><div class="stat-value">{{ active_vps }}</div><div class="stat-label">Active VPS</div></div></div>
     </div>
 
     {% if subscription_stats %}
@@ -127,6 +133,55 @@
                 {% for stat in subscription_stats %}
                 <div class="sub-breakdown-item"><div class="sub-type">{{ stat[0] or 'Unknown' }}</div><div class="sub-count">{{ stat[1] }} users</div><div class="sub-revenue">€{{ "%.2f"|format(stat[2] or 0) }}</div></div>
                 {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- VPS Pending -->
+    {% if vps_pending_users %}
+    <div class="card mb-4">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-server me-2"></i>VPS Pending ({{ vps_pending_users|length }})</h5></div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Plan</th>
+                            <th>VPS Status</th>
+                            <th>Last Attempt</th>
+                            <th>Last Error</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in vps_pending_users %}
+                        <tr>
+                            <td><a href="{{ url_for('admin_user_detail', user_id=u.id) }}">{{ u.email }}</a></td>
+                            <td><span class="badge {% if u.get_plan_level() >= 2 %}badge-level2{% else %}badge-level1{% endif %}">Level {{ u.get_plan_level() }}</span></td>
+                            <td>
+                                {% if u.vps_status == 'provisioning' %}
+                                    <span class="badge badge-provisioning"><i class="fas fa-spinner fa-spin me-1"></i>Provisioning</span>
+                                {% elif u.vps_id %}
+                                    <span class="badge badge-expired">{{ u.vps_status|title }}</span>
+                                {% else %}
+                                    <span class="badge badge-revoked">No VPS</span>
+                                {% endif %}
+                            </td>
+                            <td><small style="color:#807F80;">{{ u.vps_last_attempt_at.strftime('%b %d, %H:%M') if u.vps_last_attempt_at else 'Never' }}</small></td>
+                            <td><span class="vps-error-text" title="{{ u.vps_last_error or '' }}">{{ u.vps_last_error or '—' }}</span></td>
+                            <td>
+                                <form method="POST" action="{{ url_for('admin_retry_vps', user_id=u.id) }}" class="d-inline">
+                                    <button type="submit" class="btn-retry-vps" onclick="return confirm('Retry VPS provisioning for {{ u.email }}?')">
+                                        <i class="fas fa-redo me-1"></i>Retry
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
