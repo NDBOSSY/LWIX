@@ -1,342 +1,139 @@
 {% extends "base.html" %}
 
-{% block title %}User Management - Trading Engine{% endblock %}
-
-{% block extra_css %}
-<style>
-    .user-mgmt-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 2rem 1rem;
-    }
-
-    .search-bar {
-        background: white;
-        border: 1.5px solid #E5E7EB;
-        border-radius: 12px;
-        padding: 0.6rem 1rem;
-        font-size: 0.9rem;
-        width: 300px;
-        transition: all 0.3s;
-    }
-
-    .search-bar:focus {
-        border-color: #6FDFDF;
-        box-shadow: 0 0 0 3px rgba(111, 223, 223, 0.1);
-        outline: none;
-    }
-
-    .badge-active {
-        background: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
-        color: white;
-        padding: 0.3rem 0.7rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-    }
-
-    .badge-expired {
-        background: #807F80;
-        color: white;
-        padding: 0.3rem 0.7rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-    }
-
-    .badge-revoked {
-        background: #EF4444;
-        color: white;
-        padding: 0.3rem 0.7rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-    }
-
-    .badge-monthly { background: #4B7BE5; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
-    .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
-    .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
-
-    .btn-outline-danger {
-        border: 1.5px solid #EF4444;
-        color: #EF4444;
-        border-radius: 8px;
-        padding: 0.25rem 0.6rem;
-        font-size: 0.75rem;
-        transition: all 0.3s;
-        background: white;
-    }
-
-    .btn-outline-danger:hover {
-        background: #EF4444;
-        color: white;
-    }
-
-    .btn-outline-info {
-        border: 1.5px solid #4B7BE5;
-        color: #4B7BE5;
-        border-radius: 8px;
-        padding: 0.25rem 0.6rem;
-        font-size: 0.75rem;
-        transition: all 0.3s;
-        background: white;
-    }
-
-    .btn-outline-info:hover {
-        background: #4B7BE5;
-        color: white;
-    }
-
-    .btn-outline-success {
-        border: 1.5px solid #10B981;
-        color: #10B981;
-        border-radius: 8px;
-        padding: 0.25rem 0.6rem;
-        font-size: 0.75rem;
-        transition: all 0.3s;
-        background: white;
-    }
-
-    .btn-outline-success:hover {
-        background: #10B981;
-        color: white;
-    }
-
-    .copy-btn {
-        padding: 0;
-        font-size: 0.65rem;
-        color: #4B7BE5;
-        border: none;
-        background: none;
-        cursor: pointer;
-        margin-left: 4px;
-    }
-
-    .copy-btn:hover {
-        color: #5534A5;
-    }
-
-    .license-key-cell code {
-        font-size: 0.72rem;
-    }
-
-    .actions-cell {
-        white-space: nowrap;
-    }
-
-    .card {
-        background: linear-gradient(135deg, #D6E4FB 0%, #E2DAF7 100%);
-        border-radius: 20px;
-        border: 1px solid #E5E7EB;
-        overflow: hidden;
-    }
-
-    .table {
-        margin-bottom: 0;
-        background: white;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .table thead th {
-        background: #5534A5;
-        color: white;
-        border: none;
-        padding: 0.6rem 0.8rem;
-        font-weight: 600;
-        font-size: 0.8rem;
-        white-space: nowrap;
-    }
-
-    .table tbody td {
-        padding: 0.6rem 0.8rem;
-        vertical-align: middle;
-        font-size: 0.85rem;
-        background: white;
-    }
-
-    .table tbody tr:hover td {
-        background: #FFF8ED;
-    }
-
-    @media (max-width: 768px) {
-        .search-bar {
-            width: 200px;
-        }
-    }
-</style>
-{% endblock %}
+{% block title %}User Details - Admin{% endblock %}
 
 {% block content %}
-<div class="user-mgmt-container">
+<div class="container-fluid py-4" style="max-width:1200px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold mb-1">
-                <i class="fas fa-users-cog me-2"></i>User Management
-            </h2>
-            <p class="text-muted mb-0">{{ users|length }} total users</p>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fas fa-arrow-left me-1"></i>Back to Users</a>
+            <h3>{{ user.get_full_name() }}</h3>
+            <p class="text-muted mb-0">{{ user.email }} · ID: #{{ user.id }}</p>
         </div>
-        <div class="d-flex gap-2 align-items-center">
-            <i class="fas fa-search text-muted"></i>
-            <input type="text" class="search-bar" id="searchUsers" placeholder="Search by email, name, plan...">
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card"><div class="card-header"><h5 class="mb-0">Account Info</h5></div>
+                <div class="card-body">
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Name:</strong> {{ user.get_full_name() or 'N/A' }}</p>
+                    <p><strong>Phone:</strong> {{ user.phone or 'N/A' }}</p>
+                    <p><strong>Country:</strong> {{ user.country or 'N/A' }}</p>
+                    <p><strong>Status:</strong> <span class="badge {% if user.membership_status=='active' %}bg-success{% else %}bg-danger{% endif %}">{{ user.membership_status|title }}</span></p>
+                    <p><strong>Created:</strong> {{ user.created_at.strftime('%B %d, %Y') }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card"><div class="card-header"><h5 class="mb-0">Plan Info</h5></div>
+                <div class="card-body">
+                    <p><strong>Plan:</strong> {{ user.plan_name or 'N/A' }}</p>
+                    <p><strong>Level:</strong> {{ user.get_plan_level() }}</p>
+                    <p><strong>Type:</strong> {{ user.subscription_type or 'N/A' }}</p>
+                    <p><strong>Price:</strong> {% if user.plan_price and user.plan_price>0 %}{{ user.currency }} {{ "%.2f"|format(user.plan_price) }}{% else %}Free{% endif %}</p>
+                    <p><strong>Start:</strong> {{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</p>
+                    <p><strong>End:</strong> {{ user.membership_end.strftime('%b %d, %Y') if user.membership_end else 'N/A' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forex VPS -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Forex VPS</h5>
+            <form method="POST" action="{{ url_for('admin_retry_vps', user_id=user.id) }}" class="d-inline mb-0">
+                <button type="submit" class="btn btn-sm btn-light" onclick="return confirm('Retry VPS provisioning for {{ user.email }}?')">
+                    <i class="fas fa-redo me-1"></i>Retry VPS Provisioning
+                </button>
+            </form>
+        </div>
+        <div class="card-body">
+            {% if user.vps_id %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Server ID:</strong> <code>{{ user.vps_id }}</code></p>
+                        <p><strong>Status:</strong>
+                            {% if user.vps_status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                            {% elif user.vps_status == 'provisioning' %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-spinner fa-spin me-1"></i>Provisioning</span>
+                            {% elif user.vps_status == 'terminated' %}
+                                <span class="badge bg-secondary">Terminated</span>
+                            {% else %}
+                                <span class="badge bg-danger">{{ user.vps_status|title }}</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Plan:</strong> {{ user.vps_plan or 'N/A' }}</p>
+                        <p><strong>Created:</strong> {{ user.vps_created_at.strftime('%b %d, %Y %H:%M') if user.vps_created_at else 'N/A' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>IP Address:</strong> {{ user.vps_ip or 'Not yet assigned (still provisioning)' }}</p>
+                        <p><strong>Username:</strong> {{ user.vps_username or 'N/A' }}</p>
+                        <p><strong>Password:</strong> {% if vps_password %}<code>{{ vps_password }}</code>{% else %}Not yet available{% endif %}</p>
+                        <p><strong>ThinkHuge User ID:</strong> <code>{{ user.thinkhuge_user_id or 'N/A' }}</code></p>
+                    </div>
+                </div>
+                <hr>
+                <p class="mb-0"><strong>Last Attempt:</strong> {{ user.vps_last_attempt_at.strftime('%b %d, %Y %H:%M') if user.vps_last_attempt_at else 'N/A' }}</p>
+                {% if user.vps_last_error %}
+                <p class="mb-0 mt-1"><strong>Last Error:</strong> <span class="text-danger">{{ user.vps_last_error }}</span></p>
+                {% endif %}
+            {% else %}
+                <p class="text-muted mb-2"><i class="fas fa-circle-info me-1"></i>No VPS provisioned yet.</p>
+                <p class="mb-0"><strong>Last Attempt:</strong> {{ user.vps_last_attempt_at.strftime('%b %d, %Y %H:%M') if user.vps_last_attempt_at else 'Never' }}</p>
+                {% if user.vps_last_error %}
+                <p class="mb-0 mt-1"><strong>Last Error:</strong> <span class="text-danger">{{ user.vps_last_error }}</span></p>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Licenses ({{ licenses|length }})</h5>
+            <form method="POST" action="{{ url_for('extend_membership', user_id=user.id) }}" class="d-flex gap-2">
+                <input type="number" name="days" value="30" class="form-control form-control-sm" style="width:80px;">
+                <button type="submit" class="btn btn-sm btn-success">Extend Days</button>
+            </form>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Key</th><th>Status</th><th>Created</th><th>Expires</th></tr></thead>
+                <tbody>
+                    {% for lic in licenses %}
+                    <tr>
+                        <td><code>{{ lic.license_key }}</code></td>
+                        <td><span class="badge {% if lic.status=='active' %}bg-success{% else %}bg-danger{% endif %}">{{ lic.status }}</span></td>
+                        <td>{{ lic.created_at.strftime('%b %d, %Y') }}</td>
+                        <td>{{ lic.expires_at.strftime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not licenses %}<tr><td colspan="4" class="text-center text-muted py-3">No licenses</td></tr>{% endif %}
+                </tbody>
+            </table>
         </div>
     </div>
 
     <div class="card">
+        <div class="card-header"><h5 class="mb-0">Orders ({{ orders|length }})</h5></div>
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0" id="usersTable">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Plan</th>
-                            <th>Status</th>
-                            <th>Start Date</th>
-                            <th>End Date</th>
-                            <th>Licenses</th>
-                            <th>Discord</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr>
-                            <!-- User Column -->
-                            <td>
-                                <strong>{{ user.email }}</strong>
-                                <button class="copy-btn" onclick="copyToClipboard('{{ user.email }}')" title="Copy Email">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                                {% if user.get_full_name() and user.get_full_name() != user.email %}
-                                <br><small style="color: #807F80;">{{ user.get_full_name() }}</small>
-                                {% endif %}
-                                {% if user.country %}
-                                <br><small style="color: #A0A0A0;"><i class="fas fa-globe me-1"></i>{{ user.country }}</small>
-                                {% endif %}
-                                {% if user.email_verified %}
-                                <i class="fas fa-check-circle text-success ms-1" title="Email verified"></i>
-                                {% endif %}
-                            </td>
-
-                            <!-- Plan Column -->
-                            <td>
-                                {% if user.plan_name %}
-                                <small>{{ user.plan_name }}</small>
-                                {% if user.subscription_type %}
-                                <br><span class="badge 
-                                    {% if user.subscription_type == 'monthly' %}badge-monthly
-                                    {% elif user.subscription_type == 'yearly' %}badge-yearly
-                                    {% elif user.subscription_type == 'lifetime' %}badge-lifetime
-                                    {% endif %}">
-                                    {{ user.subscription_type|title }}
-                                </span>
-                                {% endif %}
-                                {% if user.plan_price and user.plan_price > 0 %}
-                                <br><small style="color: #807F80;">{{ user.currency or 'EUR' }} {{ "%.2f"|format(user.plan_price) }}</small>
-                                {% endif %}
-                                {% else %}
-                                <small class="text-muted">-</small>
-                                {% endif %}
-                            </td>
-
-                            <!-- Status Column -->
-                            <td>
-                                <span class="badge 
-                                    {% if user.membership_status == 'active' %}badge-active
-                                    {% elif user.membership_status == 'revoked' %}badge-revoked
-                                    {% else %}badge-expired{% endif %}">
-                                    {{ user.membership_status|title }}
-                                </span>
-                            </td>
-
-                            <!-- Start Date Column -->
-                            <td>
-                                {% if user.membership_start %}
-                                <small>{{ user.membership_start.strftime('%b %d, %Y') }}</small>
-                                {% else %}
-                                <small class="text-muted">N/A</small>
-                                {% endif %}
-                            </td>
-
-                            <!-- End Date Column -->
-                            <td>
-                                {% if user.membership_end %}
-                                <small>{{ user.membership_end.strftime('%b %d, %Y') }}</small>
-                                {% if user.membership_end > now and user.membership_status == 'active' %}
-                                <br><small style="color: #3FBFB3;">
-                                    <i class="fas fa-clock me-1"></i>
-                                    {{ (user.membership_end - now).days }} days left
-                                </small>
-                                {% endif %}
-                                {% else %}
-                                <small class="text-muted">N/A</small>
-                                {% endif %}
-                            </td>
-
-                            <!-- Licenses Column -->
-                            <td class="license-key-cell">
-                                <span class="badge bg-primary">{{ user.licenses.count() }}</span>
-                                {% set active_lic = user.get_active_license() %}
-                                {% if active_lic %}
-                                <br><code>{{ active_lic.license_key }}</code>
-                                <br><button class="copy-btn" onclick="copyToClipboard('{{ active_lic.license_key }}')" title="Copy License Key">
-                                    <i class="fas fa-copy me-1"></i>Copy Key
-                                </button>
-                                {% endif %}
-                            </td>
-
-                            <!-- Discord Column -->
-                            <td>
-                                {% if user.discord_joined %}
-                                <span style="color: #5865F2;">
-                                    <i class="fab fa-discord"></i> Joined
-                                </span>
-                                {% else %}
-                                <span class="text-muted">
-                                    <i class="fas fa-times"></i>
-                                </span>
-                                {% endif %}
-                            </td>
-
-                            <!-- Actions Column -->
-                            <td class="actions-cell">
-                                <div class="d-flex gap-1">
-                                    <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-outline-info btn-sm" title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if user.membership_status == 'active' %}
-                                    <form method="POST" action="{{ url_for('revoke_membership', user_id=user.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            onclick="return confirm('Revoke membership for {{ user.email }}?\n\nThis will:\n- Revoke all active licenses\n- Remove from Discord\n- End membership immediately')"
-                                            title="Revoke Membership">
-                                            <i class="fas fa-ban"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
-                                    {% if user.membership_status == 'revoked' %}
-                                    <form method="POST" action="{{ url_for('reactivate_membership', user_id=user.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-success btn-sm"
-                                            onclick="return confirm('Reactivate membership for {{ user.email }}?')"
-                                            title="Reactivate Membership">
-                                            <i class="fas fa-undo"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Order ID</th><th>Plan</th><th>Amount</th><th>Date</th></tr></thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><code>{{ order.wix_order_id or 'N/A' }}</code></td>
+                        <td>{{ order.plan_name }}</td>
+                        <td>{% if order.total_amount and order.total_amount>0 %}{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}{% else %}Free{% endif %}</td>
+                        <td>{{ order.created_at.strftime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not orders %}<tr><td colspan="4" class="text-center text-muted py-3">No orders</td></tr>{% endif %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
-
-<script>
-    // Search functionality
-    document.getElementById('searchUsers').addEventListener('keyup', function () {
-        const term = this.value.toLowerCase();
-        document.querySelectorAll('#usersTable tbody tr').forEach(row => {
-            row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
-        });
-    });
-</script>
 {% endblock %}
