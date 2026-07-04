@@ -54,6 +54,10 @@
     .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
 
+    .badge-vps-active { background: #3FBFB3; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-vps-provisioning { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+    .badge-vps-none { background: #E5E7EB; color: #6B7280; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
+
     .btn-outline-danger {
         border: 1.5px solid #EF4444;
         color: #EF4444;
@@ -192,6 +196,7 @@
                             <th>End Date</th>
                             <th>Licenses</th>
                             <th>Discord</th>
+                            <th>VPS</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -292,6 +297,19 @@
                                 <span class="text-muted">
                                     <i class="fas fa-times"></i>
                                 </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- VPS Column -->
+                            <td>
+                                {% if user.vps_status == 'active' %}
+                                <span class="badge badge-vps-active"><i class="fas fa-server me-1"></i>Active</span>
+                                {% elif user.vps_status == 'provisioning' %}
+                                <span class="badge badge-vps-provisioning"><i class="fas fa-spinner fa-spin me-1"></i>Provisioning</span>
+                                {% elif user.vps_id %}
+                                <span class="badge badge-vps-none">{{ user.vps_status|title }}</span>
+                                {% else %}
+                                <span class="badge badge-vps-none">None</span>
                                 {% endif %}
                             </td>
 
