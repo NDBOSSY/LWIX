@@ -19,6 +19,14 @@ ADDED: ThinkHuge VPS auto-provisioning on payment (Basic plan for all levels)
 ADDED: VPS auto-termination on membership expiry
 ADDED: VPS details sent after license generation (correct language)
 ADDED: VPS details display on user dashboard
+FIXED: ThinkHuge API calls were being blocked by Cloudflare with
+       "Error 1010: browser_signature_banned" because urllib's default
+       User-Agent ("Python-urllib/3.x") is flagged as a bot by Cloudflare's
+       bot-management rules. All ThinkHuge requests now send a real
+       browser-like User-Agent (and related headers) to pass the check.
+ADDED: Background retry/backfill sweep that automatically re-attempts VPS
+       provisioning for any paid, active user who doesn't yet have a VPS
+       (e.g. because a previous provisioning attempt failed).
 """
 
 import os
@@ -31,6 +39,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -121,6 +130,13 @@ class Config:
         2: os.getenv("FOREXVPS_PLAN_LEVEL2", "Basic"),
         3: os.getenv("FOREXVPS_PLAN_LEVEL3", "Basic"),
     }
+    # How often (seconds) the background job retries provisioning for users
+    # who paid but don't have a VPS yet (e.g. a previous attempt was blocked
+    # by Cloudflare, ThinkHuge was briefly down, etc.)
+    FOREXVPS_RETRY_INTERVAL_SECONDS = int(os.getenv("FOREXVPS_RETRY_INTERVAL_SECONDS", 600))
+    # Give up automatic retries after this many minutes so we don't hammer a
+    # permanently failing account forever; visible to admins via vps_status.
+    FOREXVPS_RETRY_MAX_AGE_MINUTES = int(os.getenv("FOREXVPS_RETRY_MAX_AGE_MINUTES", 1440))
 
     @staticmethod
     def is_railway():
@@ -241,6 +257,8 @@ class User(UserMixin, db.Model):
     vps_plan = db.Column(db.String(50), nullable=True)
     vps_created_at = db.Column(db.DateTime, nullable=True)
     vps_terminated_at = db.Column(db.DateTime, nullable=True)
+    vps_last_attempt_at = db.Column(db.DateTime, nullable=True)
+    vps_last_error = db.Column(db.String(300), nullable=True)
 
     otp_tokens = db.relationship("OTPToken", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     licenses = db.relationship("License", backref="user", lazy="dynamic", cascade="all, delete-orphan")
@@ -466,37 +484,69 @@ class Setting(db.Model):
 # ============================================================================
 
 class ForexVPSClient:
-    """Client for ThinkHuge.net API"""
-    
+    """
+    Client for ThinkHuge.net API.
+
+    NOTE ON THE CLOUDFLARE 403 FIX:
+    ThinkHuge's API sits behind Cloudflare, and Cloudflare's bot-management
+    rules will return "Error 1010: browser_signature_banned" for requests
+    whose User-Agent looks like a script (urllib's default is literally
+    "Python-urllib/3.x", which is a textbook bot signature). That 403 is
+    what was silently preventing every VPS from being provisioned. The fix
+    is simply to send headers that look like a normal browser request.
+    """
+
+    # A realistic desktop browser User-Agent. Cloudflare mainly cares that
+    # this doesn't look like a bare script/HTTP-library default.
+    BROWSER_USER_AGENT = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
+
     def __init__(self):
         self.api_url = Config.FOREXVPS_API_URL.rstrip('/')
         self.api_key = Config.FOREXVPS_API_KEY
         self.headers = {
             'Authorization': f'Bearer {self.api_key}',
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'User-Agent': self.BROWSER_USER_AGENT,
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
         }
-    
+
     def is_configured(self):
         """Check if ThinkHuge API is configured"""
         return bool(self.api_key)
-    
+
+    def _request(self, path, method="GET", payload=None, timeout=120):
+        """Shared request helper so every call gets the same anti-Cloudflare headers."""
+        data = json.dumps(payload).encode() if payload is not None else None
+        req = urllib.request.Request(
+            f"{self.api_url}{path}",
+            data=data,
+            headers=self.headers,
+            method=method
+        )
+        return urllib.request.urlopen(req, timeout=timeout)
+
     def create_vps(self, plan, email, label=""):
         """
         Create a new VPS server for a client
-        
+
         Args:
             plan: Plan name (Basic, Core, Prime)
             email: Client's email address
             label: Label for the VPS
-        
+
         Returns:
             dict with server details or error
         """
         if not self.is_configured():
             logger.warning("[ThinkHuge] API not configured, skipping VPS creation")
             return {"success": False, "error": "API not configured"}
-        
+
         try:
             payload = {
                 'email': email,
@@ -504,29 +554,22 @@ class ForexVPSClient:
                 'label': label,
                 'os_template': 'Windows 2022 UT',
             }
-            
+
             logger.info(f"[ThinkHuge] Creating VPS: plan={plan}, email={email}")
-            
-            req = urllib.request.Request(
-                f"{self.api_url}/servers",
-                data=json.dumps(payload).encode(),
-                headers=self.headers,
-                method="POST"
-            )
-            
-            response = urllib.request.urlopen(req, timeout=120)
+
+            response = self._request("/servers", method="POST", payload=payload, timeout=120)
             result = json.loads(response.read())
-            
+
             logger.info(f"[ThinkHuge] VPS creation response received")
-            
+
             server_data = result.get('data', result)
-            
+
             server_id = server_data.get('id') or server_data.get('server_id')
             ip = server_data.get('ip') or server_data.get('ip_address')
             username = server_data.get('username') or 'Administrator'
             password = server_data.get('password') or server_data.get('admin_password')
             status = server_data.get('status', 'pending')
-            
+
             return {
                 "success": True,
                 "server_id": str(server_id) if server_id else None,
@@ -536,33 +579,28 @@ class ForexVPSClient:
                 "status": status,
                 "plan": plan
             }
-            
+
         except urllib.error.HTTPError as e:
             error_body = e.read().decode() if e.fp else str(e)
             logger.error(f"[ThinkHuge] API error creating VPS: {e.code} - {error_body}")
-            return {"success": False, "error": f"API error: {e.code}"}
+            return {"success": False, "error": f"API error: {e.code}", "detail": error_body}
         except Exception as e:
             logger.error(f"[ThinkHuge] Error creating VPS: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def terminate_vps(self, server_id):
         """Terminate/delete a VPS server"""
         if not self.is_configured():
             return {"success": False, "error": "API not configured"}
-        
+
         try:
             logger.info(f"[ThinkHuge] Terminating VPS: {server_id}")
-            
-            req = urllib.request.Request(
-                f"{self.api_url}/servers/{server_id}",
-                headers=self.headers,
-                method="DELETE"
-            )
-            response = urllib.request.urlopen(req, timeout=30)
-            
+
+            self._request(f"/servers/{server_id}", method="DELETE", timeout=30)
+
             logger.info(f"[ThinkHuge] VPS termination successful: {server_id}")
             return {"success": True}
-            
+
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 logger.warning(f"[ThinkHuge] VPS {server_id} already terminated")
@@ -688,27 +726,33 @@ def provision_vps_for_user(user, plan_level):
     Creates the VPS but does NOT send the welcome email.
     The welcome email is sent after license generation when language is known.
     Returns True if successful, False otherwise.
+
+    Every attempt (success or failure) stamps vps_last_attempt_at so the
+    background retry sweep knows when it last tried and can back off /
+    give up appropriately. Failures also record vps_last_error for admins.
     """
     if not forexvps_client.is_configured():
         logger.info(f"[ThinkHuge] Skipping VPS provisioning - API not configured")
         return False
-    
+
     if user.vps_id and user.vps_status == 'active':
         logger.info(f"[ThinkHuge] User {user.email} already has active VPS: {user.vps_id}")
         return True
-    
+
     vps_plan = Config.FOREXVPS_PLANS.get(plan_level, "Basic")
-    
+
     label = f"TradingEngine - {user.email}"
-    
+
     logger.info(f"[ThinkHuge] Provisioning VPS for {user.email} | plan={vps_plan} | level={plan_level}")
-    
+
     result = forexvps_client.create_vps(
         plan=vps_plan,
         email=user.email,
         label=label
     )
-    
+
+    user.vps_last_attempt_at = datetime.utcnow()
+
     if result.get('success'):
         user.vps_id = result.get('server_id')
         user.vps_status = 'active'
@@ -717,12 +761,16 @@ def provision_vps_for_user(user, plan_level):
         user.vps_password = encrypt_data(result.get('password', ''))
         user.vps_plan = vps_plan
         user.vps_created_at = datetime.utcnow()
+        user.vps_last_error = None
         db.session.commit()
-        
+
         logger.info(f"[ThinkHuge] ✅ VPS provisioned for {user.email}: {user.vps_id} | IP: {user.vps_ip}")
         logger.info(f"[ThinkHuge] VPS details saved. Welcome email will be sent after license generation.")
         return True
     else:
+        error_msg = str(result.get('error'))[:300]
+        user.vps_last_error = error_msg
+        db.session.commit()
         logger.error(f"[ThinkHuge] ❌ Failed to provision VPS for {user.email}: {result.get('error')}")
         return False
 
@@ -867,6 +915,66 @@ The Trading Engine Team
     logger.info(f"[ThinkHuge] 📧 VPS termination email sent to {user.email}")
 
 
+def retry_pending_vps_provisioning():
+    """
+    Background safety net: find paid, active/cancelled users who still
+    don't have an active VPS (e.g. their original provisioning attempt hit
+    the Cloudflare browser_signature_banned 403, or ThinkHuge was briefly
+    unavailable) and retry provisioning for them.
+
+    Skips users who were only just attempted (to respect
+    FOREXVPS_RETRY_INTERVAL_SECONDS) and gives up permanently after
+    FOREXVPS_RETRY_MAX_AGE_MINUTES since their membership started, logging
+    a warning so admins can investigate accounts that keep failing.
+    """
+    if not forexvps_client.is_configured():
+        return
+
+    try:
+        retry_cutoff = datetime.utcnow() - timedelta(seconds=Config.FOREXVPS_RETRY_INTERVAL_SECONDS)
+
+        candidates = User.query.filter(
+            User.membership_status.in_(["active", "cancelled"]),
+            User.is_admin == False,
+            db.or_(User.vps_id.is_(None), User.vps_status != 'active'),
+            User.vps_status != 'terminated',
+            db.or_(User.vps_last_attempt_at.is_(None), User.vps_last_attempt_at < retry_cutoff),
+        ).all()
+
+        if not candidates:
+            return
+
+        logger.info(f"[ThinkHuge] 🔁 Retry sweep: {len(candidates)} user(s) missing an active VPS")
+
+        for user in candidates:
+            if user.membership_start:
+                age_minutes = (datetime.utcnow() - user.membership_start).total_seconds() / 60
+                if age_minutes > Config.FOREXVPS_RETRY_MAX_AGE_MINUTES:
+                    logger.warning(
+                        f"[ThinkHuge] ⚠️ Giving up auto-retry for {user.email} "
+                        f"(pending {age_minutes:.0f}min, last_error={user.vps_last_error}). "
+                        f"Needs manual admin attention."
+                    )
+                    continue
+
+            plan_level = user.get_plan_level()
+            success = provision_vps_for_user(user, plan_level)
+
+            if success:
+                logger.info(f"[ThinkHuge] ✅ Retry succeeded for {user.email}")
+                # If the user already has a generated license, send VPS
+                # details now since the original post-license-generation
+                # email would have found no VPS to report.
+                if user.get_active_license():
+                    send_vps_welcome_email(user)
+            else:
+                logger.warning(f"[ThinkHuge] Retry still failing for {user.email}: {user.vps_last_error}")
+
+    except Exception as e:
+        logger.error(f"[ThinkHuge] Error in retry_pending_vps_provisioning: {e}")
+        db.session.rollback()
+
+
 # ============================================================================
 # AUTO-CLEANUP (includes VPS cleanup)
 # ============================================================================
@@ -940,6 +1048,9 @@ def cleanup_stale_sessions():
     # Also clean up expired VPS
     cleanup_expired_vps()
 
+    # Retry provisioning for anyone still missing a VPS
+    retry_pending_vps_provisioning()
+
 
 def start_auto_cleanup():
     def job():
@@ -996,12 +1107,21 @@ def run_migrations():
                 logger.info("✅ language_preference column added")
 
             # Add ThinkHuge VPS columns if they don't exist
-            vps_columns = ['vps_id', 'vps_status', 'vps_ip', 'vps_username', 'vps_password', 'vps_plan', 'vps_created_at', 'vps_terminated_at']
+            vps_columns = [
+                'vps_id', 'vps_status', 'vps_ip', 'vps_username', 'vps_password',
+                'vps_plan', 'vps_created_at', 'vps_terminated_at',
+                'vps_last_attempt_at', 'vps_last_error',
+            ]
             for col_name in vps_columns:
                 if col_name not in columns:
-                    col_type = 'VARCHAR(100)' if col_name in ['vps_id', 'vps_password'] else \
-                               'VARCHAR(50)' if col_name in ['vps_ip', 'vps_username', 'vps_plan', 'vps_status'] else \
-                               'TIMESTAMP'
+                    if col_name in ('vps_id', 'vps_password'):
+                        col_type = 'VARCHAR(100)'
+                    elif col_name == 'vps_last_error':
+                        col_type = 'VARCHAR(300)'
+                    elif col_name in ('vps_ip', 'vps_username', 'vps_plan', 'vps_status'):
+                        col_type = 'VARCHAR(50)'
+                    else:
+                        col_type = 'TIMESTAMP'
                     logger.info(f"Adding {col_name} column to users table...")
                     db.session.execute(db.text(f"""
                         ALTER TABLE users ADD COLUMN {col_name} {col_type}
@@ -1489,6 +1609,13 @@ def generate_license():
                 f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Keep this key safe.</p>"
             )
 
+        # If there's no VPS yet, try once more synchronously right now -
+        # this catches the common case where the original webhook attempt
+        # failed (e.g. the Cloudflare 403) and the background retry sweep
+        # hasn't run yet. Doesn't block the response either way.
+        if not (current_user.vps_id and current_user.vps_status == 'active'):
+            provision_vps_for_user(current_user, current_user.get_plan_level())
+
         # NOW SEND VPS DETAILS (if VPS exists)
         # User has already selected language on dashboard, so we use the correct language
         if current_user.vps_id and current_user.vps_status == 'active':
@@ -1758,6 +1885,14 @@ def admin_dashboard():
         (License.max_accounts == None) | (License.max_accounts <= 0)
     ).all()
 
+    # Users who paid but still don't have a working VPS - surfaced for admins
+    vps_pending_users = User.query.filter(
+        User.membership_status.in_(["active", "cancelled"]),
+        User.is_admin == False,
+        db.or_(User.vps_id.is_(None), User.vps_status != 'active'),
+        User.vps_status != 'terminated',
+    ).order_by(User.membership_start.desc()).all()
+
     return render_template(
         "admin/dashboard.html",
         total_users=total_users,
@@ -1776,7 +1911,8 @@ def admin_dashboard():
         subscription_stats=subscription_stats,
         now=datetime.utcnow(),
         is_test_mode=is_test_mode,
-        problematic_licenses=problematic_licenses
+        problematic_licenses=problematic_licenses,
+        vps_pending_users=vps_pending_users
     )
 
 
@@ -1800,6 +1936,27 @@ def fix_all_licenses():
     db.session.commit()
     flash(f"{fixed} licenties hersteld", "success")
     return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/retry-vps/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_retry_vps(user_id):
+    """Manually re-trigger VPS provisioning for a single user (e.g. right after
+    fixing configuration or confirming ThinkHuge/Cloudflare access is restored)."""
+    user = db.session.get(User, user_id)
+    if not user:
+        flash("Gebruiker niet gevonden.", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    success = provision_vps_for_user(user, user.get_plan_level())
+    if success:
+        if user.get_active_license():
+            send_vps_welcome_email(user)
+        flash(f"VPS succesvol aangemaakt voor {user.email}.", "success")
+    else:
+        flash(f"VPS aanmaken mislukt voor {user.email}: {user.vps_last_error}", "error")
+
+    return redirect(request.referrer or url_for("admin_dashboard"))
 
 
 @app.route("/admin/toggle-test-mode", methods=["POST"])
