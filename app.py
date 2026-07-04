@@ -728,7 +728,9 @@ class ForexVPSClient:
 
     def reset_password(self, server_id):
         """POST /v1/servers/{server}/reset-password -> {"password": "..."} (no 'data' wrapper)."""
-        response = self._request(f"/servers/{server_id}/reset-password", method="POST", timeout=60)
+        # Send an explicit empty JSON body rather than no body at all - some
+        # Laravel-based APIs 400 on a POST with a totally empty request body.
+        response = self._request(f"/servers/{server_id}/reset-password", method="POST", payload={}, timeout=60)
         result = self._read_json(response)
         return result["password"]
 
@@ -779,6 +781,11 @@ class ForexVPSClient:
                 # Server appears ready already - fetch its password now.
                 try:
                     password = self.reset_password(server_id)
+                except urllib.error.HTTPError as e:
+                    logger.warning(
+                        f"[ThinkHuge] Server {server_id} has an IP but password fetch failed: "
+                        f"{e.code} - {self._error_detail(e)}"
+                    )
                 except Exception as e:
                     logger.warning(f"[ThinkHuge] Server {server_id} has an IP but password fetch failed: {e}")
 
@@ -1054,7 +1061,10 @@ def poll_pending_vps_servers():
                     send_vps_welcome_email(user)
 
             except urllib.error.HTTPError as e:
-                logger.warning(f"[ThinkHuge] Poll failed for {user.email} ({user.vps_id}): {e.code}")
+                logger.warning(
+                    f"[ThinkHuge] Poll failed for {user.email} ({user.vps_id}): "
+                    f"{e.code} - {forexvps_client._error_detail(e)}"
+                )
             except Exception as e:
                 logger.warning(f"[ThinkHuge] Poll error for {user.email} ({user.vps_id}): {e}")
 
