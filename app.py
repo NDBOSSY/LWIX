@@ -1,7 +1,7 @@
 """
 Subscription & Licensing Platform
 Complete Flask Application with Wix Integration, Stripe Integration, OTP Auth, 
-License Management & Discord Integration
+License Management, Discord Integration & ThinkHuge VPS Auto-Provisioning
 
 ACCOUNT SLOT LOGIC:
 - Each UNIQUE MT5 account number = 1 slot
@@ -14,7 +14,11 @@ FIXED: Unlimited validations (max_validations=None skips the check)
 FIXED: Heartbeats no longer increment validation_count
 FIXED: Cancellation = stop auto-renewal, user keeps full access until paid period ends
 ADDED: Language toggle support (English/Nederlands)
-ADDED: "Need Help?" Discord support section
+ADDED: "Need Help?" Contact Us support section
+ADDED: ThinkHuge VPS auto-provisioning on payment (Basic plan for all levels)
+ADDED: VPS auto-termination on membership expiry
+ADDED: VPS details sent after license generation (correct language)
+ADDED: VPS details display on user dashboard
 """
 
 import os
@@ -109,6 +113,15 @@ class Config:
         'nl': 'Nederlands'
     }
 
+    # ThinkHuge VPS API Configuration
+    FOREXVPS_API_URL = os.getenv("FOREXVPS_API_URL", "https://api.partners.thinkhuge.net/api/v1")
+    FOREXVPS_API_KEY = os.getenv("FOREXVPS_API_KEY", "")
+    FOREXVPS_PLANS = {
+        1: os.getenv("FOREXVPS_PLAN_LEVEL1", "Basic"),
+        2: os.getenv("FOREXVPS_PLAN_LEVEL2", "Basic"),
+        3: os.getenv("FOREXVPS_PLAN_LEVEL3", "Basic"),
+    }
+
     @staticmethod
     def is_railway():
         return bool(os.getenv("RAILWAY_STATIC_URL"))
@@ -157,7 +170,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 logger.info("=" * 80)
-logger.info("APPLICATION STARTING - MT5 ACCOUNT SLOT TRACKING")
+logger.info("APPLICATION STARTING - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS")
 logger.info("=" * 80)
 
 
@@ -218,6 +231,16 @@ class User(UserMixin, db.Model):
     login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
     language_preference = db.Column(db.String(5), default='en')
+
+    # ThinkHuge VPS fields
+    vps_id = db.Column(db.String(100), nullable=True)
+    vps_status = db.Column(db.String(20), nullable=True)
+    vps_ip = db.Column(db.String(50), nullable=True)
+    vps_username = db.Column(db.String(50), nullable=True)
+    vps_password = db.Column(db.String(200), nullable=True)
+    vps_plan = db.Column(db.String(50), nullable=True)
+    vps_created_at = db.Column(db.DateTime, nullable=True)
+    vps_terminated_at = db.Column(db.DateTime, nullable=True)
 
     otp_tokens = db.relationship("OTPToken", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     licenses = db.relationship("License", backref="user", lazy="dynamic", cascade="all, delete-orphan")
@@ -439,14 +462,134 @@ class Setting(db.Model):
 
 
 # ============================================================================
+# THINKHUGE VPS API CLIENT
+# ============================================================================
+
+class ForexVPSClient:
+    """Client for ThinkHuge.net API"""
+    
+    def __init__(self):
+        self.api_url = Config.FOREXVPS_API_URL.rstrip('/')
+        self.api_key = Config.FOREXVPS_API_KEY
+        self.headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    
+    def is_configured(self):
+        """Check if ThinkHuge API is configured"""
+        return bool(self.api_key)
+    
+    def create_vps(self, plan, email, label=""):
+        """
+        Create a new VPS server for a client
+        
+        Args:
+            plan: Plan name (Basic, Core, Prime)
+            email: Client's email address
+            label: Label for the VPS
+        
+        Returns:
+            dict with server details or error
+        """
+        if not self.is_configured():
+            logger.warning("[ThinkHuge] API not configured, skipping VPS creation")
+            return {"success": False, "error": "API not configured"}
+        
+        try:
+            payload = {
+                'email': email,
+                'plan': plan,
+                'label': label,
+                'os_template': 'Windows 2022 UT',
+            }
+            
+            logger.info(f"[ThinkHuge] Creating VPS: plan={plan}, email={email}")
+            
+            req = urllib.request.Request(
+                f"{self.api_url}/servers",
+                data=json.dumps(payload).encode(),
+                headers=self.headers,
+                method="POST"
+            )
+            
+            response = urllib.request.urlopen(req, timeout=120)
+            result = json.loads(response.read())
+            
+            logger.info(f"[ThinkHuge] VPS creation response received")
+            
+            server_data = result.get('data', result)
+            
+            server_id = server_data.get('id') or server_data.get('server_id')
+            ip = server_data.get('ip') or server_data.get('ip_address')
+            username = server_data.get('username') or 'Administrator'
+            password = server_data.get('password') or server_data.get('admin_password')
+            status = server_data.get('status', 'pending')
+            
+            return {
+                "success": True,
+                "server_id": str(server_id) if server_id else None,
+                "ip": ip,
+                "username": username,
+                "password": password,
+                "status": status,
+                "plan": plan
+            }
+            
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode() if e.fp else str(e)
+            logger.error(f"[ThinkHuge] API error creating VPS: {e.code} - {error_body}")
+            return {"success": False, "error": f"API error: {e.code}"}
+        except Exception as e:
+            logger.error(f"[ThinkHuge] Error creating VPS: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def terminate_vps(self, server_id):
+        """Terminate/delete a VPS server"""
+        if not self.is_configured():
+            return {"success": False, "error": "API not configured"}
+        
+        try:
+            logger.info(f"[ThinkHuge] Terminating VPS: {server_id}")
+            
+            req = urllib.request.Request(
+                f"{self.api_url}/servers/{server_id}",
+                headers=self.headers,
+                method="DELETE"
+            )
+            response = urllib.request.urlopen(req, timeout=30)
+            
+            logger.info(f"[ThinkHuge] VPS termination successful: {server_id}")
+            return {"success": True}
+            
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                logger.warning(f"[ThinkHuge] VPS {server_id} already terminated")
+                return {"success": True}
+            logger.error(f"[ThinkHuge] Error terminating VPS {server_id}: {e.code}")
+            return {"success": False, "error": f"API error: {e.code}"}
+        except Exception as e:
+            logger.error(f"[ThinkHuge] Error terminating VPS {server_id}: {e}")
+            return {"success": False, "error": str(e)}
+
+
+forexvps_client = ForexVPSClient()
+
+
+# ============================================================================
 # HELPERS
 # ============================================================================
 
 def encrypt_data(data):
+    if not data:
+        return None
     try: return cipher_suite.encrypt(data.encode()).decode()
     except: return data
 
 def decrypt_data(data):
+    if not data:
+        return None
     try: return cipher_suite.decrypt(data.encode()).decode()
     except: return data
 
@@ -536,11 +679,231 @@ def format_date_english(date_obj):
 
 
 # ============================================================================
-# AUTO-CLEANUP
+# VPS PROVISIONING FUNCTIONS
 # ============================================================================
 
+def provision_vps_for_user(user, plan_level):
+    """
+    Provision a VPS for a user based on their plan level.
+    Creates the VPS but does NOT send the welcome email.
+    The welcome email is sent after license generation when language is known.
+    Returns True if successful, False otherwise.
+    """
+    if not forexvps_client.is_configured():
+        logger.info(f"[ThinkHuge] Skipping VPS provisioning - API not configured")
+        return False
+    
+    if user.vps_id and user.vps_status == 'active':
+        logger.info(f"[ThinkHuge] User {user.email} already has active VPS: {user.vps_id}")
+        return True
+    
+    vps_plan = Config.FOREXVPS_PLANS.get(plan_level, "Basic")
+    
+    label = f"TradingEngine - {user.email}"
+    
+    logger.info(f"[ThinkHuge] Provisioning VPS for {user.email} | plan={vps_plan} | level={plan_level}")
+    
+    result = forexvps_client.create_vps(
+        plan=vps_plan,
+        email=user.email,
+        label=label
+    )
+    
+    if result.get('success'):
+        user.vps_id = result.get('server_id')
+        user.vps_status = 'active'
+        user.vps_ip = result.get('ip')
+        user.vps_username = result.get('username')
+        user.vps_password = encrypt_data(result.get('password', ''))
+        user.vps_plan = vps_plan
+        user.vps_created_at = datetime.utcnow()
+        db.session.commit()
+        
+        logger.info(f"[ThinkHuge] ✅ VPS provisioned for {user.email}: {user.vps_id} | IP: {user.vps_ip}")
+        logger.info(f"[ThinkHuge] VPS details saved. Welcome email will be sent after license generation.")
+        return True
+    else:
+        logger.error(f"[ThinkHuge] ❌ Failed to provision VPS for {user.email}: {result.get('error')}")
+        return False
+
+
+def send_vps_welcome_email(user):
+    """
+    Send VPS login details to user.
+    Called after license generation when user's language preference is known.
+    """
+    lang = get_user_language()
+    vps_password = decrypt_data(user.vps_password)
+    
+    if lang == 'nl':
+        subject = "Je Forex VPS is klaar! - Trading Engine"
+        body_plain = f"""
+Beste {user.first_name or 'handelaar'},
+
+Je Forex VPS is succesvol aangemaakt en klaar voor gebruik!
+
+=== VPS LOGIN GEGEVENS ===
+IP Adres: {user.vps_ip or 'Wordt binnen enkele minuten verzonden'}
+Gebruikersnaam: {user.vps_username or 'Wordt binnen enkele minuten verzonden'}
+Wachtwoord: {vps_password or 'Wordt binnen enkele minuten verzonden'}
+
+=== BELANGRIJKE INFORMATIE ===
+• De VPS is 24/7 actief zolang je abonnement loopt
+• Je kunt direct inloggen via Windows Remote Desktop (RDP)
+• Installeer MetaTrader en je Expert Advisors op de VPS
+• Bij vragen, neem contact op via support@tradingengine.nl
+
+Je VPS blijft actief zolang je abonnement loopt.
+
+Met vriendelijke groet,
+Het Trading Engine Team
+"""
+        body_html = f"""
+<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #0b121a;">🎉 Je Forex VPS is klaar!</h2>
+    <p>Beste <strong>{user.first_name or 'handelaar'}</strong>,</p>
+    <p>Je Forex VPS is succesvol aangemaakt en klaar voor gebruik!</p>
+    
+    <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <h3 style="margin: 0 0 10px; color: #0b121a;">🔐 VPS Login Gegevens</h3>
+        <p style="margin: 4px 0;"><strong>IP Adres:</strong> <code>{user.vps_ip or 'Wordt binnen enkele minuten verzonden'}</code></p>
+        <p style="margin: 4px 0;"><strong>Gebruikersnaam:</strong> <code>{user.vps_username or 'Wordt binnen enkele minuten verzonden'}</code></p>
+        <p style="margin: 4px 0;"><strong>Wachtwoord:</strong> <code>{vps_password or 'Wordt binnen enkele minuten verzonden'}</code></p>
+    </div>
+    
+    <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 8px; padding: 12px; margin: 16px 0;">
+        <p style="margin: 4px 0;">✅ De VPS is 24/7 actief zolang je abonnement loopt</p>
+        <p style="margin: 4px 0;">✅ Log in via Windows Remote Desktop (RDP)</p>
+        <p style="margin: 4px 0;">✅ Installeer MetaTrader en je Expert Advisors</p>
+    </div>
+    
+    <p style="color: #5b6f7e; margin-top: 30px;">
+        Met vriendelijke groet,<br>
+        <strong style="color: #0b121a;">Het Trading Engine Team</strong>
+    </p>
+</div>"""
+    else:
+        subject = "Your Forex VPS is Ready! - Trading Engine"
+        body_plain = f"""
+Dear {user.first_name or 'trader'},
+
+Your Forex VPS has been successfully created and is ready to use!
+
+=== VPS LOGIN DETAILS ===
+IP Address: {user.vps_ip or 'Will be sent within minutes'}
+Username: {user.vps_username or 'Will be sent within minutes'}
+Password: {vps_password or 'Will be sent within minutes'}
+
+=== IMPORTANT INFORMATION ===
+• The VPS runs 24/7 as long as your subscription is active
+• You can log in immediately via Windows Remote Desktop (RDP)
+• Install MetaTrader and your Expert Advisors on the VPS
+• For questions, contact support@tradingengine.nl
+
+Your VPS will remain active as long as your subscription is active.
+
+Best regards,
+The Trading Engine Team
+"""
+        body_html = f"""
+<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #0b121a;">🎉 Your Forex VPS is Ready!</h2>
+    <p>Dear <strong>{user.first_name or 'trader'}</strong>,</p>
+    <p>Your Forex VPS has been successfully created and is ready to use!</p>
+    
+    <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <h3 style="margin: 0 0 10px; color: #0b121a;">🔐 VPS Login Details</h3>
+        <p style="margin: 4px 0;"><strong>IP Address:</strong> <code>{user.vps_ip or 'Will be sent within minutes'}</code></p>
+        <p style="margin: 4px 0;"><strong>Username:</strong> <code>{user.vps_username or 'Will be sent within minutes'}</code></p>
+        <p style="margin: 4px 0;"><strong>Password:</strong> <code>{vps_password or 'Will be sent within minutes'}</code></p>
+    </div>
+    
+    <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 8px; padding: 12px; margin: 16px 0;">
+        <p style="margin: 4px 0;">✅ The VPS runs 24/7 as long as your subscription is active</p>
+        <p style="margin: 4px 0;">✅ Log in via Windows Remote Desktop (RDP)</p>
+        <p style="margin: 4px 0;">✅ Install MetaTrader and your Expert Advisors</p>
+    </div>
+    
+    <p style="color: #5b6f7e; margin-top: 30px;">
+        Best regards,<br>
+        <strong style="color: #0b121a;">The Trading Engine Team</strong>
+    </p>
+</div>"""
+    
+    send_email_async(subject, [user.email], body_plain, body_html)
+    logger.info(f"[ThinkHuge] 📧 VPS welcome email sent to {user.email} in {lang}")
+
+
+def send_vps_termination_email(user):
+    """Send VPS termination notification to user"""
+    lang = user.language_preference or 'en'
+    
+    if lang == 'nl':
+        subject = "Je Forex VPS is beëindigd - Trading Engine"
+        body_plain = f"""
+Beste {user.first_name or 'handelaar'},
+
+Je Forex VPS is beëindigd omdat je abonnement is verlopen.
+
+Als je een nieuw abonnement afsluit, wordt er automatisch een nieuwe VPS voor je aangemaakt.
+
+Met vriendelijke groet,
+Het Trading Engine Team
+"""
+    else:
+        subject = "Your Forex VPS has been terminated - Trading Engine"
+        body_plain = f"""
+Dear {user.first_name or 'trader'},
+
+Your Forex VPS has been terminated because your subscription has expired.
+
+If you sign up for a new subscription, a new VPS will be automatically created for you.
+
+Best regards,
+The Trading Engine Team
+"""
+    
+    send_email_async(subject, [user.email], body_plain)
+    logger.info(f"[ThinkHuge] 📧 VPS termination email sent to {user.email}")
+
+
+# ============================================================================
+# AUTO-CLEANUP (includes VPS cleanup)
+# ============================================================================
+
+def cleanup_expired_vps():
+    """Terminate VPS for users whose membership has expired"""
+    try:
+        expired_users = User.query.filter(
+            User.membership_end < datetime.utcnow(),
+            User.membership_status.in_(['expired', 'cancelled']),
+            User.vps_id.isnot(None),
+            User.vps_status == 'active'
+        ).all()
+        
+        for user in expired_users:
+            logger.info(f"[ThinkHuge] Terminating VPS for expired membership: {user.email} (ended {user.membership_end})")
+            
+            result = forexvps_client.terminate_vps(user.vps_id)
+            
+            if result.get('success'):
+                user.vps_status = 'terminated'
+                user.vps_terminated_at = datetime.utcnow()
+                db.session.commit()
+                
+                send_vps_termination_email(user)
+                
+                logger.info(f"[ThinkHuge] ✅ VPS terminated for {user.email}")
+            else:
+                logger.error(f"[ThinkHuge] ❌ Failed to terminate VPS for {user.email}: {result.get('error')}")
+    
+    except Exception as e:
+        logger.error(f"[ThinkHuge] Error in cleanup_expired_vps: {e}")
+        db.session.rollback()
+
+
 def cleanup_stale_sessions():
-    """Remove EA sessions with no heartbeat. Frees account slots automatically."""
+    """Remove EA sessions with no heartbeat. Frees account slots automatically. Also cleans up expired VPS."""
     try:
         threshold = datetime.utcnow() - timedelta(minutes=Config.HEARTBEAT_TIMEOUT_MINUTES)
 
@@ -573,6 +936,9 @@ def cleanup_stale_sessions():
     except Exception as e:
         logger.error(f"Auto-cleanup error: {e}")
         db.session.rollback()
+    
+    # Also clean up expired VPS
+    cleanup_expired_vps()
 
 
 def start_auto_cleanup():
@@ -629,6 +995,20 @@ def run_migrations():
                 db.session.commit()
                 logger.info("✅ language_preference column added")
 
+            # Add ThinkHuge VPS columns if they don't exist
+            vps_columns = ['vps_id', 'vps_status', 'vps_ip', 'vps_username', 'vps_password', 'vps_plan', 'vps_created_at', 'vps_terminated_at']
+            for col_name in vps_columns:
+                if col_name not in columns:
+                    col_type = 'VARCHAR(100)' if col_name in ['vps_id', 'vps_password'] else \
+                               'VARCHAR(50)' if col_name in ['vps_ip', 'vps_username', 'vps_plan', 'vps_status'] else \
+                               'TIMESTAMP'
+                    logger.info(f"Adding {col_name} column to users table...")
+                    db.session.execute(db.text(f"""
+                        ALTER TABLE users ADD COLUMN {col_name} {col_type}
+                    """))
+                    db.session.commit()
+                    logger.info(f"✅ {col_name} column added")
+
             # Fix existing licenses with invalid max_accounts
             bad_licenses = License.query.filter(
                 (License.max_accounts == None) | (License.max_accounts <= 0)
@@ -646,7 +1026,7 @@ def run_migrations():
                 db.session.commit()
                 logger.info(f"✅ Fixed {len(bad_licenses)} licenses")
 
-            # FIX: Remove validation limits from all existing licenses on every startup
+            # Remove validation limits from all existing licenses on every startup
             capped_licenses = License.query.filter(
                 License.max_validations != None
             ).all()
@@ -713,7 +1093,8 @@ def health():
         "timestamp": datetime.utcnow().isoformat(),
         "active_licenses": License.query.filter_by(status="active").count(),
         "active_accounts": LicenseAccount.query.count(),
-        "active_sessions": EASession.query.count()
+        "active_sessions": EASession.query.count(),
+        "active_vps": User.query.filter_by(vps_status='active').count()
     })
 
 
@@ -1009,6 +1390,14 @@ def user_dashboard():
         delta = user.membership_end - datetime.utcnow()
         days_remaining = max(0, delta.days)
 
+    # Decrypt VPS password for display
+    vps_password_decrypted = None
+    if user.vps_id and user.vps_password:
+        try:
+            vps_password_decrypted = decrypt_data(user.vps_password)
+        except:
+            vps_password_decrypted = None
+
     return render_template(
         "user/dashboard.html",
         user=user,
@@ -1024,12 +1413,13 @@ def user_dashboard():
         max_accounts=max_accounts,
         days_remaining=days_remaining,
         membership_end_date=user.membership_end,
-        current_language=get_user_language()
+        current_language=get_user_language(),
+        vps_password_decrypted=vps_password_decrypted
     )
 
 
 # ============================================================================
-# GENERATE LICENSE
+# GENERATE LICENSE (with VPS details email after generation)
 # ============================================================================
 
 @app.route("/generate-license", methods=["POST"])
@@ -1037,10 +1427,11 @@ def user_dashboard():
 @limiter.limit("3 per day")
 def generate_license():
     logger.info(f"[LICENSE GEN] User: {current_user.email}")
+    lang = get_user_language()
 
     if not current_user.is_membership_active():
         return jsonify({
-            "error": "Actief abonnement vereist",
+            "error": "Actief abonnement vereist" if lang == 'nl' else "Active membership required",
             "debug": {
                 "status": current_user.membership_status,
                 "end_date": current_user.membership_end.isoformat() if current_user.membership_end else None
@@ -1048,7 +1439,7 @@ def generate_license():
         }), 403
 
     if current_user.get_active_license():
-        return jsonify({"error": "Je hebt al een actieve licentie"}), 400
+        return jsonify({"error": "Je hebt al een actieve licentie" if lang == 'nl' else "You already have an active license"}), 400
 
     try:
         test_mode = Setting.query.filter_by(key="test_mode").first()
@@ -1074,7 +1465,7 @@ def generate_license():
         db.session.add(lic)
         db.session.commit()
 
-        logger.info(f"[LICENSE GEN] ✅ {lic.mask_license_key()} | max_acc={max_accounts} | level={user_level} | onbeperkte validaties")
+        logger.info(f"[LICENSE GEN] ✅ {lic.mask_license_key()} | max_acc={max_accounts} | level={user_level} | unlimited validations")
 
         log_audit(
             current_user.id, "license_generated",
@@ -1082,12 +1473,29 @@ def generate_license():
             request.remote_addr
         )
 
-        send_email_async(
-            "Jouw Licentiesleutel - Trading Engine",
-            [current_user.email],
-            f"Licentiesleutel: {key}\nVerloopt: {lic.expires_at.strftime('%d %B %Y')}\nMax MT5 Accounts: {max_accounts}\n\nBewaar deze sleutel veilig.",
-            f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {lic.expires_at.strftime('%d %B %Y')}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Bewaar deze sleutel veilig.</p>"
-        )
+        # Send license key email in user's selected language
+        if lang == 'nl':
+            send_email_async(
+                "Jouw Licentiesleutel - Trading Engine",
+                [current_user.email],
+                f"Licentiesleutel: {key}\nVerloopt: {format_date_dutch(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}\n\nBewaar deze sleutel veilig.",
+                f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {format_date_dutch(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Bewaar deze sleutel veilig.</p>"
+            )
+        else:
+            send_email_async(
+                "Your License Key - Trading Engine",
+                [current_user.email],
+                f"License Key: {key}\nExpires: {format_date_english(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}\n\nKeep this key safe.",
+                f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Keep this key safe.</p>"
+            )
+
+        # NOW SEND VPS DETAILS (if VPS exists)
+        # User has already selected language on dashboard, so we use the correct language
+        if current_user.vps_id and current_user.vps_status == 'active':
+            send_vps_welcome_email(current_user)
+            logger.info(f"[LICENSE GEN] 📧 VPS details sent to {current_user.email} in {lang}")
+        else:
+            logger.info(f"[LICENSE GEN] No active VPS for {current_user.email}, skipping VPS email")
 
         return jsonify({
             "success": True,
@@ -1100,7 +1508,7 @@ def generate_license():
     except Exception as e:
         logger.error(f"[LICENSE GEN] Error: {e}", exc_info=True)
         db.session.rollback()
-        return jsonify({"error": "Kon licentie niet genereren"}), 500
+        return jsonify({"error": "Kon licentie niet genereren" if lang == 'nl' else "Failed to generate license"}), 500
 
 
 # ============================================================================
@@ -1115,6 +1523,7 @@ def cancel_membership():
     Cancel auto-renewal of membership.
     User keeps FULL access until their paid period ends.
     Licenses are NOT revoked - they remain active until membership_end.
+    VPS is NOT terminated until membership_end passes.
     """
     if current_user.is_admin:
         return jsonify({"error": "Admin accounts cannot be cancelled this way"}), 400
@@ -1125,38 +1534,32 @@ def cancel_membership():
         user = current_user
         membership_end_date = user.membership_end
 
-        # Check if already cancelled
         if user.membership_status == "cancelled":
             msg = "Je abonnement is al geannuleerd." if lang == 'nl' else "Your membership is already cancelled."
             return jsonify({"error": msg}), 400
 
-        # Check if membership is active
         if user.membership_status != "active":
             msg = "Alleen actieve abonnementen kunnen worden geannuleerd." if lang == 'nl' else "Only active memberships can be cancelled."
             return jsonify({"error": msg}), 400
 
-        # Store the end date before changing status
         if not membership_end_date:
             membership_end_date = datetime.utcnow()
 
         # Change status to cancelled (stops auto-renewal)
         # Keep membership_end date as-is - user retains access until then
-        # IMPORTANT: Do NOT revoke licenses! User keeps access until membership_end
+        # IMPORTANT: Do NOT revoke licenses or terminate VPS!
         user.membership_status = "cancelled"
         
         db.session.commit()
 
-        # Format dates in both languages
         formatted_date_nl = format_date_dutch(membership_end_date) if membership_end_date else "de eerstvolgende verlengdatum"
         formatted_date_en = format_date_english(membership_end_date) if membership_end_date else "the next renewal date"
 
-        # Get active license count for the email
         active_license_count = License.query.filter_by(
             user_id=user.id,
             status="active"
         ).count()
 
-        # Send cancellation confirmation email in appropriate language
         if lang == 'nl':
             email_subject = "Bevestiging van je annulering - Trading Engine"
             email_body_plain = (
@@ -1164,8 +1567,8 @@ def cancel_membership():
                 f"Je abonnement is succesvol geannuleerd. Dit betekent dat je abonnement "
                 f"niet automatisch wordt verlengd.\n\n"
                 f"Je behoudt volledige toegang tot alle functies van Trading Engine tot {formatted_date_nl}. "
-                f"Je licenties blijven actief en je kunt je Expert Advisors blijven gebruiken.\n\n"
-                f"Na {formatted_date_nl} verloopt je toegang automatisch.\n\n"
+                f"Je licenties blijven actief, je VPS blijft draaien en je kunt je Expert Advisors blijven gebruiken.\n\n"
+                f"Na {formatted_date_nl} verloopt je toegang en wordt je VPS automatisch beëindigd.\n\n"
                 f"Mocht je van gedachten veranderen, dan kun je altijd een nieuw abonnement afsluiten.\n\n"
                 f"Bedankt dat je deel uitmaakt van Trading Engine!\n\n"
                 f"Met vriendelijke groet,\n"
@@ -1184,12 +1587,13 @@ def cancel_membership():
                     </p>
                     <p style="margin: 8px 0 0; font-size: 14px; color: #047857;">
                         • Je licenties blijven actief<br>
+                        • Je VPS blijft draaien<br>
                         • Je kunt je Expert Advisors blijven gebruiken<br>
                         • Je hebt toegang tot alle downloadbare bestanden
                     </p>
                 </div>
                 
-                <p style="color: #5b6f7e;">Na {formatted_date_nl} verloopt je toegang automatisch. Mocht je van gedachten veranderen, dan kun je altijd een nieuw abonnement afsluiten.</p>
+                <p style="color: #5b6f7e;">Na {formatted_date_nl} verloopt je toegang en wordt je VPS automatisch beëindigd. Mocht je van gedachten veranderen, dan kun je altijd een nieuw abonnement afsluiten.</p>
                 
                 <p style="color: #5b6f7e; margin-top: 30px;">
                     Met vriendelijke groet,<br>
@@ -1209,8 +1613,8 @@ def cancel_membership():
                 f"Your membership has been successfully cancelled. This means your subscription "
                 f"will not auto-renew.\n\n"
                 f"You will retain full access to all Trading Engine features until {formatted_date_en}. "
-                f"Your licenses remain active and you can continue using your Expert Advisors.\n\n"
-                f"After {formatted_date_en}, your access will automatically expire.\n\n"
+                f"Your licenses remain active, your VPS continues running, and you can continue using your Expert Advisors.\n\n"
+                f"After {formatted_date_en}, your access will expire and your VPS will be automatically terminated.\n\n"
                 f"If you change your mind, you can always sign up for a new subscription.\n\n"
                 f"Thank you for being part of Trading Engine!\n\n"
                 f"Best regards,\n"
@@ -1229,12 +1633,13 @@ def cancel_membership():
                     </p>
                     <p style="margin: 8px 0 0; font-size: 14px; color: #047857;">
                         • Your licenses remain active<br>
+                        • Your VPS continues running<br>
                         • You can continue using your Expert Advisors<br>
                         • You have access to all downloadable files
                     </p>
                 </div>
                 
-                <p style="color: #5b6f7e;">After {formatted_date_en}, your access will automatically expire. If you change your mind, you can always sign up for a new subscription.</p>
+                <p style="color: #5b6f7e;">After {formatted_date_en}, your access will expire and your VPS will be automatically terminated. If you change your mind, you can always sign up for a new subscription.</p>
                 
                 <p style="color: #5b6f7e; margin-top: 30px;">
                     Best regards,<br>
@@ -1253,7 +1658,7 @@ def cancel_membership():
         log_audit(
             user.id,
             "membership_cancelled",
-            f"User cancelled auto-renewal | Access until: {formatted_date_en} | {active_license_count} active licenses retained",
+            f"User cancelled auto-renewal | Access until: {formatted_date_en} | {active_license_count} active licenses retained | VPS retained until expiry",
             request.remote_addr
         )
 
@@ -1332,6 +1737,7 @@ def admin_dashboard():
     total_orders = Order.query.count()
     total_revenue = db.session.query(db.func.sum(Order.total_amount)).scalar() or 0
     total_downloads = db.session.query(db.func.sum(EAFile.download_count)).scalar() or 0
+    active_vps = User.query.filter_by(vps_status='active').count()
 
     recent_users = User.query.filter_by(is_admin=False).order_by(User.created_at.desc()).limit(10).all()
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
@@ -1361,6 +1767,7 @@ def admin_dashboard():
         total_orders=total_orders,
         total_revenue=total_revenue,
         total_downloads=total_downloads,
+        active_vps=active_vps,
         recent_users=recent_users,
         recent_orders=recent_orders,
         recent_licenses=recent_licenses,
@@ -1425,10 +1832,14 @@ def admin_user_detail(user_id):
 
     orders = user.orders.order_by(Order.created_at.desc()).all()
     licenses = user.licenses.order_by(License.created_at.desc()).all()
+    
+    # Decrypt VPS password for admin display
+    vps_password = decrypt_data(user.vps_password) if user.vps_password else None
 
     return render_template(
         "admin/user_detail.html",
         user=user, orders=orders, licenses=licenses,
+        vps_password=vps_password,
         now=datetime.utcnow()
     )
 
@@ -1463,6 +1874,11 @@ def revoke_membership(user_id):
         License.query.filter_by(user_id=user.id, status="active").update(
             {"status": "revoked", "revoked_at": datetime.utcnow()}
         )
+        # Also terminate VPS if admin revokes
+        if user.vps_id and user.vps_status == 'active':
+            forexvps_client.terminate_vps(user.vps_id)
+            user.vps_status = 'terminated'
+            user.vps_terminated_at = datetime.utcnow()
         db.session.commit()
         flash("Abonnement ingetrokken.", "success")
     return redirect(url_for("admin_users"))
@@ -1615,22 +2031,17 @@ def api_validate_license():
         ).first()
 
         if account:
-            # ==========================================
-            # EXISTING MT5 ACCOUNT - Share the slot
-            # ==========================================
             existing_session = EASession.query.filter_by(
                 license_account_id=account.id,
                 session_id=session_id
             ).first()
 
             if existing_session:
-                # Heartbeat — update timestamp only, do NOT increment validation_count
                 existing_session.last_seen = datetime.utcnow()
                 existing_session.symbol = symbol or existing_session.symbol
                 existing_session.magic_number = magic_number if magic_number is not None else existing_session.magic_number
                 logger.debug(f"[VALIDATE] 💓 Heartbeat: MT5={unique_account_id} EA={session_id[:8]}...")
             else:
-                # New EA on existing MT5 account — increment once for the new session
                 db.session.add(EASession(
                     license_account_id=account.id,
                     session_id=session_id,
@@ -1655,9 +2066,6 @@ def api_validate_license():
                 "sessions_on_this_account": account.sessions.count(),
             })
 
-        # ==========================================
-        # NEW MT5 ACCOUNT - Need a free slot
-        # ==========================================
         total_slots = lic.accounts.count()
 
         logger.info(f"[VALIDATE] New MT5 account: {unique_account_id} | Slots: {total_slots}/{lic.max_accounts}")
@@ -1687,7 +2095,7 @@ def api_validate_license():
         ))
 
         lic.last_validated = datetime.utcnow()
-        lic.validation_count += 1  # New account registration — count this
+        lic.validation_count += 1
         db.session.commit()
 
         new_total = lic.accounts.count()
@@ -1815,7 +2223,7 @@ def api_user_info():
 
 
 # ============================================================================
-# WIX WEBHOOK
+# WIX WEBHOOK (with VPS provisioning)
 # ============================================================================
 
 @app.route("/webhook/wix/payment", methods=["POST"])
@@ -1911,6 +2319,10 @@ def wix_payment_webhook():
 
         db.session.commit()
 
+        # Provision VPS for the user (creates VPS but does NOT send welcome email)
+        plan_level = user.get_plan_level()
+        provision_vps_for_user(user, plan_level)
+
         send_email_async(
             "Welkom bij Trading Engine! 🎉",
             [email],
@@ -1933,7 +2345,7 @@ def wix_payment_webhook():
 
 
 # ============================================================================
-# STRIPE WEBHOOK
+# STRIPE WEBHOOK (with VPS provisioning)
 # ============================================================================
 
 @app.route("/webhook/stripe/payment", methods=["POST"])
@@ -2044,6 +2456,10 @@ def stripe_payment_webhook():
                 db.session.add(order)
 
             db.session.commit()
+
+            # Provision VPS for the user (creates VPS but does NOT send welcome email)
+            plan_level = user.get_plan_level()
+            provision_vps_for_user(user, plan_level)
 
             send_email_async(
                 "Welkom bij Trading Engine! 🎉",
@@ -2203,7 +2619,7 @@ with app.app_context():
 start_auto_cleanup()
 
 logger.info("=" * 80)
-logger.info("APPLICATION STARTUP COMPLETE - MT5 ACCOUNT SLOT TRACKING READY")
+logger.info("APPLICATION STARTUP COMPLETE - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS READY")
 logger.info("=" * 80)
 
 if __name__ == "__main__":
