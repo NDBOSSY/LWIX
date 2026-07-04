@@ -32,6 +32,8 @@ ADDED: Background retry/backfill sweep that automatically re-attempts VPS
 import os
 import re
 import json
+import gzip
+import zlib
 import hashlib
 import secrets
 import logging
@@ -543,7 +545,14 @@ class ForexVPSClient:
             'Accept': 'application/json',
             'User-Agent': self.BROWSER_USER_AGENT,
             'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
+            # Only gzip/deflate - Python's stdlib can decompress those. Brotli
+            # ("br") would need an extra package we don't have, and advertising
+            # support for it without being able to decode it is exactly what
+            # caused the "'utf-8' codec can't decode byte..." error: the server
+            # gzip/br-compresses the response because we said we accept it, and
+            # the raw compressed bytes get fed to json.loads() as if they were
+            # plain UTF-8 text.
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
         }
 
@@ -561,6 +570,25 @@ class ForexVPSClient:
             method=method
         )
         return urllib.request.urlopen(req, timeout=timeout)
+
+    @staticmethod
+    def _read_json(response):
+        """
+        Read a urllib response body, transparently decompressing it if the
+        server sent Content-Encoding: gzip/deflate (urllib does NOT do this
+        automatically), then decode as UTF-8 and parse as JSON.
+        """
+        raw = response.read()
+        encoding = (response.headers.get("Content-Encoding") or "").lower()
+        if encoding == "gzip":
+            raw = gzip.decompress(raw)
+        elif encoding == "deflate":
+            try:
+                raw = zlib.decompress(raw)
+            except zlib.error:
+                # Some servers send raw deflate without the zlib header
+                raw = zlib.decompress(raw, -zlib.MAX_WBITS)
+        return json.loads(raw.decode("utf-8"))
 
     @staticmethod
     def _error_detail(e):
@@ -594,7 +622,7 @@ class ForexVPSClient:
         if search:
             query += f"&filter[search]={urllib.parse.quote(search)}"
         response = self._request(f"{path}{query}", method="GET", timeout=30)
-        result = json.loads(response.read())
+        result = self._read_json(response)
         return result.get("data", [])
 
     def list_locations(self, search=None):
@@ -663,7 +691,7 @@ class ForexVPSClient:
         """
         query = f"?filter[email]={urllib.parse.quote(email)}"
         response = self._request(f"/users{query}", method="GET", timeout=30)
-        result = json.loads(response.read())
+        result = self._read_json(response)
         existing = result.get("data", [])
         if existing:
             return existing[0]["id"]
@@ -678,7 +706,7 @@ class ForexVPSClient:
             "email": email,
         }
         response = self._request("/users", method="POST", payload=payload, timeout=30)
-        result = json.loads(response.read())
+        result = self._read_json(response)
         return result["data"]["id"]
 
     def create_server(self, user_id, location_id, os_template_id, plan_id, hostname):
@@ -690,18 +718,18 @@ class ForexVPSClient:
             "hostname": hostname[:50],
         }
         response = self._request("/servers", method="POST", payload=payload, timeout=120)
-        result = json.loads(response.read())
+        result = self._read_json(response)
         return result["data"]
 
     def get_server(self, server_id):
         response = self._request(f"/servers/{server_id}", method="GET", timeout=30)
-        result = json.loads(response.read())
+        result = self._read_json(response)
         return result["data"]
 
     def reset_password(self, server_id):
         """POST /v1/servers/{server}/reset-password -> {"password": "..."} (no 'data' wrapper)."""
         response = self._request(f"/servers/{server_id}/reset-password", method="POST", timeout=60)
-        result = json.loads(response.read())
+        result = self._read_json(response)
         return result["password"]
 
     def create_vps(self, plan_level, email, name="", hostname=""):
