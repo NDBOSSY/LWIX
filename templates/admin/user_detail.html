@@ -39,6 +39,57 @@
         </div>
     </div>
 
+    <!-- Forex VPS -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Forex VPS</h5>
+            <form method="POST" action="{{ url_for('admin_retry_vps', user_id=user.id) }}" class="d-inline mb-0">
+                <button type="submit" class="btn btn-sm btn-outline-info" onclick="return confirm('Retry VPS provisioning for {{ user.email }}?')">
+                    <i class="fas fa-redo me-1"></i>Retry VPS Provisioning
+                </button>
+            </form>
+        </div>
+        <div class="card-body">
+            {% if user.vps_id %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Server ID:</strong> <code>{{ user.vps_id }}</code></p>
+                        <p><strong>Status:</strong>
+                            {% if user.vps_status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                            {% elif user.vps_status == 'provisioning' %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-spinner fa-spin me-1"></i>Provisioning</span>
+                            {% elif user.vps_status == 'terminated' %}
+                                <span class="badge bg-secondary">Terminated</span>
+                            {% else %}
+                                <span class="badge bg-danger">{{ user.vps_status|title }}</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Plan:</strong> {{ user.vps_plan or 'N/A' }}</p>
+                        <p><strong>Created:</strong> {{ user.vps_created_at.strftime('%b %d, %Y %H:%M') if user.vps_created_at else 'N/A' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>IP Address:</strong> {{ user.vps_ip or 'Not yet assigned (still provisioning)' }}</p>
+                        <p><strong>Username:</strong> {{ user.vps_username or 'N/A' }}</p>
+                        <p><strong>Password:</strong> {% if vps_password %}<code>{{ vps_password }}</code>{% else %}Not yet available{% endif %}</p>
+                        <p><strong>ThinkHuge User ID:</strong> <code>{{ user.thinkhuge_user_id or 'N/A' }}</code></p>
+                    </div>
+                </div>
+                <hr>
+                <p class="mb-0"><strong>Last Attempt:</strong> {{ user.vps_last_attempt_at.strftime('%b %d, %Y %H:%M') if user.vps_last_attempt_at else 'N/A' }}</p>
+                {% if user.vps_last_error %}
+                <p class="mb-0 mt-1"><strong>Last Error:</strong> <span class="text-danger">{{ user.vps_last_error }}</span></p>
+                {% endif %}
+            {% else %}
+                <p class="text-muted mb-2"><i class="fas fa-circle-info me-1"></i>No VPS provisioned yet.</p>
+                <p class="mb-0"><strong>Last Attempt:</strong> {{ user.vps_last_attempt_at.strftime('%b %d, %Y %H:%M') if user.vps_last_attempt_at else 'Never' }}</p>
+                {% if user.vps_last_error %}
+                <p class="mb-0 mt-1"><strong>Last Error:</strong> <span class="text-danger">{{ user.vps_last_error }}</span></p>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Licenses ({{ licenses|length }})</h5>
