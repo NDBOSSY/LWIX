@@ -459,6 +459,7 @@
         font-size: 0.75rem;
         transition: color 0.15s;
         flex-shrink: 0;
+        margin-left: 0.2rem;
     }
     .vps-password-copy:hover {
         color: var(--accent);
@@ -822,7 +823,7 @@
 <div class="dashboard-wrapper">
     <!-- Top Bar with Language Toggle -->
     <div class="top-bar">
-        <div></div> <!-- Empty div for flex spacing -->
+        <div></div>
         <div class="language-toggle" id="languageToggle">
             <button 
                 class="lang-option {{ 'active' if current_language == 'en' else '' }}" 
@@ -889,7 +890,7 @@
         <div class="kpi-card color-5">
             <div class="label">Forex VPS</div>
             <div class="value" style="font-size:1.1rem; font-weight:600;">
-                <i class="fas fa-circle" style="font-size:8px; color:#0c8b51;"></i> {{ 'ONLINE' if current_language == 'nl' else 'ONLINE' }}
+                <i class="fas fa-circle" style="font-size:8px; color:#0c8b51;"></i> {{ 'ONLINE' }}
             </div>
         </div>
         {% endif %}
@@ -1058,7 +1059,7 @@
                 <span data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</span>
             </div>
             {% if user.vps_id and user.vps_status == 'active' %}
-            <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'ONLINE' if current_language == 'nl' else 'ONLINE' }}</span>
+            <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'ONLINE' }}</span>
             {% elif user.vps_id and user.vps_status == 'terminated' %}
             <span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'BEËINDIGD' if current_language == 'nl' else 'TERMINATED' }}</span>
             {% else %}
@@ -1114,10 +1115,21 @@
                         {{ 'Wachtwoord' if current_language == 'nl' else 'Password' }}
                     </span>
                     <span class="detail-val" style="gap: 0.6rem;">
-                        <code id="vpsPasswordDisplay" class="vps-password-hidden" onclick="copyToClipboard('{{ user.vps_password_decrypted }}')" title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">{{ user.vps_password_decrypted if vps_password_decrypted else '••••••••' }}</code>
-                        <i class="fas fa-eye vps-password-toggle" id="vpsPassEye" onclick="event.stopPropagation(); toggleVpsPassword()" title="{{ 'Toon wachtwoord' if current_language == 'nl' else 'Show password' }}"></i>
-                        <i class="fas fa-eye-slash vps-password-toggle" id="vpsPassEyeSlash" onclick="event.stopPropagation(); toggleVpsPassword()" title="{{ 'Verberg wachtwoord' if current_language == 'nl' else 'Hide password' }}" style="display:none;"></i>
-                        <i class="fas fa-copy vps-password-copy" onclick="event.stopPropagation(); copyToClipboard('{{ user.vps_password_decrypted }}')" title="{{ 'Kopieer wachtwoord' if current_language == 'nl' else 'Copy password' }}"></i>
+                        {% set display_password = vps_password_decrypted if vps_password_decrypted else '••••••••' %}
+                        <code id="vpsPasswordDisplay" class="vps-password-hidden" 
+                              data-password="{{ vps_password_decrypted or '' }}"
+                              onclick="copyVpsPassword()" 
+                              title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">{{ display_password }}</code>
+                        <i class="fas fa-eye vps-password-toggle" id="vpsPassEye" 
+                           onclick="event.stopPropagation(); toggleVpsPassword()" 
+                           title="{{ 'Toon wachtwoord' if current_language == 'nl' else 'Show password' }}"></i>
+                        <i class="fas fa-eye-slash vps-password-toggle" id="vpsPassEyeSlash" 
+                           onclick="event.stopPropagation(); toggleVpsPassword()" 
+                           title="{{ 'Verberg wachtwoord' if current_language == 'nl' else 'Hide password' }}" 
+                           style="display:none;"></i>
+                        <i class="fas fa-copy vps-password-copy" id="vpsPassCopy"
+                           onclick="event.stopPropagation(); copyVpsPassword()" 
+                           title="{{ 'Kopieer wachtwoord' if current_language == 'nl' else 'Copy password' }}"></i>
                     </span>
                 </div>
                 <div class="vps-detail-item">
@@ -1442,8 +1454,6 @@
     function setLanguage(lang) {
         if (lang === currentLanguage) return;
         
-        console.log('[LANG] Switching to:', lang);
-        
         fetch('/api/set-language', {
             method: 'POST',
             headers: {
@@ -1456,8 +1466,6 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                console.log('[LANG] Language updated successfully');
-                
                 document.querySelectorAll('.lang-option').forEach(btn => {
                     btn.classList.remove('active');
                     if (btn.dataset.lang === lang) {
@@ -1472,12 +1480,10 @@
                 const msg = lang === 'nl' ? 'Taal gewijzigd naar Nederlands 🇳🇱' : 'Language changed to English 🇬🇧';
                 showToast(msg, 'success');
             } else {
-                console.error('[LANG] Failed to update language');
                 showToast('Failed to change language', 'error');
             }
         })
         .catch(error => {
-            console.error('[LANG] Error:', error);
             showToast('Failed to change language', 'error');
         });
     }
@@ -1511,7 +1517,7 @@
     }
 
     // ==========================================
-    // VPS PASSWORD TOGGLE
+    // VPS PASSWORD TOGGLE & COPY
     // ==========================================
     let vpsPasswordVisible = false;
     function toggleVpsPassword() {
@@ -1532,6 +1538,20 @@
                 if (eye) eye.style.display = 'inline';
                 if (eyeSlash) eyeSlash.style.display = 'none';
             }
+        }
+    }
+
+    function copyVpsPassword() {
+        const display = document.getElementById('vpsPasswordDisplay');
+        if (!display) return;
+        
+        // Get the real password from the data attribute (never blurred)
+        const realPassword = display.dataset.password;
+        if (realPassword) {
+            copyToClipboard(realPassword);
+        } else {
+            // Fallback: copy what's displayed
+            copyToClipboard(display.textContent);
         }
     }
 
@@ -1594,8 +1614,6 @@
     // LICENSE GENERATION
     // ==========================================
     function confirmGenerateLicense() {
-        console.log('[DEBUG] License generation started');
-        
         closeLicenseModal();
         
         const loadingOverlay = document.getElementById('loadingOverlay');
@@ -1653,8 +1671,6 @@
     // MEMBERSHIP CANCELLATION
     // ==========================================
     function confirmCancelMembership() {
-        console.log('[DEBUG] Membership cancellation started');
-        
         const loadingOverlay = document.getElementById('loadingOverlay');
         const loadingMessage = document.getElementById('loadingMessage');
         const cancelBtn = document.getElementById('cancelBtn');
@@ -1737,7 +1753,6 @@
     // TOAST NOTIFICATIONS
     // ==========================================
     function showToast(msg, type = 'success') {
-        console.log(`[TOAST] ${type}: ${msg}`);
         const t = document.getElementById('toast');
         if (!t) { alert(msg); return; }
         t.textContent = msg;
@@ -1775,14 +1790,5 @@
             }
         }
     });
-    
-    console.log('[DEBUG] Dashboard page loaded');
-    console.log('[DEBUG] Current language:', currentLanguage);
-    console.log('[DEBUG] User level:', {{ user.get_plan_level() }});
-    console.log('[DEBUG] Has license:', {{ 'true' if license else 'false' }});
-    console.log('[DEBUG] Max accounts:', {{ max_accounts }});
-    console.log('[DEBUG] Membership status:', '{{ user.membership_status }}');
-    console.log('[DEBUG] Has VPS:', {{ 'true' if user.vps_id else 'false' }});
-    console.log('[DEBUG] VPS status:', '{{ user.vps_status or "none" }}');
 </script>
 {% endblock %}
