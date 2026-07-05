@@ -409,20 +409,20 @@
     .vps-detail-item .detail-val {
         font-weight: 600;
         color: var(--ink-secondary);
-        cursor: pointer;
         display: flex;
         align-items: center;
         gap: 0.4rem;
-        transition: color 0.15s;
-    }
-    .vps-detail-item .detail-val:hover {
-        color: var(--accent);
     }
     .vps-detail-item .detail-val code {
         background: var(--surface-sunken);
         padding: 0.15rem 0.4rem;
         border-radius: 4px;
         font-size: 0.75rem;
+        cursor: pointer;
+        transition: color 0.15s;
+    }
+    .vps-detail-item .detail-val code:hover {
+        color: var(--accent);
     }
     .vps-detail-item .detail-val .copy-hint {
         font-size: 0.6rem;
@@ -442,6 +442,26 @@
     .vps-password-visible {
         filter: blur(0);
         user-select: text;
+    }
+    .vps-password-toggle {
+        cursor: pointer;
+        color: var(--ink-soft);
+        font-size: 0.75rem;
+        transition: color 0.15s;
+        flex-shrink: 0;
+    }
+    .vps-password-toggle:hover {
+        color: var(--accent);
+    }
+    .vps-password-copy {
+        cursor: pointer;
+        color: var(--ink-soft);
+        font-size: 0.75rem;
+        transition: color 0.15s;
+        flex-shrink: 0;
+    }
+    .vps-password-copy:hover {
+        color: var(--accent);
     }
     .vps-no-vps {
         text-align: center;
@@ -1075,8 +1095,8 @@
                     <span class="detail-key" data-en="IP Address" data-nl="IP Adres">
                         {{ 'IP Adres' if current_language == 'nl' else 'IP Address' }}
                     </span>
-                    <span class="detail-val" onclick="copyToClipboard('{{ user.vps_ip }}')" title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">
-                        <code>{{ user.vps_ip }}</code>
+                    <span class="detail-val">
+                        <code onclick="copyToClipboard('{{ user.vps_ip }}')" title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">{{ user.vps_ip }}</code>
                         <span class="copy-hint" data-en="Copy" data-nl="Kopieer">{{ 'Kopieer' if current_language == 'nl' else 'Copy' }}</span>
                     </span>
                 </div>
@@ -1084,8 +1104,8 @@
                     <span class="detail-key" data-en="Username" data-nl="Gebruikersnaam">
                         {{ 'Gebruikersnaam' if current_language == 'nl' else 'Username' }}
                     </span>
-                    <span class="detail-val" onclick="copyToClipboard('{{ user.vps_username }}')" title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">
-                        <code>{{ user.vps_username }}</code>
+                    <span class="detail-val">
+                        <code onclick="copyToClipboard('{{ user.vps_username }}')" title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">{{ user.vps_username }}</code>
                         <span class="copy-hint" data-en="Copy" data-nl="Kopieer">{{ 'Kopieer' if current_language == 'nl' else 'Copy' }}</span>
                     </span>
                 </div>
@@ -1093,10 +1113,11 @@
                     <span class="detail-key" data-en="Password" data-nl="Wachtwoord">
                         {{ 'Wachtwoord' if current_language == 'nl' else 'Password' }}
                     </span>
-                    <span class="detail-val" style="cursor:pointer;" onclick="toggleVpsPassword()" title="{{ 'Klik om te tonen/verbergen' if current_language == 'nl' else 'Click to show/hide' }}">
-                        <code id="vpsPasswordDisplay" class="vps-password-hidden">{{ user.vps_password_decrypted if vps_password_decrypted else '••••••••' }}</code>
-                        <i class="fas fa-eye" style="font-size:0.6rem; color:var(--ink-soft);" id="vpsPassEye"></i>
-                        <i class="fas fa-eye-slash" style="font-size:0.6rem; color:var(--ink-soft); display:none;" id="vpsPassEyeSlash"></i>
+                    <span class="detail-val" style="gap: 0.6rem;">
+                        <code id="vpsPasswordDisplay" class="vps-password-hidden" onclick="copyToClipboard('{{ user.vps_password_decrypted }}')" title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">{{ user.vps_password_decrypted if vps_password_decrypted else '••••••••' }}</code>
+                        <i class="fas fa-eye vps-password-toggle" id="vpsPassEye" onclick="event.stopPropagation(); toggleVpsPassword()" title="{{ 'Toon wachtwoord' if current_language == 'nl' else 'Show password' }}"></i>
+                        <i class="fas fa-eye-slash vps-password-toggle" id="vpsPassEyeSlash" onclick="event.stopPropagation(); toggleVpsPassword()" title="{{ 'Verberg wachtwoord' if current_language == 'nl' else 'Hide password' }}" style="display:none;"></i>
+                        <i class="fas fa-copy vps-password-copy" onclick="event.stopPropagation(); copyToClipboard('{{ user.vps_password_decrypted }}')" title="{{ 'Kopieer wachtwoord' if current_language == 'nl' else 'Copy password' }}"></i>
                     </span>
                 </div>
                 <div class="vps-detail-item">
