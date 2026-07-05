@@ -195,11 +195,31 @@ limiter = Limiter(
     storage_uri=Config.RATELIMIT_STORAGE_URL
 )
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s] - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 try:
     if Config.ENCRYPTION_KEY:
         encryption_key = Config.ENCRYPTION_KEY.encode() if isinstance(Config.ENCRYPTION_KEY, str) else Config.ENCRYPTION_KEY
         cipher_suite = Fernet(encryption_key)
     else:
+        # CRITICAL: without a persisted ENCRYPTION_KEY env var, a brand new
+        # random key is generated every time this module is imported - which
+        # happens independently in EVERY gunicorn worker process, and again
+        # on every restart/redeploy. Anything encrypted (e.g. VPS passwords)
+        # under one worker's/run's key can never be decrypted by a different
+        # worker or after a restart - decrypt_data() will silently return
+        # the raw ciphertext instead of throwing, so this shows up as
+        # garbled text in the UI rather than an obvious error.
+        logger.warning("=" * 80)
+        logger.warning("⚠️  ENCRYPTION_KEY is not set - using a RANDOM, EPHEMERAL key for this process.")
+        logger.warning("⚠️  VPS passwords (and anything else encrypted) will NOT be decryptable")
+        logger.warning("⚠️  by other workers or after the next restart. Set a persistent")
+        logger.warning("⚠️  ENCRYPTION_KEY env var: python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
+        logger.warning("=" * 80)
         encryption_key = Fernet.generate_key()
         cipher_suite = Fernet(encryption_key)
 except Exception:
@@ -207,12 +227,6 @@ except Exception:
     cipher_suite = Fernet(encryption_key)
 
 Path(Config.UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s] - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 logger.info("=" * 80)
 logger.info("APPLICATION STARTING - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS")
@@ -940,6 +954,56 @@ def format_date_english(date_obj):
 # VPS PROVISIONING FUNCTIONS
 # ============================================================================
 
+def try_complete_pending_vps(user):
+    """
+    For a user whose VPS server already exists but wasn't ready yet
+    (vps_status == 'provisioning'): check ThinkHuge for an IP and, if
+    present, fetch the password and mark the VPS active. Sends the welcome
+    email if the user already has a license.
+
+    Returns True if the VPS is now active, False if still pending or on error
+    (vps_last_error is set on error so admins can see why).
+    """
+    if not user.vps_id:
+        return False
+
+    try:
+        server = forexvps_client.get_server(user.vps_id)
+        ip = server.get("primary_ip_address")
+
+        if not ip:
+            logger.info(f"[ThinkHuge] {user.email}: server {user.vps_id} still has no IP yet")
+            return False
+
+        password = forexvps_client.reset_password(user.vps_id)
+
+        user.vps_ip = ip
+        user.vps_username = "Administrator"
+        user.vps_password = encrypt_data(password)
+        user.vps_status = 'active'
+        user.vps_last_error = None
+        db.session.commit()
+
+        logger.info(f"[ThinkHuge] ✅ VPS now ready for {user.email}: {user.vps_id} | IP: {ip}")
+
+        if user.get_active_license():
+            send_vps_welcome_email(user)
+
+        return True
+
+    except urllib.error.HTTPError as e:
+        detail = forexvps_client._error_detail(e)
+        logger.warning(f"[ThinkHuge] Completion check failed for {user.email} ({user.vps_id}): {e.code} - {detail}")
+        user.vps_last_error = f"{e.code} - {detail}"[:300]
+        db.session.commit()
+        return False
+    except Exception as e:
+        logger.warning(f"[ThinkHuge] Completion check error for {user.email} ({user.vps_id}): {e}")
+        user.vps_last_error = str(e)[:300]
+        db.session.commit()
+        return False
+
+
 def provision_vps_for_user(user, plan_level):
     """
     Provision a VPS for a user based on their plan level.
@@ -965,9 +1029,14 @@ def provision_vps_for_user(user, plan_level):
         return True
 
     if user.vps_id and user.vps_status == 'provisioning':
-        # Already created, just not ready yet - let the poller handle it.
-        logger.info(f"[ThinkHuge] User {user.email} VPS {user.vps_id} already provisioning, not re-creating")
-        return False
+        # Already created - don't create a second server, just check whether
+        # it's ready now (this is what makes a manual "Retry" actually do
+        # something useful instead of silently no-op'ing while waiting for
+        # the next background poll cycle).
+        user.vps_last_attempt_at = datetime.utcnow()
+        db.session.commit()
+        logger.info(f"[ThinkHuge] User {user.email} VPS {user.vps_id} already provisioning, checking if it's ready now")
+        return try_complete_pending_vps(user)
 
     vps_plan_name = Config.FOREXVPS_PLANS.get(plan_level, "Basic")
 
@@ -1038,35 +1107,7 @@ def poll_pending_vps_servers():
         logger.info(f"[ThinkHuge] 🔎 Polling {len(pending_users)} pending VPS server(s)")
 
         for user in pending_users:
-            try:
-                server = forexvps_client.get_server(user.vps_id)
-                ip = server.get("primary_ip_address")
-
-                if not ip:
-                    logger.info(f"[ThinkHuge] {user.email}: server {user.vps_id} still has no IP yet")
-                    continue
-
-                password = forexvps_client.reset_password(user.vps_id)
-
-                user.vps_ip = ip
-                user.vps_username = "Administrator"
-                user.vps_password = encrypt_data(password)
-                user.vps_status = 'active'
-                user.vps_last_error = None
-                db.session.commit()
-
-                logger.info(f"[ThinkHuge] ✅ VPS now ready for {user.email}: {user.vps_id} | IP: {ip}")
-
-                if user.get_active_license():
-                    send_vps_welcome_email(user)
-
-            except urllib.error.HTTPError as e:
-                logger.warning(
-                    f"[ThinkHuge] Poll failed for {user.email} ({user.vps_id}): "
-                    f"{e.code} - {forexvps_client._error_detail(e)}"
-                )
-            except Exception as e:
-                logger.warning(f"[ThinkHuge] Poll error for {user.email} ({user.vps_id}): {e}")
+            try_complete_pending_vps(user)
 
     except Exception as e:
         logger.error(f"[ThinkHuge] Error in poll_pending_vps_servers: {e}")
@@ -1076,9 +1117,16 @@ def poll_pending_vps_servers():
 def send_vps_welcome_email(user):
     """
     Send VPS login details to user.
-    Called after license generation when user's language preference is known.
+
+    Uses the target user's own stored language_preference rather than
+    get_user_language() - this function can be called from contexts with
+    no active HTTP request at all (the background poller/retry sweep), where
+    get_user_language() would crash trying to touch Flask's session
+    ("Working outside of request context"). It's also simply more correct:
+    an admin retrying this from their own session, or a webhook with no
+    session at all, should never determine *this user's* email language.
     """
-    lang = get_user_language()
+    lang = user.language_preference or 'en'
     vps_password = decrypt_data(user.vps_password)
     
     if lang == 'nl':
