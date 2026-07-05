@@ -43,11 +43,20 @@
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Forex VPS</h5>
-            <form method="POST" action="{{ url_for('admin_retry_vps', user_id=user.id) }}" class="d-inline mb-0">
-                <button type="submit" class="btn btn-sm btn-outline-info" onclick="return confirm('Retry VPS provisioning for {{ user.email }}?')">
-                    <i class="fas fa-redo me-1"></i>Retry VPS Provisioning
-                </button>
-            </form>
+            <div class="d-flex gap-2">
+                {% if user.vps_id %}
+                <form method="POST" action="{{ url_for('admin_reset_vps_password', user_id=user.id) }}" class="d-inline mb-0">
+                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Fetch a brand new VPS password for {{ user.email }}? The old password will stop working.')">
+                        <i class="fas fa-key me-1"></i>Reset Password
+                    </button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{{ url_for('admin_retry_vps', user_id=user.id) }}" class="d-inline mb-0">
+                    <button type="submit" class="btn btn-sm btn-outline-info" onclick="return confirm('Retry VPS provisioning for {{ user.email }}?')">
+                        <i class="fas fa-redo me-1"></i>Retry VPS Provisioning
+                    </button>
+                </form>
+            </div>
         </div>
         <div class="card-body">
             {% if user.vps_id %}
