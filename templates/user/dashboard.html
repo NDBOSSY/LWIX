@@ -861,11 +861,12 @@
             </div>
             <div class="value">{{ ea_files|length if ea_files else 0 }} <span class="unit">/ {{ all_ea_count if all_ea_count is defined else '—' }}</span></div>
         </div>
-        {% if user.vps_id and user.vps_status == 'active' %}
+        {% if user.vps_id and user.vps_status in ('active', 'provisioning') %}
         <div class="kpi-card color-5">
             <div class="label">Forex VPS</div>
             <div class="value" style="font-size:1.1rem; font-weight:600;">
-                <i class="fas fa-circle" style="font-size:8px; color:#0c8b51;"></i> ONLINE
+                <i class="fas fa-circle" style="font-size:8px; color:{% if user.vps_status == 'active' %}#0c8b51{% else %}#e67e22{% endif %};"></i>
+                {{ 'ONLINE' if user.vps_status == 'active' else ('BEZIG' if current_language == 'nl' else 'PROVISIONING') }}
             </div>
         </div>
         {% endif %}
@@ -1035,6 +1036,8 @@
             </div>
             {% if user.vps_id and user.vps_status == 'active' %}
             <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> ONLINE</span>
+            {% elif user.vps_id and user.vps_status == 'provisioning' %}
+            <span class="pill pill-orange"><i class="fas fa-spinner fa-spin" style="font-size:6px;"></i> {{ 'BEZIG' if current_language == 'nl' else 'PROVISIONING' }}</span>
             {% elif user.vps_id and user.vps_status == 'terminated' %}
             <span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'BEËINDIGD' if current_language == 'nl' else 'TERMINATED' }}</span>
             {% else %}
@@ -1125,6 +1128,13 @@
                 </p>
             </div>
             
+            {% elif user.vps_id and user.vps_status == 'provisioning' %}
+            <div class="vps-no-vps">
+                <i class="fas fa-spinner fa-spin" style="font-size:1.5rem; color:var(--amber); margin-bottom:0.5rem;"></i>
+                <p data-en="Your VPS is being provisioned. This usually takes 5-10 minutes. You'll receive an email when it's ready." data-nl="Je VPS wordt aangemaakt. Dit duurt meestal 5-10 minuten. Je ontvangt een e-mail zodra deze klaar is.">
+                    {{ 'Je VPS wordt aangemaakt. Dit duurt meestal 5-10 minuten. Je ontvangt een e-mail zodra deze klaar is.' if current_language == 'nl' else 'Your VPS is being provisioned. This usually takes 5-10 minutes. You\'ll receive an email when it\'s ready.' }}
+                </p>
+            </div>
             {% elif user.vps_id and user.vps_status == 'terminated' %}
             <div class="vps-no-vps">
                 <i class="fas fa-info-circle" style="font-size:1.5rem; color:var(--ink-soft); margin-bottom:0.5rem;"></i>
