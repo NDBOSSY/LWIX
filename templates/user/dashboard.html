@@ -161,7 +161,6 @@
         font-size: 0.75rem;
         opacity: 0.7;
     }
-    /* card color variants */
     .kpi-card.color-1 { background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #1e3a8a; }
     .kpi-card.color-2 { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #065f46; }
     .kpi-card.color-3 { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
@@ -453,17 +452,6 @@
     .vps-password-toggle:hover {
         color: var(--accent);
     }
-    .vps-password-copy {
-        cursor: pointer;
-        color: var(--ink-soft);
-        font-size: 0.75rem;
-        transition: color 0.15s;
-        flex-shrink: 0;
-        margin-left: 0.2rem;
-    }
-    .vps-password-copy:hover {
-        color: var(--accent);
-    }
     .vps-no-vps {
         text-align: center;
         padding: 0.8rem 0;
@@ -581,7 +569,7 @@
     .discord-body .info-text strong { display: block; font-size: 0.85rem; }
     .discord-body .info-text span { font-size: 0.78rem; color: var(--ink-muted); }
 
-    /* Support section - moved to bottom */
+    /* Support section */
     .support-section {
         display: flex;
         align-items: center;
@@ -634,12 +622,6 @@
         text-transform: uppercase;
         color: var(--ink-soft);
         margin-bottom: 0.75rem;
-    }
-    .membership-actions .cancel-info {
-        font-size: 0.78rem;
-        color: var(--ink-muted);
-        margin-bottom: 0.75rem;
-        line-height: 1.5;
     }
     .membership-actions .retain-info {
         background: var(--green-light);
@@ -710,12 +692,6 @@
     .btn-discord:hover {
         background: #4752C4;
         border-color: #4752C4;
-    }
-    .btn-xs {
-        padding: 0.2rem 0.5rem;
-        font-size: 0.65rem;
-        border-radius: 6px;
-        gap: 0.2rem;
     }
 
     /* modal */
@@ -812,7 +788,6 @@
 
     .fa-fw { width: 1.1rem; text-align: center; }
 
-    /* Error toast styling */
     .toast.error { background: var(--red); }
     .toast.success { background: var(--green); }
     .toast.warning { background: var(--amber); }
@@ -890,7 +865,7 @@
         <div class="kpi-card color-5">
             <div class="label">Forex VPS</div>
             <div class="value" style="font-size:1.1rem; font-weight:600;">
-                <i class="fas fa-circle" style="font-size:8px; color:#0c8b51;"></i> {{ 'ONLINE' }}
+                <i class="fas fa-circle" style="font-size:8px; color:#0c8b51;"></i> ONLINE
             </div>
         </div>
         {% endif %}
@@ -1059,7 +1034,7 @@
                 <span data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</span>
             </div>
             {% if user.vps_id and user.vps_status == 'active' %}
-            <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'ONLINE' }}</span>
+            <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> ONLINE</span>
             {% elif user.vps_id and user.vps_status == 'terminated' %}
             <span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'BEËINDIGD' if current_language == 'nl' else 'TERMINATED' }}</span>
             {% else %}
@@ -1092,15 +1067,18 @@
                         {{ 'Verbindingsgegevens' if current_language == 'nl' else 'Connection Details' }}
                     </span>
                 </div>
+                <!-- RDP Address with port -->
                 <div class="vps-detail-item">
-                    <span class="detail-key" data-en="IP Address" data-nl="IP Adres">
-                        {{ 'IP Adres' if current_language == 'nl' else 'IP Address' }}
+                    <span class="detail-key" data-en="RDP Address" data-nl="RDP Adres">
+                        {{ 'RDP Adres' if current_language == 'nl' else 'RDP Address' }}
                     </span>
                     <span class="detail-val">
-                        <code onclick="copyToClipboard('{{ user.vps_ip }}')" title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">{{ user.vps_ip }}</code>
+                        {% set rdp_full = user.vps_ip ~ ':' ~ (user.vps_port or vps_default_port) %}
+                        <code onclick="copyToClipboard('{{ rdp_full }}')" title="{{ 'Klik om te kopiëren' if current_language == 'nl' else 'Click to copy' }}">{{ rdp_full }}</code>
                         <span class="copy-hint" data-en="Copy" data-nl="Kopieer">{{ 'Kopieer' if current_language == 'nl' else 'Copy' }}</span>
                     </span>
                 </div>
+                <!-- Username -->
                 <div class="vps-detail-item">
                     <span class="detail-key" data-en="Username" data-nl="Gebruikersnaam">
                         {{ 'Gebruikersnaam' if current_language == 'nl' else 'Username' }}
@@ -1110,6 +1088,7 @@
                         <span class="copy-hint" data-en="Copy" data-nl="Kopieer">{{ 'Kopieer' if current_language == 'nl' else 'Copy' }}</span>
                     </span>
                 </div>
+                <!-- Password with toggle (click to copy, eye to show/hide) -->
                 <div class="vps-detail-item" id="vpsPasswordRow">
                     <span class="detail-key" data-en="Password" data-nl="Wachtwoord">
                         {{ 'Wachtwoord' if current_language == 'nl' else 'Password' }}
@@ -1127,11 +1106,9 @@
                            onclick="event.stopPropagation(); toggleVpsPassword()" 
                            title="{{ 'Verberg wachtwoord' if current_language == 'nl' else 'Hide password' }}" 
                            style="display:none;"></i>
-                        <i class="fas fa-copy vps-password-copy" id="vpsPassCopy"
-                           onclick="event.stopPropagation(); copyVpsPassword()" 
-                           title="{{ 'Kopieer wachtwoord' if current_language == 'nl' else 'Copy password' }}"></i>
                     </span>
                 </div>
+                <!-- Plan -->
                 <div class="vps-detail-item">
                     <span class="detail-key" data-en="Plan" data-nl="Plan">
                         {{ 'Plan' if current_language == 'nl' else 'Plan' }}
@@ -1143,8 +1120,8 @@
             </div>
             
             <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
-                <p style="font-size:0.7rem; color:var(--ink-soft); margin:0;" data-en="Connect via Windows Remote Desktop (RDP) using the details above." data-nl="Verbind via Windows Remote Desktop (RDP) met de gegevens hierboven.">
-                    {{ 'Verbind via Windows Remote Desktop (RDP) met de gegevens hierboven.' if current_language == 'nl' else 'Connect via Windows Remote Desktop (RDP) using the details above.' }}
+                <p style="font-size:0.7rem; color:var(--ink-soft); margin:0;" data-en="Connect via Windows Remote Desktop (RDP) using the details above. Copy the full RDP Address (including the port) into Remote Desktop." data-nl="Verbind via Windows Remote Desktop (RDP) met de gegevens hierboven. Kopieer het volledige RDP Adres (inclusief de poort) in Remote Desktop.">
+                    {{ 'Verbind via Windows Remote Desktop (RDP) met de gegevens hierboven. Kopieer het volledige RDP Adres (inclusief de poort) in Remote Desktop.' if current_language == 'nl' else 'Connect via Windows Remote Desktop (RDP) using the details above. Copy the full RDP Address (including the port) into Remote Desktop.' }}
                 </p>
             </div>
             
@@ -1446,9 +1423,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-    // ==========================================
-    // LANGUAGE MANAGEMENT
-    // ==========================================
     let currentLanguage = '{{ current_language }}';
 
     function setLanguage(lang) {
@@ -1545,12 +1519,10 @@
         const display = document.getElementById('vpsPasswordDisplay');
         if (!display) return;
         
-        // Get the real password from the data attribute (never blurred)
         const realPassword = display.dataset.password;
         if (realPassword) {
             copyToClipboard(realPassword);
         } else {
-            // Fallback: copy what's displayed
             copyToClipboard(display.textContent);
         }
     }
