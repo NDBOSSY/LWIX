@@ -2155,50 +2155,6 @@ def admin_reset_vps_password(user_id):
     return redirect(request.referrer or url_for("admin_dashboard"))
 
 
-@app.route("/admin/debug-vps/<int:user_id>")
-@admin_required
-def admin_debug_vps(user_id):
-    """Debug endpoint to see exact ThinkHuge server details and test password reset"""
-    user = db.session.get(User, user_id)
-    if not user:
-        return jsonify({"error": "Gebruiker niet gevonden"}), 404
-    
-    if not user.vps_id:
-        return jsonify({"error": "Geen VPS ID gevonden voor deze gebruiker", "vps_status": user.vps_status})
-    
-    try:
-        server = forexvps_client.get_server(user.vps_id)
-        
-        try:
-            password = forexvps_client.reset_password(user.vps_id)
-        except Exception as e:
-            password = f"ERROR: {e}"
-        
-        return jsonify({
-            "vps_id": user.vps_id,
-            "thinkhuge_user_id": user.thinkhuge_user_id,
-            "stored_ip": user.vps_ip,
-            "stored_port": user.vps_port,
-            "stored_username": user.vps_username,
-            "stored_password_encrypted_preview": (user.vps_password[:50] + "...") if user.vps_password else None,
-            "stored_password_decrypted": decrypt_data(user.vps_password) if user.vps_password else None,
-            "server_details": {
-                "id": server.get("id"),
-                "hostname": server.get("hostname"),
-                "primary_ip": server.get("primary_ip_address"),
-                "status": server.get("provision_status"),
-                "user_id": server.get("user_id"),
-                "plan": server.get("plan", {}).get("name") if server.get("plan") else None,
-                "rdp_port": server.get("rdp_port"),
-                "port": server.get("port"),
-            },
-            "reset_password_result": password,
-            "default_rdp_port": Config.FOREXVPS_DEFAULT_RDP_PORT,
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route("/admin/toggle-test-mode", methods=["POST"])
 @admin_required
 def toggle_test_mode():
