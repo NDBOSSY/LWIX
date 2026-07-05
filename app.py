@@ -860,10 +860,19 @@ def encrypt_data(data):
     except: return data
 
 def decrypt_data(data):
+    """
+    Returns None on failure (wrong/rotated key, corrupted data, etc.) instead
+    of the raw ciphertext. Returning ciphertext on failure is how a garbled
+    Fernet token like "gAAAAA..." previously ended up displayed in the admin
+    UI and even emailed to a customer as if it were their real password.
+    """
     if not data:
         return None
-    try: return cipher_suite.decrypt(data.encode()).decode()
-    except: return data
+    try:
+        return cipher_suite.decrypt(data.encode()).decode()
+    except Exception:
+        logger.warning("[decrypt_data] Failed to decrypt a stored value - key may have changed since it was encrypted")
+        return None
 
 def generate_license_key():
     return "-".join([secrets.token_hex(2).upper() for _ in range(3)])
@@ -2308,6 +2317,47 @@ def admin_retry_vps(user_id):
         flash(f"VPS wordt aangemaakt voor {user.email} (ThinkHuge is nog bezig, IP volgt automatisch).", "success")
     else:
         flash(f"VPS aanmaken mislukt voor {user.email}: {user.vps_last_error}", "error")
+
+    return redirect(request.referrer or url_for("admin_dashboard"))
+
+
+@app.route("/admin/reset-vps-password/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_reset_vps_password(user_id):
+    """
+    Force-fetch a brand new password for a user's EXISTING VPS server,
+    regardless of its current vps_status.
+
+    provision_vps_for_user()/admin_retry_vps() short-circuit once a server is
+    already 'active' - they never call reset_password() again, so a
+    previously-undecryptable stored password (e.g. one encrypted before
+    ENCRYPTION_KEY was made persistent) can never be recovered through the
+    normal retry button. This route exists specifically to unstick that.
+    """
+    user = db.session.get(User, user_id)
+    if not user:
+        flash("Gebruiker niet gevonden.", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    if not user.vps_id:
+        flash(f"{user.email} heeft nog geen VPS server om een wachtwoord voor op te vragen.", "error")
+        return redirect(request.referrer or url_for("admin_dashboard"))
+
+    try:
+        password = forexvps_client.reset_password(user.vps_id)
+        user.vps_password = encrypt_data(password)
+        user.vps_last_error = None
+        db.session.commit()
+        flash(f"Nieuw VPS wachtwoord opgehaald voor {user.email}.", "success")
+    except urllib.error.HTTPError as e:
+        detail = forexvps_client._error_detail(e)
+        user.vps_last_error = f"{e.code} - {detail}"[:300]
+        db.session.commit()
+        flash(f"Wachtwoord ophalen mislukt voor {user.email}: {e.code} - {detail}", "error")
+    except Exception as e:
+        user.vps_last_error = str(e)[:300]
+        db.session.commit()
+        flash(f"Wachtwoord ophalen mislukt voor {user.email}: {e}", "error")
 
     return redirect(request.referrer or url_for("admin_dashboard"))
 
