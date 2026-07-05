@@ -709,7 +709,7 @@ class ForexVPSClient:
                 "server_id": server_id,
                 "user_id": user_id,
                 "ip": ip,
-                "username": "Administrator",
+                "username": "trader",
                 "password": password,
                 "status": provision_status,
                 "ready": bool(ip and password),
@@ -871,7 +871,7 @@ def try_complete_pending_vps(user):
 
         user.vps_ip = ip
         user.vps_port = str(rdp_port)
-        user.vps_username = "Administrator"
+        user.vps_username = "trader"
         user.vps_password = encrypt_data(password)
         user.vps_status = 'active'
         user.vps_last_error = None
@@ -994,7 +994,7 @@ Je Forex VPS is succesvol aangemaakt en klaar voor gebruik!
 
 === VPS LOGIN GEGEVENS ===
 RDP Adres: {user.vps_ip}:{vps_port}
-Gebruikersnaam: {user.vps_username or 'Administrator'}
+Gebruikersnaam: {user.vps_username or 'trader'}
 Wachtwoord: {vps_password or 'Wordt binnen enkele minuten verzonden'}
 
 === BELANGRIJKE INFORMATIE ===
@@ -1018,7 +1018,7 @@ Het Trading Engine Team
     <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
         <h3 style="margin: 0 0 10px; color: #0b121a;">🔐 VPS Login Gegevens</h3>
         <p style="margin: 4px 0;"><strong>RDP Adres:</strong> <code>{user.vps_ip}:{vps_port}</code></p>
-        <p style="margin: 4px 0;"><strong>Gebruikersnaam:</strong> <code>{user.vps_username or 'Administrator'}</code></p>
+        <p style="margin: 4px 0;"><strong>Gebruikersnaam:</strong> <code>{user.vps_username or 'trader'}</code></p>
         <p style="margin: 4px 0;"><strong>Wachtwoord:</strong> <code>{vps_password or 'Wordt binnen enkele minuten verzonden'}</code></p>
     </div>
     
@@ -1043,7 +1043,7 @@ Your Forex VPS has been successfully created and is ready to use!
 
 === VPS LOGIN DETAILS ===
 RDP Address: {user.vps_ip}:{vps_port}
-Username: {user.vps_username or 'Administrator'}
+Username: {user.vps_username or 'trader'}
 Password: {vps_password or 'Will be sent within minutes'}
 
 === IMPORTANT INFORMATION ===
@@ -1067,7 +1067,7 @@ The Trading Engine Team
     <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
         <h3 style="margin: 0 0 10px; color: #0b121a;">🔐 VPS Login Details</h3>
         <p style="margin: 4px 0;"><strong>RDP Address:</strong> <code>{user.vps_ip}:{vps_port}</code></p>
-        <p style="margin: 4px 0;"><strong>Username:</strong> <code>{user.vps_username or 'Administrator'}</code></p>
+        <p style="margin: 4px 0;"><strong>Username:</strong> <code>{user.vps_username or 'trader'}</code></p>
         <p style="margin: 4px 0;"><strong>Password:</strong> <code>{vps_password or 'Will be sent within minutes'}</code></p>
     </div>
     
