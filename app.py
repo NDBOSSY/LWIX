@@ -2986,20 +2986,6 @@ def auto_init_db():
             logger.error(f"DB init failed: {e}")
 
 
-@app.route("/admin/fix-vps-usernames")
-@admin_required
-def fix_vps_usernames():
-    """Temporary: Fix all VPS usernames from Administrator to trader"""
-    users = User.query.filter(User.vps_id.isnot(None), User.vps_username == 'Administrator').all()
-    fixed = 0
-    for user in users:
-        user.vps_username = 'trader'
-        fixed += 1
-    db.session.commit()
-    return jsonify({"fixed": fixed, "message": f"Updated {fixed} users to username 'trader'"})
-
-
-
 # ============================================================================
 # STARTUP
 # ============================================================================
