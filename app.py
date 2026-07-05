@@ -19,6 +19,7 @@ ADDED: ThinkHuge VPS auto-provisioning on payment (Basic plan for all levels)
 ADDED: VPS auto-termination on membership expiry
 ADDED: VPS details sent after license generation (correct language)
 ADDED: VPS details display on user dashboard
+ADDED: VPS RDP port support - IP displayed with port for easy copy-paste
 FIXED: ThinkHuge API calls were being blocked by Cloudflare with
        "Error 1010: browser_signature_banned" because urllib's default
        User-Agent ("Python-urllib/3.x") is flagged as a bot by Cloudflare's
@@ -27,6 +28,7 @@ FIXED: ThinkHuge API calls were being blocked by Cloudflare with
 ADDED: Background retry/backfill sweep that automatically re-attempts VPS
        provisioning for any paid, active user who doesn't yet have a VPS
        (e.g. because a previous provisioning attempt failed).
+ADDED: Debug VPS endpoint for admins to diagnose VPS issues
 """
 
 import os
@@ -125,16 +127,9 @@ class Config:
     }
 
     # ThinkHuge VPS API Configuration
-    # Base URL + "/servers", "/users", "/locations", "/os_templates", "/plans"
-    # map to their documented "/v1/..." paths (confirmed against ThinkHuge's
-    # Partners Portal OpenAPI export).
     FOREXVPS_API_URL = os.getenv("FOREXVPS_API_URL", "https://api.partners.thinkhuge.net/api/v1")
     FOREXVPS_API_KEY = os.getenv("FOREXVPS_API_KEY", "")
 
-    # Plan *names* to search for per membership level (matched against
-    # GET /v1/plans "name" field to resolve the numeric plan_id ThinkHuge
-    # actually requires). Override with an exact numeric ID via
-    # FOREXVPS_PLAN_ID_LEVEL{n} if you already know it, to skip the lookup.
     FOREXVPS_PLANS = {
         1: os.getenv("FOREXVPS_PLAN_LEVEL1", "Basic"),
         2: os.getenv("FOREXVPS_PLAN_LEVEL2", "Basic"),
@@ -146,25 +141,16 @@ class Config:
         3: os.getenv("FOREXVPS_PLAN_ID_LEVEL3", "").strip() or None,
     }
 
-    # Location (data center) to provision in. If FOREXVPS_LOCATION_ID is set,
-    # it's used directly (no API lookup). Otherwise we search GET /v1/locations
-    # by name using FOREXVPS_LOCATION_SEARCH, falling back to the first
-    # location returned if the search string is empty or matches nothing.
     FOREXVPS_LOCATION_ID = os.getenv("FOREXVPS_LOCATION_ID", "").strip() or None
     FOREXVPS_LOCATION_SEARCH = os.getenv("FOREXVPS_LOCATION_SEARCH", "").strip()
 
-    # OS template to install. Same override pattern as location.
-    # os_template_id is a string/UUID per ThinkHuge's schema, not an integer.
     FOREXVPS_OS_TEMPLATE_ID = os.getenv("FOREXVPS_OS_TEMPLATE_ID", "").strip() or None
     FOREXVPS_OS_TEMPLATE_SEARCH = os.getenv("FOREXVPS_OS_TEMPLATE_SEARCH", "Windows 2022").strip()
 
-    # How often (seconds) the background job retries provisioning for users
-    # who paid but don't have a VPS yet (e.g. a previous attempt was blocked
-    # by Cloudflare, ThinkHuge was briefly down, etc.) and how often it polls
-    # servers that are still provisioning (no IP/password yet).
+    # Default RDP port for ThinkHuge VPS instances
+    FOREXVPS_DEFAULT_RDP_PORT = os.getenv("FOREXVPS_DEFAULT_RDP_PORT", "42014")
+
     FOREXVPS_RETRY_INTERVAL_SECONDS = int(os.getenv("FOREXVPS_RETRY_INTERVAL_SECONDS", 600))
-    # Give up automatic retries after this many minutes so we don't hammer a
-    # permanently failing account forever; visible to admins via vps_status.
     FOREXVPS_RETRY_MAX_AGE_MINUTES = int(os.getenv("FOREXVPS_RETRY_MAX_AGE_MINUTES", 1440))
 
     @staticmethod
@@ -206,14 +192,6 @@ try:
         encryption_key = Config.ENCRYPTION_KEY.encode() if isinstance(Config.ENCRYPTION_KEY, str) else Config.ENCRYPTION_KEY
         cipher_suite = Fernet(encryption_key)
     else:
-        # CRITICAL: without a persisted ENCRYPTION_KEY env var, a brand new
-        # random key is generated every time this module is imported - which
-        # happens independently in EVERY gunicorn worker process, and again
-        # on every restart/redeploy. Anything encrypted (e.g. VPS passwords)
-        # under one worker's/run's key can never be decrypted by a different
-        # worker or after a restart - decrypt_data() will silently return
-        # the raw ciphertext instead of throwing, so this shows up as
-        # garbled text in the UI rather than an obvious error.
         logger.warning("=" * 80)
         logger.warning("⚠️  ENCRYPTION_KEY is not set - using a RANDOM, EPHEMERAL key for this process.")
         logger.warning("⚠️  VPS passwords (and anything else encrypted) will NOT be decryptable")
@@ -295,6 +273,7 @@ class User(UserMixin, db.Model):
     vps_id = db.Column(db.String(100), nullable=True)
     vps_status = db.Column(db.String(20), nullable=True)
     vps_ip = db.Column(db.String(50), nullable=True)
+    vps_port = db.Column(db.String(10), nullable=True)
     vps_username = db.Column(db.String(50), nullable=True)
     vps_password = db.Column(db.String(200), nullable=True)
     vps_plan = db.Column(db.String(50), nullable=True)
@@ -302,9 +281,6 @@ class User(UserMixin, db.Model):
     vps_terminated_at = db.Column(db.DateTime, nullable=True)
     vps_last_attempt_at = db.Column(db.DateTime, nullable=True)
     vps_last_error = db.Column(db.String(300), nullable=True)
-    # The ThinkHuge "User" record UUID this customer maps to (ThinkHuge
-    # requires servers to be created under a ThinkHuge user_id, separate
-    # from this app's own user id). Looked up/created once and cached here.
     thinkhuge_user_id = db.Column(db.String(100), nullable=True)
 
     otp_tokens = db.relationship("OTPToken", backref="user", lazy="dynamic", cascade="all, delete-orphan")
@@ -312,8 +288,6 @@ class User(UserMixin, db.Model):
     orders = db.relationship("Order", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
     def is_membership_active(self):
-        """Check if membership is currently active (not expired).
-        Both 'active' and 'cancelled' status allow access until membership_end."""
         if self.membership_status not in ["active", "cancelled"]:
             return False
         if self.membership_end and self.membership_end < datetime.utcnow():
@@ -436,11 +410,6 @@ class License(db.Model):
 
 
 class LicenseAccount(db.Model):
-    """
-    Represents ONE MT5 account slot under a license.
-    Multiple EAs on the same MT5 account share ONE slot.
-    Slot count = number of LicenseAccount rows for the license.
-    """
     __tablename__ = "license_accounts"
     id = db.Column(db.Integer, primary_key=True)
     license_id = db.Column(db.Integer, db.ForeignKey("licenses.id"), nullable=False)
@@ -451,11 +420,6 @@ class LicenseAccount(db.Model):
 
 
 class EASession(db.Model):
-    """
-    Represents ONE EA instance running on an MT5 account.
-    Multiple EASessions can exist per LicenseAccount.
-    Slot freed only when ALL EASessions for an account are removed.
-    """
     __tablename__ = "ea_sessions"
     id = db.Column(db.Integer, primary_key=True)
     license_account_id = db.Column(db.Integer, db.ForeignKey("license_accounts.id"), nullable=False)
@@ -533,18 +497,8 @@ class Setting(db.Model):
 class ForexVPSClient:
     """
     Client for ThinkHuge.net API.
-
-    NOTE ON THE CLOUDFLARE 403 FIX:
-    ThinkHuge's API sits behind Cloudflare, and Cloudflare's bot-management
-    rules will return "Error 1010: browser_signature_banned" for requests
-    whose User-Agent looks like a script (urllib's default is literally
-    "Python-urllib/3.x", which is a textbook bot signature). That 403 is
-    what was silently preventing every VPS from being provisioned. The fix
-    is simply to send headers that look like a normal browser request.
     """
 
-    # A realistic desktop browser User-Agent. Cloudflare mainly cares that
-    # this doesn't look like a bare script/HTTP-library default.
     BROWSER_USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -559,23 +513,14 @@ class ForexVPSClient:
             'Accept': 'application/json',
             'User-Agent': self.BROWSER_USER_AGENT,
             'Accept-Language': 'en-US,en;q=0.9',
-            # Only gzip/deflate - Python's stdlib can decompress those. Brotli
-            # ("br") would need an extra package we don't have, and advertising
-            # support for it without being able to decode it is exactly what
-            # caused the "'utf-8' codec can't decode byte..." error: the server
-            # gzip/br-compresses the response because we said we accept it, and
-            # the raw compressed bytes get fed to json.loads() as if they were
-            # plain UTF-8 text.
             'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
         }
 
     def is_configured(self):
-        """Check if ThinkHuge API is configured"""
         return bool(self.api_key)
 
     def _request(self, path, method="GET", payload=None, timeout=120):
-        """Shared request helper so every call gets the same anti-Cloudflare headers."""
         data = json.dumps(payload).encode() if payload is not None else None
         req = urllib.request.Request(
             f"{self.api_url}{path}",
@@ -587,11 +532,6 @@ class ForexVPSClient:
 
     @staticmethod
     def _read_json(response):
-        """
-        Read a urllib response body, transparently decompressing it if the
-        server sent Content-Encoding: gzip/deflate (urllib does NOT do this
-        automatically), then decode as UTF-8 and parse as JSON.
-        """
         raw = response.read()
         encoding = (response.headers.get("Content-Encoding") or "").lower()
         if encoding == "gzip":
@@ -600,13 +540,11 @@ class ForexVPSClient:
             try:
                 raw = zlib.decompress(raw)
             except zlib.error:
-                # Some servers send raw deflate without the zlib header
                 raw = zlib.decompress(raw, -zlib.MAX_WBITS)
         return json.loads(raw.decode("utf-8"))
 
     @staticmethod
     def _error_detail(e):
-        """Extract ThinkHuge's JSON error body (message + per-field errors) from an HTTPError."""
         try:
             body = e.read().decode()
         except Exception:
@@ -620,16 +558,6 @@ class ForexVPSClient:
             return msg
         except Exception:
             return body
-
-    # ------------------------------------------------------------------
-    # Lookup helpers (Location / OsTemplate / Plan / User)
-    #
-    # ThinkHuge's /v1/servers endpoint requires numeric/UUID IDs, not the
-    # names our config historically stored. These helpers resolve real IDs
-    # by calling ThinkHuge's list endpoints and matching by name, with
-    # in-memory caching (values rarely change) and env-var overrides so an
-    # admin who already knows the exact ID can skip the lookup entirely.
-    # ------------------------------------------------------------------
 
     def _list(self, path, search=None, per_page=100):
         query = f"?per_page={per_page}"
@@ -655,7 +583,6 @@ class ForexVPSClient:
             return self._location_id_cache
         locations = self.list_locations(search=Config.FOREXVPS_LOCATION_SEARCH or None)
         if not locations:
-            # Search matched nothing - fall back to the unfiltered list.
             locations = self.list_locations()
         if not locations:
             raise ValueError("No ThinkHuge locations available from /v1/locations")
@@ -697,12 +624,6 @@ class ForexVPSClient:
         return plan_id
 
     def get_or_create_user_id(self, email, name=""):
-        """
-        ThinkHuge servers are created under a ThinkHuge User record, which
-        is a different concept from this app's own User model. Look up an
-        existing ThinkHuge user by email first (GET /v1/users?filter[email]=),
-        and only create one (POST /v1/users) if none exists yet.
-        """
         query = f"?filter[email]={urllib.parse.quote(email)}"
         response = self._request(f"/users{query}", method="GET", timeout=30)
         result = self._read_json(response)
@@ -710,9 +631,6 @@ class ForexVPSClient:
         if existing:
             return existing[0]["id"]
 
-        # No documented request body for POST /v1/users in ThinkHuge's spec -
-        # send the fields UserResource exposes as user-settable and let any
-        # 422 tell us precisely what's still missing (same as /servers did).
         username = re.sub(r'[^a-zA-Z0-9_.-]', '', email.split('@')[0])[:30] or f"user{secrets.token_hex(4)}"
         payload = {
             "username": username,
@@ -741,27 +659,11 @@ class ForexVPSClient:
         return result["data"]
 
     def reset_password(self, server_id):
-        """POST /v1/servers/{server}/reset-password -> {"password": "..."} (no 'data' wrapper)."""
-        # Send an explicit empty JSON body rather than no body at all - some
-        # Laravel-based APIs 400 on a POST with a totally empty request body.
         response = self._request(f"/servers/{server_id}/reset-password", method="POST", payload={}, timeout=60)
         result = self._read_json(response)
         return result["password"]
 
     def create_vps(self, plan_level, email, name="", hostname=""):
-        """
-        Create a new VPS server for a client.
-
-        Orchestrates the full ThinkHuge flow: resolve/create the ThinkHuge
-        user, resolve location/os_template/plan IDs, then create the server.
-        Provisioning is asynchronous on ThinkHuge's side - primary_ip_address
-        may still be null in the response, in which case the caller should
-        treat this as "pending" and poll get_server() later rather than
-        expecting a password immediately (there's no password in the create
-        response at all - it must be fetched via reset_password()).
-
-        Returns a dict describing the outcome; never raises.
-        """
         if not self.is_configured():
             logger.warning("[ThinkHuge] API not configured, skipping VPS creation")
             return {"success": False, "error": "API not configured"}
@@ -792,7 +694,6 @@ class ForexVPSClient:
 
             password = None
             if ip:
-                # Server appears ready already - fetch its password now.
                 try:
                     password = self.reset_password(server_id)
                 except urllib.error.HTTPError as e:
@@ -823,15 +724,12 @@ class ForexVPSClient:
             return {"success": False, "error": str(e)}
 
     def terminate_vps(self, server_id):
-        """Terminate/delete a VPS server"""
         if not self.is_configured():
             return {"success": False, "error": "API not configured"}
 
         try:
             logger.info(f"[ThinkHuge] Terminating VPS: {server_id}")
-
             self._request(f"/servers/{server_id}", method="DELETE", timeout=30)
-
             logger.info(f"[ThinkHuge] VPS termination successful: {server_id}")
             return {"success": True}
 
@@ -860,12 +758,6 @@ def encrypt_data(data):
     except: return data
 
 def decrypt_data(data):
-    """
-    Returns None on failure (wrong/rotated key, corrupted data, etc.) instead
-    of the raw ciphertext. Returning ciphertext on failure is how a garbled
-    Fernet token like "gAAAAA..." previously ended up displayed in the admin
-    UI and even emailed to a customer as if it were their real password.
-    """
     if not data:
         return None
     try:
@@ -928,7 +820,6 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in {"ex4", "ex5", "dll", "zip"}
 
 def get_max_accounts_for_level(plan_level):
-    """Determine max MT5 accounts based on plan level"""
     if plan_level <= 1:
         return 2
     elif plan_level == 2:
@@ -943,7 +834,6 @@ def get_plan_level_display(plan_level):
     return level_names.get(plan_level, f"LVL {plan_level}")
 
 def format_date_dutch(date_obj):
-    """Format a date in Dutch: '31 oktober 2026'"""
     if not date_obj:
         return "N/B"
     months_nl = [
@@ -953,7 +843,6 @@ def format_date_dutch(date_obj):
     return f"{date_obj.day} {months_nl[date_obj.month - 1]} {date_obj.year}"
 
 def format_date_english(date_obj):
-    """Format a date in English: 'October 31, 2026'"""
     if not date_obj:
         return "N/A"
     return date_obj.strftime("%B %d, %Y")
@@ -964,15 +853,6 @@ def format_date_english(date_obj):
 # ============================================================================
 
 def try_complete_pending_vps(user):
-    """
-    For a user whose VPS server already exists but wasn't ready yet
-    (vps_status == 'provisioning'): check ThinkHuge for an IP and, if
-    present, fetch the password and mark the VPS active. Sends the welcome
-    email if the user already has a license.
-
-    Returns True if the VPS is now active, False if still pending or on error
-    (vps_last_error is set on error so admins can see why).
-    """
     if not user.vps_id:
         return False
 
@@ -985,15 +865,19 @@ def try_complete_pending_vps(user):
             return False
 
         password = forexvps_client.reset_password(user.vps_id)
+        
+        # Get the RDP port from server details, fallback to default
+        rdp_port = server.get("rdp_port") or server.get("port") or Config.FOREXVPS_DEFAULT_RDP_PORT
 
         user.vps_ip = ip
+        user.vps_port = str(rdp_port)
         user.vps_username = "Administrator"
         user.vps_password = encrypt_data(password)
         user.vps_status = 'active'
         user.vps_last_error = None
         db.session.commit()
 
-        logger.info(f"[ThinkHuge] ✅ VPS now ready for {user.email}: {user.vps_id} | IP: {ip}")
+        logger.info(f"[ThinkHuge] ✅ VPS now ready for {user.email}: {user.vps_id} | IP: {ip}:{rdp_port}")
 
         if user.get_active_license():
             send_vps_welcome_email(user)
@@ -1014,21 +898,6 @@ def try_complete_pending_vps(user):
 
 
 def provision_vps_for_user(user, plan_level):
-    """
-    Provision a VPS for a user based on their plan level.
-    Creates the VPS but does NOT send the welcome email.
-    The welcome email is sent after license generation when language is known
-    (and only once the VPS is actually ready - see send_vps_welcome_email callers).
-
-    Returns True if a VPS now exists and is ready (has IP + password).
-    Returns False if provisioning failed OR if the server was created but is
-    still provisioning on ThinkHuge's side (status will be 'provisioning' and
-    the background poll_pending_vps_servers() job will finish setting it up).
-
-    Every attempt (success or failure) stamps vps_last_attempt_at so the
-    background retry sweep knows when it last tried and can back off /
-    give up appropriately. Failures also record vps_last_error for admins.
-    """
     if not forexvps_client.is_configured():
         logger.info(f"[ThinkHuge] Skipping VPS provisioning - API not configured")
         return False
@@ -1038,10 +907,6 @@ def provision_vps_for_user(user, plan_level):
         return True
 
     if user.vps_id and user.vps_status == 'provisioning':
-        # Already created - don't create a second server, just check whether
-        # it's ready now (this is what makes a manual "Retry" actually do
-        # something useful instead of silently no-op'ing while waiting for
-        # the next background poll cycle).
         user.vps_last_attempt_at = datetime.utcnow()
         db.session.commit()
         logger.info(f"[ThinkHuge] User {user.email} VPS {user.vps_id} already provisioning, checking if it's ready now")
@@ -1076,14 +941,13 @@ def provision_vps_for_user(user, plan_level):
     if result.get('ready'):
         user.vps_status = 'active'
         user.vps_ip = result.get('ip')
+        user.vps_port = Config.FOREXVPS_DEFAULT_RDP_PORT
         user.vps_username = result.get('username')
         user.vps_password = encrypt_data(result.get('password', ''))
         db.session.commit()
-        logger.info(f"[ThinkHuge] ✅ VPS provisioned and ready for {user.email}: {user.vps_id} | IP: {user.vps_ip}")
+        logger.info(f"[ThinkHuge] ✅ VPS provisioned and ready for {user.email}: {user.vps_id} | IP: {user.vps_ip}:{user.vps_port}")
         return True
     else:
-        # Server created but ThinkHuge is still provisioning it (no IP yet).
-        # poll_pending_vps_servers() will pick this up and finish the job.
         user.vps_status = 'provisioning'
         db.session.commit()
         logger.info(
@@ -1094,13 +958,6 @@ def provision_vps_for_user(user, plan_level):
 
 
 def poll_pending_vps_servers():
-    """
-    Check on servers that were created but hadn't finished provisioning yet
-    (no primary_ip_address / password at creation time). Once ThinkHuge
-    reports an IP, fetch the password and mark the VPS active - then send
-    the welcome email if the user already has a license (mirroring the
-    normal post-license-generation flow).
-    """
     if not forexvps_client.is_configured():
         return
 
@@ -1124,19 +981,9 @@ def poll_pending_vps_servers():
 
 
 def send_vps_welcome_email(user):
-    """
-    Send VPS login details to user.
-
-    Uses the target user's own stored language_preference rather than
-    get_user_language() - this function can be called from contexts with
-    no active HTTP request at all (the background poller/retry sweep), where
-    get_user_language() would crash trying to touch Flask's session
-    ("Working outside of request context"). It's also simply more correct:
-    an admin retrying this from their own session, or a webhook with no
-    session at all, should never determine *this user's* email language.
-    """
     lang = user.language_preference or 'en'
     vps_password = decrypt_data(user.vps_password)
+    vps_port = user.vps_port or Config.FOREXVPS_DEFAULT_RDP_PORT
     
     if lang == 'nl':
         subject = "Je Forex VPS is klaar! - Trading Engine"
@@ -1146,13 +993,14 @@ Beste {user.first_name or 'handelaar'},
 Je Forex VPS is succesvol aangemaakt en klaar voor gebruik!
 
 === VPS LOGIN GEGEVENS ===
-IP Adres: {user.vps_ip or 'Wordt binnen enkele minuten verzonden'}
-Gebruikersnaam: {user.vps_username or 'Wordt binnen enkele minuten verzonden'}
+RDP Adres: {user.vps_ip}:{vps_port}
+Gebruikersnaam: {user.vps_username or 'Administrator'}
 Wachtwoord: {vps_password or 'Wordt binnen enkele minuten verzonden'}
 
 === BELANGRIJKE INFORMATIE ===
 • De VPS is 24/7 actief zolang je abonnement loopt
 • Je kunt direct inloggen via Windows Remote Desktop (RDP)
+• Kopieer het volledige RDP adres (inclusief :{vps_port}) in Remote Desktop
 • Installeer MetaTrader en je Expert Advisors op de VPS
 • Bij vragen, neem contact op via support@tradingengine.nl
 
@@ -1169,14 +1017,15 @@ Het Trading Engine Team
     
     <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
         <h3 style="margin: 0 0 10px; color: #0b121a;">🔐 VPS Login Gegevens</h3>
-        <p style="margin: 4px 0;"><strong>IP Adres:</strong> <code>{user.vps_ip or 'Wordt binnen enkele minuten verzonden'}</code></p>
-        <p style="margin: 4px 0;"><strong>Gebruikersnaam:</strong> <code>{user.vps_username or 'Wordt binnen enkele minuten verzonden'}</code></p>
+        <p style="margin: 4px 0;"><strong>RDP Adres:</strong> <code>{user.vps_ip}:{vps_port}</code></p>
+        <p style="margin: 4px 0;"><strong>Gebruikersnaam:</strong> <code>{user.vps_username or 'Administrator'}</code></p>
         <p style="margin: 4px 0;"><strong>Wachtwoord:</strong> <code>{vps_password or 'Wordt binnen enkele minuten verzonden'}</code></p>
     </div>
     
     <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 8px; padding: 12px; margin: 16px 0;">
         <p style="margin: 4px 0;">✅ De VPS is 24/7 actief zolang je abonnement loopt</p>
         <p style="margin: 4px 0;">✅ Log in via Windows Remote Desktop (RDP)</p>
+        <p style="margin: 4px 0;">✅ Kopieer het volledige RDP adres (inclusief :{vps_port}) in Remote Desktop</p>
         <p style="margin: 4px 0;">✅ Installeer MetaTrader en je Expert Advisors</p>
     </div>
     
@@ -1193,13 +1042,14 @@ Dear {user.first_name or 'trader'},
 Your Forex VPS has been successfully created and is ready to use!
 
 === VPS LOGIN DETAILS ===
-IP Address: {user.vps_ip or 'Will be sent within minutes'}
-Username: {user.vps_username or 'Will be sent within minutes'}
+RDP Address: {user.vps_ip}:{vps_port}
+Username: {user.vps_username or 'Administrator'}
 Password: {vps_password or 'Will be sent within minutes'}
 
 === IMPORTANT INFORMATION ===
 • The VPS runs 24/7 as long as your subscription is active
 • You can log in immediately via Windows Remote Desktop (RDP)
+• Copy the full RDP address (including :{vps_port}) into Remote Desktop
 • Install MetaTrader and your Expert Advisors on the VPS
 • For questions, contact support@tradingengine.nl
 
@@ -1216,14 +1066,15 @@ The Trading Engine Team
     
     <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
         <h3 style="margin: 0 0 10px; color: #0b121a;">🔐 VPS Login Details</h3>
-        <p style="margin: 4px 0;"><strong>IP Address:</strong> <code>{user.vps_ip or 'Will be sent within minutes'}</code></p>
-        <p style="margin: 4px 0;"><strong>Username:</strong> <code>{user.vps_username or 'Will be sent within minutes'}</code></p>
+        <p style="margin: 4px 0;"><strong>RDP Address:</strong> <code>{user.vps_ip}:{vps_port}</code></p>
+        <p style="margin: 4px 0;"><strong>Username:</strong> <code>{user.vps_username or 'Administrator'}</code></p>
         <p style="margin: 4px 0;"><strong>Password:</strong> <code>{vps_password or 'Will be sent within minutes'}</code></p>
     </div>
     
     <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 8px; padding: 12px; margin: 16px 0;">
         <p style="margin: 4px 0;">✅ The VPS runs 24/7 as long as your subscription is active</p>
         <p style="margin: 4px 0;">✅ Log in via Windows Remote Desktop (RDP)</p>
+        <p style="margin: 4px 0;">✅ Copy the full RDP address (including :{vps_port}) into Remote Desktop</p>
         <p style="margin: 4px 0;">✅ Install MetaTrader and your Expert Advisors</p>
     </div>
     
@@ -1238,7 +1089,6 @@ The Trading Engine Team
 
 
 def send_vps_termination_email(user):
-    """Send VPS termination notification to user"""
     lang = user.language_preference or 'en'
     
     if lang == 'nl':
@@ -1271,17 +1121,6 @@ The Trading Engine Team
 
 
 def retry_pending_vps_provisioning():
-    """
-    Background safety net: find paid, active/cancelled users who still
-    don't have an active VPS (e.g. their original provisioning attempt hit
-    the Cloudflare browser_signature_banned 403, or ThinkHuge was briefly
-    unavailable) and retry provisioning for them.
-
-    Skips users who were only just attempted (to respect
-    FOREXVPS_RETRY_INTERVAL_SECONDS) and gives up permanently after
-    FOREXVPS_RETRY_MAX_AGE_MINUTES since their membership started, logging
-    a warning so admins can investigate accounts that keep failing.
-    """
     if not forexvps_client.is_configured():
         return
 
@@ -1317,9 +1156,6 @@ def retry_pending_vps_provisioning():
 
             if success:
                 logger.info(f"[ThinkHuge] ✅ Retry succeeded for {user.email}")
-                # If the user already has a generated license, send VPS
-                # details now since the original post-license-generation
-                # email would have found no VPS to report.
                 if user.get_active_license():
                     send_vps_welcome_email(user)
             elif user.vps_status == 'provisioning':
@@ -1337,7 +1173,6 @@ def retry_pending_vps_provisioning():
 # ============================================================================
 
 def cleanup_expired_vps():
-    """Terminate VPS for users whose membership has expired"""
     try:
         expired_users = User.query.filter(
             User.membership_end < datetime.utcnow(),
@@ -1368,7 +1203,6 @@ def cleanup_expired_vps():
 
 
 def cleanup_stale_sessions():
-    """Remove EA sessions with no heartbeat. Frees account slots automatically. Also cleans up expired VPS."""
     try:
         threshold = datetime.utcnow() - timedelta(minutes=Config.HEARTBEAT_TIMEOUT_MINUTES)
 
@@ -1402,13 +1236,8 @@ def cleanup_stale_sessions():
         logger.error(f"Auto-cleanup error: {e}")
         db.session.rollback()
     
-    # Also clean up expired VPS
     cleanup_expired_vps()
-
-    # Finish provisioning for servers that were created but weren't ready yet
     poll_pending_vps_servers()
-
-    # Retry provisioning (from scratch) for anyone still missing a VPS entirely
     retry_pending_vps_provisioning()
 
 
@@ -1456,7 +1285,6 @@ def run_migrations():
                 db.session.commit()
                 logger.info("✅ ea_sessions table created")
 
-            # Add language_preference column if it doesn't exist
             columns = [col['name'] for col in inspector.get_columns('users')]
             if 'language_preference' not in columns:
                 logger.info("Adding language_preference column to users table...")
@@ -1466,9 +1294,8 @@ def run_migrations():
                 db.session.commit()
                 logger.info("✅ language_preference column added")
 
-            # Add ThinkHuge VPS columns if they don't exist
             vps_columns = [
-                'vps_id', 'vps_status', 'vps_ip', 'vps_username', 'vps_password',
+                'vps_id', 'vps_status', 'vps_ip', 'vps_port', 'vps_username', 'vps_password',
                 'vps_plan', 'vps_created_at', 'vps_terminated_at',
                 'vps_last_attempt_at', 'vps_last_error', 'thinkhuge_user_id',
             ]
@@ -1478,7 +1305,7 @@ def run_migrations():
                         col_type = 'VARCHAR(100)'
                     elif col_name == 'vps_last_error':
                         col_type = 'VARCHAR(300)'
-                    elif col_name in ('vps_ip', 'vps_username', 'vps_plan', 'vps_status'):
+                    elif col_name in ('vps_ip', 'vps_username', 'vps_plan', 'vps_status', 'vps_port'):
                         col_type = 'VARCHAR(50)'
                     else:
                         col_type = 'TIMESTAMP'
@@ -1489,7 +1316,6 @@ def run_migrations():
                     db.session.commit()
                     logger.info(f"✅ {col_name} column added")
 
-            # Fix existing licenses with invalid max_accounts
             bad_licenses = License.query.filter(
                 (License.max_accounts == None) | (License.max_accounts <= 0)
             ).all()
@@ -1506,7 +1332,6 @@ def run_migrations():
                 db.session.commit()
                 logger.info(f"✅ Fixed {len(bad_licenses)} licenses")
 
-            # Remove validation limits from all existing licenses on every startup
             capped_licenses = License.query.filter(
                 License.max_validations != None
             ).all()
@@ -1584,7 +1409,6 @@ def health():
 
 @app.route("/set-language/<lang>")
 def set_language(lang):
-    """Set the user's preferred language via URL"""
     if lang in Config.LANGUAGES:
         session['language'] = lang
         if current_user.is_authenticated:
@@ -1596,7 +1420,6 @@ def set_language(lang):
 
 @app.route("/api/set-language", methods=["POST"])
 def api_set_language():
-    """API endpoint to set language preference"""
     try:
         data = request.get_json()
         if not data:
@@ -1864,13 +1687,11 @@ def user_dashboard():
             db.session.commit()
             max_accounts = default_max
 
-    # Calculate days remaining for membership
     days_remaining = None
     if user.membership_end and user.membership_status in ["active", "cancelled"]:
         delta = user.membership_end - datetime.utcnow()
         days_remaining = max(0, delta.days)
 
-    # Decrypt VPS password for display
     vps_password_decrypted = None
     if user.vps_id and user.vps_password:
         try:
@@ -1894,7 +1715,8 @@ def user_dashboard():
         days_remaining=days_remaining,
         membership_end_date=user.membership_end,
         current_language=get_user_language(),
-        vps_password_decrypted=vps_password_decrypted
+        vps_password_decrypted=vps_password_decrypted,
+        vps_default_port=Config.FOREXVPS_DEFAULT_RDP_PORT
     )
 
 
@@ -1953,7 +1775,6 @@ def generate_license():
             request.remote_addr
         )
 
-        # Send license key email in user's selected language
         if lang == 'nl':
             send_email_async(
                 "Jouw Licentiesleutel - Trading Engine",
@@ -1969,15 +1790,9 @@ def generate_license():
                 f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Keep this key safe.</p>"
             )
 
-        # If there's no VPS yet, try once more synchronously right now -
-        # this catches the common case where the original webhook attempt
-        # failed (e.g. the Cloudflare 403) and the background retry sweep
-        # hasn't run yet. Doesn't block the response either way.
         if not (current_user.vps_id and current_user.vps_status == 'active'):
             provision_vps_for_user(current_user, current_user.get_plan_level())
 
-        # NOW SEND VPS DETAILS (if VPS exists)
-        # User has already selected language on dashboard, so we use the correct language
         if current_user.vps_id and current_user.vps_status == 'active':
             send_vps_welcome_email(current_user)
             logger.info(f"[LICENSE GEN] 📧 VPS details sent to {current_user.email} in {lang}")
@@ -2006,12 +1821,6 @@ def generate_license():
 @login_required
 @limiter.limit("5 per day")
 def cancel_membership():
-    """
-    Cancel auto-renewal of membership.
-    User keeps FULL access until their paid period ends.
-    Licenses are NOT revoked - they remain active until membership_end.
-    VPS is NOT terminated until membership_end passes.
-    """
     if current_user.is_admin:
         return jsonify({"error": "Admin accounts cannot be cancelled this way"}), 400
 
@@ -2032,9 +1841,6 @@ def cancel_membership():
         if not membership_end_date:
             membership_end_date = datetime.utcnow()
 
-        # Change status to cancelled (stops auto-renewal)
-        # Keep membership_end date as-is - user retains access until then
-        # IMPORTANT: Do NOT revoke licenses or terminate VPS!
         user.membership_status = "cancelled"
         
         db.session.commit()
@@ -2245,7 +2051,6 @@ def admin_dashboard():
         (License.max_accounts == None) | (License.max_accounts <= 0)
     ).all()
 
-    # Users who paid but still don't have a working VPS - surfaced for admins
     vps_pending_users = User.query.filter(
         User.membership_status.in_(["active", "cancelled"]),
         User.is_admin == False,
@@ -2301,8 +2106,6 @@ def fix_all_licenses():
 @app.route("/admin/retry-vps/<int:user_id>", methods=["POST"])
 @admin_required
 def admin_retry_vps(user_id):
-    """Manually re-trigger VPS provisioning for a single user (e.g. right after
-    fixing configuration or confirming ThinkHuge/Cloudflare access is restored)."""
     user = db.session.get(User, user_id)
     if not user:
         flash("Gebruiker niet gevonden.", "error")
@@ -2324,16 +2127,6 @@ def admin_retry_vps(user_id):
 @app.route("/admin/reset-vps-password/<int:user_id>", methods=["POST"])
 @admin_required
 def admin_reset_vps_password(user_id):
-    """
-    Force-fetch a brand new password for a user's EXISTING VPS server,
-    regardless of its current vps_status.
-
-    provision_vps_for_user()/admin_retry_vps() short-circuit once a server is
-    already 'active' - they never call reset_password() again, so a
-    previously-undecryptable stored password (e.g. one encrypted before
-    ENCRYPTION_KEY was made persistent) can never be recovered through the
-    normal retry button. This route exists specifically to unstick that.
-    """
     user = db.session.get(User, user_id)
     if not user:
         flash("Gebruiker niet gevonden.", "error")
@@ -2360,6 +2153,50 @@ def admin_reset_vps_password(user_id):
         flash(f"Wachtwoord ophalen mislukt voor {user.email}: {e}", "error")
 
     return redirect(request.referrer or url_for("admin_dashboard"))
+
+
+@app.route("/admin/debug-vps/<int:user_id>")
+@admin_required
+def admin_debug_vps(user_id):
+    """Debug endpoint to see exact ThinkHuge server details and test password reset"""
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "Gebruiker niet gevonden"}), 404
+    
+    if not user.vps_id:
+        return jsonify({"error": "Geen VPS ID gevonden voor deze gebruiker", "vps_status": user.vps_status})
+    
+    try:
+        server = forexvps_client.get_server(user.vps_id)
+        
+        try:
+            password = forexvps_client.reset_password(user.vps_id)
+        except Exception as e:
+            password = f"ERROR: {e}"
+        
+        return jsonify({
+            "vps_id": user.vps_id,
+            "thinkhuge_user_id": user.thinkhuge_user_id,
+            "stored_ip": user.vps_ip,
+            "stored_port": user.vps_port,
+            "stored_username": user.vps_username,
+            "stored_password_encrypted_preview": (user.vps_password[:50] + "...") if user.vps_password else None,
+            "stored_password_decrypted": decrypt_data(user.vps_password) if user.vps_password else None,
+            "server_details": {
+                "id": server.get("id"),
+                "hostname": server.get("hostname"),
+                "primary_ip": server.get("primary_ip_address"),
+                "status": server.get("provision_status"),
+                "user_id": server.get("user_id"),
+                "plan": server.get("plan", {}).get("name") if server.get("plan") else None,
+                "rdp_port": server.get("rdp_port"),
+                "port": server.get("port"),
+            },
+            "reset_password_result": password,
+            "default_rdp_port": Config.FOREXVPS_DEFAULT_RDP_PORT,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/admin/toggle-test-mode", methods=["POST"])
@@ -2393,7 +2230,6 @@ def admin_user_detail(user_id):
     orders = user.orders.order_by(Order.created_at.desc()).all()
     licenses = user.licenses.order_by(License.created_at.desc()).all()
     
-    # Decrypt VPS password for admin display
     vps_password = decrypt_data(user.vps_password) if user.vps_password else None
 
     return render_template(
@@ -2434,7 +2270,6 @@ def revoke_membership(user_id):
         License.query.filter_by(user_id=user.id, status="active").update(
             {"status": "revoked", "revoked_at": datetime.utcnow()}
         )
-        # Also terminate VPS if admin revokes
         if user.vps_id and user.vps_status == 'active':
             forexvps_client.terminate_vps(user.vps_id)
             user.vps_status = 'terminated'
@@ -2536,17 +2371,6 @@ def delete_ea(ea_id):
 @app.route("/api/validate-license", methods=["POST"])
 @limiter.limit("60 per minute")
 def api_validate_license():
-    """
-    Called by EA on init and periodically (heartbeat).
-
-    ACCOUNT SLOT LOGIC:
-    - Each UNIQUE MT5 account number = 1 slot
-    - Multiple EAs on same MT5 account share 1 slot
-    - Slot freed only when ALL EAs on that account are removed
-
-    FIX: Heartbeat calls do NOT increment validation_count.
-         Only genuinely new sessions (new EA or new account) increment it.
-    """
     try:
         data = request.get_json()
         if not data:
@@ -2681,11 +2505,6 @@ def api_validate_license():
 @app.route("/api/release-license", methods=["POST"])
 @limiter.limit("30 per minute")
 def api_release_license():
-    """
-    Called by EA when removed from chart.
-    Releases only THIS EA session.
-    Slot freed only when ALL EAs on that MT5 account are removed.
-    """
     try:
         data = request.get_json()
         if not data:
@@ -2879,7 +2698,6 @@ def wix_payment_webhook():
 
         db.session.commit()
 
-        # Provision VPS for the user (creates VPS but does NOT send welcome email)
         plan_level = user.get_plan_level()
         provision_vps_for_user(user, plan_level)
 
@@ -3017,7 +2835,6 @@ def stripe_payment_webhook():
 
             db.session.commit()
 
-            # Provision VPS for the user (creates VPS but does NOT send welcome email)
             plan_level = user.get_plan_level()
             provision_vps_for_user(user, plan_level)
 
