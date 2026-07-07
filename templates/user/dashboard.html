@@ -572,20 +572,15 @@
     /* Support section */
     .support-section {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
-        padding: 1.25rem 1.5rem;
+        padding: 2rem 1.5rem;
         background: linear-gradient(135deg, #5865F2, #4752C4);
         border-radius: 16px;
         color: white;
         margin-top: 1.5rem;
         margin-bottom: 1rem;
         box-shadow: var(--shadow-raised);
-    }
-    .support-section .support-info {
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
     }
     .support-section .support-icon {
         width: 44px;
@@ -607,6 +602,27 @@
         font-size: 0.8rem;
         opacity: 0.9;
         margin: 0.15rem 0 0;
+    }
+    
+    .support-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .support-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        background: rgba(255,255,255,0.18) !important;
+    }
+    
+    .support-card .btn-support {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+    }
+    
+    .support-card .btn-support:hover {
+        background: rgba(255,255,255,0.3);
+        border-color: rgba(255,255,255,0.5);
     }
 
     /* Membership management */
@@ -1218,8 +1234,12 @@
             <span class="upgrade-note">
                 <i class="fas fa-lock"></i> 
                 {{ all_ea_count - ea_files|length }} 
-                <span data-en="more on" data-nl="meer op">{{ 'meer op' if current_language == 'nl' else 'more on' }}</span> 
-                <a href="#" target="_blank">Level 2</a>
+                <span data-en="more on higher levels." data-nl="meer op hogere niveaus.">
+                    {{ 'meer op hogere niveaus.' if current_language == 'nl' else 'more on higher levels.' }}
+                </span> 
+                <a href="https://www.tradingengine.nl/upgrade" target="_blank" data-en="Upgrade" data-nl="Upgrade">
+                    {{ 'Upgrade' if current_language == 'nl' else 'Upgrade' }}
+                </a>
             </span>
             {% endif %}
         </div>
@@ -1283,26 +1303,92 @@
 
     <!-- Support Section -->
     <div class="support-section">
-        <div class="support-info">
-            <div class="support-icon">
+        <div style="width: 100%; text-align: center; margin-bottom: 1.5rem;">
+            <div class="support-icon" style="margin: 0 auto 0.5rem;">
                 <i class="fas fa-headset"></i>
             </div>
-            <div class="support-text">
-                <h4 data-en="Need Help?" data-nl="Hulp nodig?">
-                    {{ 'Hulp nodig?' if current_language == 'nl' else 'Need Help?' }}
-                </h4>
-                <p data-en="Have questions or need support? We're here to help!" 
-                   data-nl="Heb je vragen of ondersteuning nodig? We staan voor je klaar!">
-                    {{ 'Heb je vragen of ondersteuning nodig? We staan voor je klaar!' if current_language == 'nl' else "Have questions or need support? We're here to help!" }}
-                </p>
+            <h4 style="color: white; font-size: 1.1rem; font-weight: 700; margin: 0;" data-en="Need Help?" data-nl="Hulp nodig?">
+                {{ 'Hulp nodig?' if current_language == 'nl' else 'Need Help?' }}
+            </h4>
+            <p style="color: rgba(255,255,255,0.85); font-size: 0.85rem; margin: 0.3rem 0 0; opacity: 0.9;" 
+               data-en="Choose the right support channel for faster help" 
+               data-nl="Kies het juiste kanaal voor snellere hulp">
+                {{ 'Kies het juiste kanaal voor snellere hulp' if current_language == 'nl' else 'Choose the right support channel for faster help' }}
+            </p>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; width: 100%;">
+            <!-- VPS Support -->
+            <div class="support-card" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; padding: 1.25rem;">
+                <div style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.18); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div>
+                        <h5 style="color: white; font-size: 0.9rem; font-weight: 700; margin: 0;" data-en="VPS Support" data-nl="VPS Ondersteuning">
+                            {{ 'VPS Ondersteuning' if current_language == 'nl' else 'VPS Support' }}
+                        </h5>
+                        <p style="color: rgba(255,255,255,0.8); font-size: 0.78rem; margin: 0.2rem 0 0; line-height: 1.4;" 
+                           data-en="For questions about the VPS, logging in to the server, Windows or MT5 on the VPS." 
+                           data-nl="Voor vragen over de VPS, inloggen op de server, Windows of MT5 op de VPS.">
+                            {{ 'Voor vragen over de VPS, inloggen op de server, Windows of MT5 op de VPS.' if current_language == 'nl' else 'For questions about the VPS, logging in to the server, Windows or MT5 on the VPS.' }}
+                        </p>
+                    </div>
+                </div>
+                <a href="mailto:support@thinkhuge.net" class="btn btn-support" style="width: 100%; justify-content: center; font-size: 0.78rem; padding: 0.5rem 1rem;">
+                    <i class="fas fa-envelope"></i> 
+                    <span data-en="Contact ThinkHuge Support" data-nl="Contact ThinkHuge Support">Contact ThinkHuge Support</span>
+                </a>
+            </div>
+
+            <!-- EA & Trading Questions -->
+            <div class="support-card" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; padding: 1.25rem;">
+                <div style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.18); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div>
+                        <h5 style="color: white; font-size: 0.9rem; font-weight: 700; margin: 0;" data-en="EA & Trading Questions" data-nl="EA & Trading Vragen">
+                            {{ 'EA & Trading Vragen' if current_language == 'nl' else 'EA & Trading Questions' }}
+                        </h5>
+                        <p style="color: rgba(255,255,255,0.8); font-size: 0.78rem; margin: 0.2rem 0 0; line-height: 1.4;" 
+                           data-en="For questions about using the EAs, settings, strategies or Trading Engine content." 
+                           data-nl="Voor vragen over het gebruik van de EA's, instellingen, strategieën of Trading Engine content.">
+                            {{ "Voor vragen over het gebruik van de EA's, instellingen, strategieën of Trading Engine content." if current_language == 'nl' else 'For questions about using the EAs, settings, strategies or Trading Engine content.' }}
+                        </p>
+                    </div>
+                </div>
+                <a href="{{ discord_invite }}" target="_blank" class="btn btn-support" style="width: 100%; justify-content: center; font-size: 0.78rem; padding: 0.5rem 1rem;">
+                    <i class="fab fa-discord"></i> 
+                    <span data-en="Ask in Discord" data-nl="Vraag in Discord">
+                        {{ 'Vraag in Discord' if current_language == 'nl' else 'Ask in Discord' }}
+                    </span>
+                </a>
+            </div>
+
+            <!-- Membership & Account Support -->
+            <div class="support-card" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; padding: 1.25rem;">
+                <div style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.18); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h5 style="color: white; font-size: 0.9rem; font-weight: 700; margin: 0;" data-en="Membership & Account" data-nl="Membership & Account">
+                            {{ 'Membership & Account' if current_language == 'nl' else 'Membership & Account' }}
+                        </h5>
+                        <p style="color: rgba(255,255,255,0.8); font-size: 0.78rem; margin: 0.2rem 0 0; line-height: 1.4;" 
+                           data-en="For questions about payments, membership or licenses." 
+                           data-nl="Voor vragen over betalingen, membership of licenties.">
+                            {{ 'Voor vragen over betalingen, membership of licenties.' if current_language == 'nl' else 'For questions about payments, membership or licenses.' }}
+                        </p>
+                    </div>
+                </div>
+                <a href="mailto:hello@tradingengine.nl" class="btn btn-support" style="width: 100%; justify-content: center; font-size: 0.78rem; padding: 0.5rem 1rem;">
+                    <i class="fas fa-envelope"></i> 
+                    <span data-en="Contact Trading Engine" data-nl="Contact Trading Engine">Contact Trading Engine</span>
+                </a>
             </div>
         </div>
-        <a href="mailto:support@tradingengine.nl" class="btn btn-support">
-            <i class="fas fa-envelope"></i> 
-            <span data-en="Contact Us" data-nl="Contact Opnemen">
-                {{ 'Contact Opnemen' if current_language == 'nl' else 'Contact Us' }}
-            </span>
-        </a>
     </div>
 </div>
 
