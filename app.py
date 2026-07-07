@@ -13,6 +13,14 @@ FIXED: Proper MT5 account tracking with unique account_number
 FIXED: Unlimited validations (max_validations=None skips the check)
 FIXED: Heartbeats no longer increment validation_count
 FIXED: Cancellation = stop auto-renewal, user keeps full access until paid period ends
+FIXED: Cancellation now actually cancels the Stripe subscription (cancel_at_period_end),
+       instead of only flipping a local status flag. Previously Stripe kept billing and
+       auto-renewing because it was never told to stop, and the next renewal webhook
+       would silently re-activate the membership and push membership_end forward again.
+ADDED: stripe_subscription_id / stripe_customer_id columns to track the real Stripe
+       subscription so it can be cancelled at the source.
+ADDED: Stripe customer.subscription.deleted webhook handler for audit-log visibility
+       when a cancelled subscription's paid period actually ends at Stripe.
 ADDED: Language toggle support (English/Nederlands)
 ADDED: "Need Help?" Contact Us support section
 ADDED: ThinkHuge VPS auto-provisioning on payment (Basic plan for all levels)
@@ -96,6 +104,7 @@ class Config:
 
     WIX_WEBHOOK_SECRET = os.getenv("WIX_WEBHOOK_SECRET", "")
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", os.getenv("STRIPE_SECRET_KEY", ""))
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
     DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "")
     DISCORD_ROLE_ID = os.getenv("DISCORD_ROLE_ID", "")
@@ -160,6 +169,9 @@ class Config:
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+if stripe is not None and Config.STRIPE_API_KEY:
+    stripe.api_key = Config.STRIPE_API_KEY
 
 if Config.is_railway():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -253,6 +265,8 @@ class User(UserMixin, db.Model):
     wix_contact_id = db.Column(db.String(100), nullable=True)
     wix_payment_id = db.Column(db.String(100), unique=True, nullable=True)
     wix_order_id = db.Column(db.String(100), nullable=True)
+    stripe_subscription_id = db.Column(db.String(100), nullable=True)
+    stripe_customer_id = db.Column(db.String(100), nullable=True)
     membership_status = db.Column(db.String(20), default="pending", index=True)
     membership_start = db.Column(db.DateTime, nullable=True)
     membership_end = db.Column(db.DateTime, nullable=True)
@@ -1316,6 +1330,18 @@ def run_migrations():
                     db.session.commit()
                     logger.info(f"✅ {col_name} column added")
 
+            # Stripe subscription tracking columns (needed to actually cancel
+            # the recurring subscription at Stripe when a user cancels)
+            stripe_columns = ['stripe_subscription_id', 'stripe_customer_id']
+            for col_name in stripe_columns:
+                if col_name not in columns:
+                    logger.info(f"Adding {col_name} column to users table...")
+                    db.session.execute(db.text(f"""
+                        ALTER TABLE users ADD COLUMN {col_name} VARCHAR(100)
+                    """))
+                    db.session.commit()
+                    logger.info(f"✅ {col_name} column added")
+
             bad_licenses = License.query.filter(
                 (License.max_accounts == None) | (License.max_accounts <= 0)
             ).all()
@@ -1814,7 +1840,7 @@ def generate_license():
 
 
 # ============================================================================
-# CANCEL MEMBERSHIP (FIXED - Stop auto-renewal, keep full access)
+# CANCEL MEMBERSHIP (Stop auto-renewal at Stripe, keep full access until period end)
 # ============================================================================
 
 @app.route("/cancel-membership", methods=["POST"])
@@ -1841,8 +1867,67 @@ def cancel_membership():
         if not membership_end_date:
             membership_end_date = datetime.utcnow()
 
+        # --------------------------------------------------------------
+        # CRITICAL FIX: actually cancel the recurring subscription at Stripe.
+        #
+        # Previously this route only flipped membership_status to
+        # "cancelled" in our own database. Stripe was never told to stop
+        # billing, so the subscription kept auto-renewing: Stripe would
+        # charge the card again on the next cycle, our payment webhook
+        # would see "payment succeeded" and treat it like any normal
+        # renewal, flipping membership_status back to "active" and pushing
+        # membership_end forward by another full period. That's why a
+        # cancellation appeared to "extend" the subscription by a month.
+        #
+        # cancel_at_period_end=True tells Stripe: stop auto-renewing, but
+        # don't revoke access early - the customer keeps what they already
+        # paid for until the current period ends, exactly matching the
+        # behavior described in this app's UI and emails.
+        # --------------------------------------------------------------
+        if user.stripe_subscription_id:
+            if stripe is None:
+                logger.error("[CANCEL] Stripe library not installed, cannot cancel subscription")
+                error_msg = (
+                    "Kon abonnement niet annuleren (configuratiefout). Neem contact op met support."
+                    if lang == 'nl' else
+                    "Failed to cancel subscription (configuration error). Please contact support."
+                )
+                return jsonify({"error": error_msg}), 500
+            try:
+                stripe.Subscription.modify(
+                    user.stripe_subscription_id,
+                    cancel_at_period_end=True,
+                )
+                logger.info(
+                    f"[CANCEL] Stripe subscription {user.stripe_subscription_id} "
+                    f"set to cancel_at_period_end for {user.email}"
+                )
+            except stripe.error.InvalidRequestError as e:
+                # Subscription may already be cancelled/missing at Stripe's end.
+                # Don't hard-fail the user's cancel request over this, but log
+                # loudly so it can be checked manually - we still proceed to
+                # mark the membership cancelled locally below.
+                logger.warning(
+                    f"[CANCEL] Stripe subscription {user.stripe_subscription_id} "
+                    f"could not be modified for {user.email}: {e}"
+                )
+            except Exception as e:
+                logger.error(f"[CANCEL] Stripe API error cancelling subscription for {user.email}: {e}")
+                db.session.rollback()
+                error_msg = (
+                    "Kon abonnement niet annuleren bij de betalingsprovider. Probeer opnieuw."
+                    if lang == 'nl' else
+                    "Failed to cancel subscription with payment provider. Please try again."
+                )
+                return jsonify({"error": error_msg}), 502
+        else:
+            logger.warning(
+                f"[CANCEL] No stripe_subscription_id on file for {user.email} - "
+                f"cannot stop auto-renewal at Stripe. Manual cancellation in the "
+                f"Stripe dashboard may be required to fully stop billing."
+            )
+
         user.membership_status = "cancelled"
-        
         db.session.commit()
 
         formatted_date_nl = format_date_dutch(membership_end_date) if membership_end_date else "de eerstvolgende verlengdatum"
@@ -2679,7 +2764,7 @@ def wix_payment_webhook():
 
 
 # ============================================================================
-# STRIPE WEBHOOK (with VPS provisioning)
+# STRIPE WEBHOOK (with VPS provisioning + subscription cancellation tracking)
 # ============================================================================
 
 @app.route("/webhook/stripe/payment", methods=["POST"])
@@ -2726,6 +2811,13 @@ def stripe_payment_webhook():
             currency = (session_data.get("currency") or "eur").upper()
             order_id = session_data.get("id", "")
 
+            # The Stripe subscription + customer ID, present when the Checkout
+            # Session was created with mode="subscription". This is what lets
+            # us actually cancel the recurring billing later (see
+            # cancel_membership()) instead of only flipping a local flag.
+            stripe_subscription_id = session_data.get("subscription")
+            stripe_customer_id = session_data.get("customer")
+
             if not email:
                 return jsonify({"error": "Email vereist"}), 400
 
@@ -2755,12 +2847,27 @@ def stripe_payment_webhook():
                     membership_end=membership_end, plan_name=plan_name,
                     plan_price=amount_total, currency=currency,
                     subscription_type=subscription_type,
-                    subscription_duration_days=duration_days
+                    subscription_duration_days=duration_days,
+                    stripe_subscription_id=stripe_subscription_id,
+                    stripe_customer_id=stripe_customer_id,
                 )
                 db.session.add(user)
                 db.session.flush()
                 is_new = True
             else:
+                # If this user had previously cancelled and this event is a
+                # genuinely new checkout (new subscription id), treat it as a
+                # fresh signup. If it's a duplicate/replayed event for an
+                # order we've already recorded, don't silently resurrect or
+                # re-extend a cancelled membership.
+                already_processed = bool(order_id) and Order.query.filter_by(wix_order_id=order_id).first() is not None
+                if user.membership_status == "cancelled" and already_processed:
+                    logger.info(
+                        f"[STRIPE] Ignoring duplicate/replayed checkout.session.completed "
+                        f"for already-cancelled user {user.email} (order_id={order_id})"
+                    )
+                    return jsonify({"status": "ignored_duplicate"}), 200
+
                 user.first_name = first_name or user.first_name
                 user.last_name = last_name or user.last_name
                 user.phone = phone or user.phone
@@ -2776,6 +2883,8 @@ def stripe_payment_webhook():
                 user.currency = currency or user.currency
                 user.subscription_type = subscription_type
                 user.subscription_duration_days = duration_days
+                user.stripe_subscription_id = stripe_subscription_id or user.stripe_subscription_id
+                user.stripe_customer_id = stripe_customer_id or user.stripe_customer_id
                 db.session.flush()
 
             if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
@@ -2803,9 +2912,36 @@ def stripe_payment_webhook():
 
             log_audit(
                 user.id, "stripe_payment",
-                f"{'Nieuw' if is_new else 'Bijgewerkt'} | {plan_name} | {subscription_type}",
+                f"{'Nieuw' if is_new else 'Bijgewerkt'} | {plan_name} | {subscription_type} | sub_id={stripe_subscription_id}",
                 request.remote_addr
             )
+
+        elif event_type == "customer.subscription.deleted":
+            # Fired by Stripe once a cancel_at_period_end subscription's paid
+            # period actually ends (or on an immediate cancellation). Purely
+            # for audit-log visibility here — membership expiry itself is
+            # already handled by is_membership_active()/cleanup_expired_vps()
+            # based on membership_end, so this is not required for correctness,
+            # just for a clean audit trail.
+            sub = event["data"]["object"]._to_dict_recursive()
+            sub_id = sub.get("id")
+            user = User.query.filter_by(stripe_subscription_id=sub_id).first()
+            if user:
+                logger.info(f"[STRIPE] Subscription {sub_id} deleted at Stripe for {user.email}")
+                log_audit(user.id, "stripe_subscription_deleted", f"sub_id={sub_id}", request.remote_addr)
+
+        elif event_type == "customer.subscription.updated":
+            # Optional: useful for logging when Stripe confirms
+            # cancel_at_period_end was actually set, or reversed.
+            sub = event["data"]["object"]._to_dict_recursive()
+            sub_id = sub.get("id")
+            cancel_at_period_end = sub.get("cancel_at_period_end")
+            user = User.query.filter_by(stripe_subscription_id=sub_id).first()
+            if user:
+                logger.info(
+                    f"[STRIPE] Subscription {sub_id} updated for {user.email}: "
+                    f"cancel_at_period_end={cancel_at_period_end}"
+                )
 
         return jsonify({"status": "success"}), 200
 
