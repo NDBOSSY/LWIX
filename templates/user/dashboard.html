@@ -715,15 +715,15 @@
     .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
     .modal-box p { color: var(--ink-muted); margin-bottom: 1.2rem; font-size: 0.85rem; }
     .modal-box .warning-box {
-        background: var(--amber-light);
-        border: 1px solid #ffe0b2;
+        background: var(--red-light);
+        border: 1px solid #f5c6cb;
         border-radius: 8px;
         padding: 0.75rem 1rem;
         margin-bottom: 1.2rem;
     }
     .modal-box .warning-box .warning-title {
         font-weight: 600;
-        color: var(--amber);
+        color: var(--red);
         font-size: 0.8rem;
         display: flex;
         align-items: center;
@@ -935,16 +935,16 @@
 
                     {% if user.membership_status == 'active' %}
                     <div class="retain-info">
-                        <i class="fas fa-sync-alt"></i>
-                        <span data-en="Your subscription auto-renews. Cancelling stops auto-renewal but you keep full access until the paid period ends." 
-                              data-nl="Je abonnement wordt automatisch verlengd. Annuleren stopt automatische verlenging maar je behoudt volledige toegang tot je betaalde periode eindigt.">
-                            {{ 'Je abonnement wordt automatisch verlengd. Annuleren stopt automatische verlenging maar je behoudt volledige toegang tot je betaalde periode eindigt.' if current_language == 'nl' else 'Your subscription auto-renews. Cancelling stops auto-renewal but you keep full access until the paid period ends.' }}
+                        <i class="fas fa-info-circle"></i>
+                        <span data-en="Your subscription auto-renews. Cancelling will keep your membership active until the paid period ends." 
+                              data-nl="Je abonnement wordt automatisch verlengd. Bij opzeggen blijft je membership actief tot het einde van de betaalde periode.">
+                            {{ 'Je abonnement wordt automatisch verlengd. Bij opzeggen blijft je membership actief tot het einde van de betaalde periode.' if current_language == 'nl' else 'Your subscription auto-renews. Cancelling will keep your membership active until the paid period ends.' }}
                         </span>
                     </div>
                     <button class="btn btn-danger" onclick="showCancelModal()">
                         <i class="fas fa-times-circle"></i> 
-                        <span data-en="Cancel Auto-Renewal" data-nl="Abonnement Annuleren">
-                            {{ 'Abonnement Annuleren' if current_language == 'nl' else 'Cancel Auto-Renewal' }}
+                        <span data-en="Cancel Membership" data-nl="Membership Opzeggen">
+                            {{ 'Membership Opzeggen' if current_language == 'nl' else 'Cancel Membership' }}
                         </span>
                     </button>
                     {% elif user.membership_status == 'cancelled' %}
@@ -1356,65 +1356,58 @@
     <div class="modal-box">
         <h3>
             <i class="fas fa-exclamation-triangle" style="color: var(--amber);"></i> 
-            <span data-en="Cancel Auto-Renewal" data-nl="Abonnement Annuleren">
-                {{ 'Abonnement Annuleren' if current_language == 'nl' else 'Cancel Auto-Renewal' }}
+            <span data-en="Cancel Membership" data-nl="Membership Opzeggen">
+                {{ 'Membership Opzeggen' if current_language == 'nl' else 'Cancel Membership' }}
             </span>
         </h3>
-        <p data-en="Are you sure you want to cancel auto-renewal?" 
-           data-nl="Weet je zeker dat je automatische verlenging wilt stopzetten?">
-            {{ 'Weet je zeker dat je automatische verlenging wilt stopzetten?' if current_language == 'nl' else 'Are you sure you want to cancel auto-renewal?' }}
+        <p data-en="Are you sure you want to cancel your membership?" 
+           data-nl="Weet je zeker dat je je membership wilt opzeggen?">
+            {{ 'Weet je zeker dat je je membership wilt opzeggen?' if current_language == 'nl' else 'Are you sure you want to cancel your membership?' }}
         </p>
         
-        <div class="info-box">
-            <div class="info-title">
-                <i class="fas fa-check-circle"></i> 
-                <span data-en="What you keep:" data-nl="Wat je behoudt:">
-                    {{ 'Wat je behoudt:' if current_language == 'nl' else 'What you keep:' }}
-                </span>
-            </div>
+        <p>
+            <span data-en="Your membership will remain active until" 
+                  data-nl="Je membership blijft actief tot">
+                {{ 'Je membership blijft actief tot' if current_language == 'nl' else 'Your membership will remain active until' }}
+            </span>
+            <strong>{{ user.membership_end.strftime('%d %B %Y') if user.membership_end else 'the end date' }}</strong>.
+            <span data-en="After this date, your access will end and you will no longer be able to use:" 
+                  data-nl="Na deze datum eindigt je toegang en kun je geen gebruik meer maken van:">
+                {{ 'Na deze datum eindigt je toegang en kun je geen gebruik meer maken van:' if current_language == 'nl' else 'After this date, your access will end and you will no longer be able to use:' }}
+            </span>
+        </p>
+        
+        <div class="warning-box">
             <ul>
                 {% if current_language == 'nl' %}
-                <li>Volledige toegang tot <strong id="cancelEndDateNl">{{ user.membership_end.strftime('%d %B %Y') if user.membership_end else 'de einddatum' }}</strong></li>
-                <li>Al je actieve licenties blijven werken</li>
-                <li>Je kunt je Expert Advisors blijven gebruiken</li>
-                <li>Toegang tot alle downloads blijft behouden</li>
+                <li>Je VPS</li>
+                <li>Je Expert Advisor(s) en actieve licenties</li>
+                <li>Discord community</li>
+                <li>De Academy</li>
                 {% else %}
-                <li>Full access until <strong id="cancelEndDateEn">{{ user.membership_end.strftime('%B %d, %Y') if user.membership_end else 'the end date' }}</strong></li>
-                <li>All active licenses continue working</li>
-                <li>You can keep using your Expert Advisors</li>
-                <li>Access to all downloads remains</li>
+                <li>Your VPS</li>
+                <li>Your Expert Advisor(s) and active licenses</li>
+                <li>Discord community</li>
+                <li>The Academy</li>
                 {% endif %}
             </ul>
         </div>
         
-        <div class="warning-box">
-            <div class="warning-title">
-                <i class="fas fa-exclamation-circle"></i> 
-                <span data-en="This means:" data-nl="Dit betekent:">
-                    {{ 'Dit betekent:' if current_language == 'nl' else 'This means:' }}
-                </span>
-            </div>
-            <ul>
-                {% if current_language == 'nl' %}
-                <li>Je abonnement wordt niet automatisch verlengd</li>
-                <li>Na de einddatum verloopt je toegang</li>
-                <li>Je kunt later altijd een nieuw abonnement afsluiten</li>
-                {% else %}
-                <li>Your subscription will not auto-renew</li>
-                <li>Access expires after the end date</li>
-                <li>You can always sign up for a new subscription later</li>
-                {% endif %}
-            </ul>
-        </div>
+        <p data-en="You can always sign up again in the future. Please note that you will then receive a new VPS and new licenses, and will need to complete the setup again." 
+           data-nl="Je kunt je in de toekomst altijd opnieuw aanmelden. Houd er rekening mee dat je dan een nieuwe VPS en nieuwe licenties ontvangt en de setup opnieuw moet doorlopen.">
+            {{ 'Je kunt je in de toekomst altijd opnieuw aanmelden. Houd er rekening mee dat je dan een nieuwe VPS en nieuwe licenties ontvangt en de setup opnieuw moet doorlopen.' if current_language == 'nl' else 'You can always sign up again in the future. Please note that you will then receive a new VPS and new licenses, and will need to complete the setup again.' }}
+        </p>
         
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="closeCancelModal()">
-                <span data-en="Keep Subscription" data-nl="Behouden">{{ 'Behouden' if current_language == 'nl' else 'Keep Subscription' }}</span>
+                <span data-en="Keep Membership" data-nl="Membership Behouden">
+                    {{ 'Membership Behouden' if current_language == 'nl' else 'Keep Membership' }}
+                </span>
             </button>
             <button class="btn btn-danger" id="cancelBtn" onclick="confirmCancelMembership()">
                 <i class="fas fa-times-circle"></i> 
-                <span data-en="Cancel Auto-Renewal" data-nl="Definitief Annuleren">
-                    {{ 'Definitief Annuleren' if current_language == 'nl' else 'Cancel Auto-Renewal' }}
+                <span data-en="Cancel Membership" data-nl="Membership Opzeggen">
+                    {{ 'Membership Opzeggen' if current_language == 'nl' else 'Cancel Membership' }}
                 </span>
             </button>
         </div>
@@ -1659,11 +1652,11 @@
         
         closeCancelModal();
         loadingOverlay.style.display = 'flex';
-        loadingMessage.textContent = currentLanguage === 'nl' ? 'Abonnement annuleren…' : 'Cancelling membership…';
+        loadingMessage.textContent = currentLanguage === 'nl' ? 'Membership opzeggen…' : 'Cancelling membership…';
         
         if (cancelBtn) {
             cancelBtn.disabled = true;
-            cancelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (currentLanguage === 'nl' ? 'Annuleren...' : 'Cancelling...');
+            cancelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (currentLanguage === 'nl' ? 'Opzeggen...' : 'Cancelling...');
         }
         
         fetch('/cancel-membership', {
@@ -1688,20 +1681,20 @@
         .then(data => {
             loadingOverlay.style.display = 'none';
             if (data.success) {
-                const msg = currentLanguage === 'nl' ? 'Abonnement geannuleerd. Je behoudt volledige toegang! 📧' : 'Membership cancelled. You retain full access! 📧';
+                const msg = currentLanguage === 'nl' ? 'Membership opgezegd. Je behoudt volledige toegang! 📧' : 'Membership cancelled. You retain full access! 📧';
                 showToast(msg, 'success');
                 setTimeout(() => { window.location.reload(); }, 2000);
             } else {
-                const msg = currentLanguage === 'nl' ? 'Kon abonnement niet annuleren' : 'Failed to cancel membership';
+                const msg = currentLanguage === 'nl' ? 'Kon membership niet opzeggen' : 'Failed to cancel membership';
                 showToast(data.error || msg, 'error');
-                if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + (currentLanguage === 'nl' ? 'Definitief Annuleren' : 'Cancel Auto-Renewal'); }
+                if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + (currentLanguage === 'nl' ? 'Membership Opzeggen' : 'Cancel Membership'); }
             }
         })
         .catch(error => {
             loadingOverlay.style.display = 'none';
             const msg = currentLanguage === 'nl' ? 'Netwerkfout. Probeer opnieuw.' : 'Network error. Please try again.';
             showToast(error.message || msg, 'error');
-            if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + (currentLanguage === 'nl' ? 'Definitief Annuleren' : 'Cancel Auto-Renewal'); }
+            if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + (currentLanguage === 'nl' ? 'Membership Opzeggen' : 'Cancel Membership'); }
         });
     }
 
@@ -1768,7 +1761,7 @@
                 const generateBtn = document.getElementById('generateBtn');
                 if (generateBtn) { generateBtn.disabled = false; generateBtn.textContent = currentLanguage === 'nl' ? 'Genereer' : 'Generate'; }
                 const cancelBtn = document.getElementById('cancelBtn');
-                if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + (currentLanguage === 'nl' ? 'Definitief Annuleren' : 'Cancel Auto-Renewal'); }
+                if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + (currentLanguage === 'nl' ? 'Membership Opzeggen' : 'Cancel Membership'); }
             }
         }
     });
