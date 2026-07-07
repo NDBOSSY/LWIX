@@ -1938,98 +1938,48 @@ def cancel_membership():
             status="active"
         ).count()
 
-        if lang == 'nl':
-            email_subject = "Bevestiging van je annulering - Trading Engine"
-            email_body_plain = (
-                f"Beste {user.first_name or 'handelaar'},\n\n"
-                f"Je abonnement is succesvol geannuleerd. Dit betekent dat je abonnement "
-                f"niet automatisch wordt verlengd.\n\n"
-                f"Je behoudt volledige toegang tot alle functies van Trading Engine tot {formatted_date_nl}. "
-                f"Je licenties blijven actief, je VPS blijft draaien en je kunt je Expert Advisors blijven gebruiken.\n\n"
-                f"Na {formatted_date_nl} verloopt je toegang en wordt je VPS automatisch beëindigd.\n\n"
-                f"Mocht je van gedachten veranderen, dan kun je altijd een nieuw abonnement afsluiten.\n\n"
-                f"Bedankt dat je deel uitmaakt van Trading Engine!\n\n"
-                f"Met vriendelijke groet,\n"
-                f"Het Trading Engine Team"
-            )
-            email_body_html = f"""
-            <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #0b121a;">Bevestiging van je annulering</h2>
-                <p>Beste <strong>{user.first_name or 'handelaar'}</strong>,</p>
-                
-                <p>Je abonnement is <strong>succesvol geannuleerd</strong>. Dit betekent dat je abonnement niet automatisch wordt verlengd.</p>
-                
-                <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 12px; padding: 16px; margin: 20px 0;">
-                    <p style="margin: 0; font-size: 15px; color: #065f46;">
-                        ✅ <strong>Je behoudt volledige toegang tot {formatted_date_nl}</strong>
-                    </p>
-                    <p style="margin: 8px 0 0; font-size: 14px; color: #047857;">
-                        • Je licenties blijven actief<br>
-                        • Je VPS blijft draaien<br>
-                        • Je kunt je Expert Advisors blijven gebruiken<br>
-                        • Je hebt toegang tot alle downloadbare bestanden
-                    </p>
-                </div>
-                
-                <p style="color: #5b6f7e;">Na {formatted_date_nl} verloopt je toegang en wordt je VPS automatisch beëindigd. Mocht je van gedachten veranderen, dan kun je altijd een nieuw abonnement afsluiten.</p>
-                
-                <p style="color: #5b6f7e; margin-top: 30px;">
-                    Met vriendelijke groet,<br>
-                    <strong style="color: #0b121a;">Het Trading Engine Team</strong>
-                </p>
-                
-                <hr style="border: none; border-top: 1px solid #e6eaef; margin: 20px 0;">
-                <p style="font-size: 12px; color: #96a6b5;">
-                    Als je deze annulering niet zelf hebt aangevraagd, neem dan direct contact met ons op via Discord.
-                </p>
-            </div>
-            """
-        else:
-            email_subject = "Cancellation Confirmation - Trading Engine"
-            email_body_plain = (
-                f"Dear {user.first_name or 'trader'},\n\n"
-                f"Your membership has been successfully cancelled. This means your subscription "
-                f"will not auto-renew.\n\n"
-                f"You will retain full access to all Trading Engine features until {formatted_date_en}. "
-                f"Your licenses remain active, your VPS continues running, and you can continue using your Expert Advisors.\n\n"
-                f"After {formatted_date_en}, your access will expire and your VPS will be automatically terminated.\n\n"
-                f"If you change your mind, you can always sign up for a new subscription.\n\n"
-                f"Thank you for being part of Trading Engine!\n\n"
-                f"Best regards,\n"
-                f"The Trading Engine Team"
-            )
-            email_body_html = f"""
-            <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #0b121a;">Cancellation Confirmation</h2>
-                <p>Dear <strong>{user.first_name or 'trader'}</strong>,</p>
-                
-                <p>Your membership has been <strong>successfully cancelled</strong>. This means your subscription will not auto-renew.</p>
-                
-                <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 12px; padding: 16px; margin: 20px 0;">
-                    <p style="margin: 0; font-size: 15px; color: #065f46;">
-                        ✅ <strong>You retain full access until {formatted_date_en}</strong>
-                    </p>
-                    <p style="margin: 8px 0 0; font-size: 14px; color: #047857;">
-                        • Your licenses remain active<br>
-                        • Your VPS continues running<br>
-                        • You can continue using your Expert Advisors<br>
-                        • You have access to all downloadable files
-                    </p>
-                </div>
-                
-                <p style="color: #5b6f7e;">After {formatted_date_en}, your access will expire and your VPS will be automatically terminated. If you change your mind, you can always sign up for a new subscription.</p>
-                
-                <p style="color: #5b6f7e; margin-top: 30px;">
-                    Best regards,<br>
-                    <strong style="color: #0b121a;">The Trading Engine Team</strong>
-                </p>
-                
-                <hr style="border: none; border-top: 1px solid #e6eaef; margin: 20px 0;">
-                <p style="font-size: 12px; color: #96a6b5;">
-                    If you did not request this cancellation, please contact us immediately via Discord.
-                </p>
-            </div>
-            """
+        email_subject = "Bevestiging van je opzegging"
+        email_body_plain = (
+            f"Hi {user.first_name or 'handelaar'},\n\n"
+            f"Je opzegging is succesvol verwerkt.\n\n"
+            f"Je membership blijft actief tot en met {formatted_date_nl}. Na deze datum vervalt je toegang tot:\n\n"
+            f"- Je VPS\n"
+            f"- Je Expert Advisor(s) en licenties\n"
+            f"- Discord community\n"
+            f"- De Academy\n\n"
+            f"Wil je later opnieuw instappen? Dat kan altijd. Houd er rekening mee dat je dan een nieuwe VPS "
+            f"en nieuwe licenties ontvangt en de setup opnieuw moet doorlopen.\n\n"
+            f"Heb je je bedacht en wil je jouw membership toch behouden? Neem dan vóór {formatted_date_nl} "
+            f"contact met ons op via hello@tradingengine.nl.\n\n"
+            f"Hartelijke groet,\n"
+            f"Team Trading Engine"
+        )
+        email_body_html = f"""
+        <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #0b121a;">Bevestiging van je opzegging</h2>
+            <p>Hi <strong>{user.first_name or 'handelaar'}</strong>,</p>
+            
+            <p>Je opzegging is succesvol verwerkt.</p>
+            
+            <p>Je membership blijft actief tot en met <strong>{formatted_date_nl}</strong>. Na deze datum vervalt je toegang tot:</p>
+            
+            <ul style="color: #5b6f7e; padding-left: 20px;">
+                <li>Je VPS</li>
+                <li>Je Expert Advisor(s) en licenties</li>
+                <li>Discord community</li>
+                <li>De Academy</li>
+            </ul>
+            
+            <p style="color: #5b6f7e;">Wil je later opnieuw instappen? Dat kan altijd. Houd er rekening mee dat je dan een nieuwe VPS en nieuwe licenties ontvangt en de setup opnieuw moet doorlopen.</p>
+            
+            <p style="color: #5b6f7e;">Heb je je bedacht en wil je jouw membership toch behouden? Neem dan vóór {formatted_date_nl} contact met ons op via <a href="mailto:hello@tradingengine.nl" style="color: #0b121a;">hello@tradingengine.nl</a>.</p>
+            
+            <p style="color: #5b6f7e; margin-top: 30px;">
+                Hartelijke groet,<br>
+                <strong style="color: #0b121a;">Team Trading Engine</strong>
+            </p>
+        </div>
+        """
 
         send_email_async(email_subject, [user.email], email_body_plain, email_body_html)
 
