@@ -1627,17 +1627,10 @@
         
         <div class="warning-box">
             <ul>
-                {% if current_language == 'nl' %}
-                <li>Je VPS</li>
-                <li>Je Expert Advisor(s) en actieve licenties</li>
-                <li>De Discord Community</li>
-                <li>De Academy</li>
-                {% else %}
-                <li>Your VPS</li>
-                <li>Your Expert Advisor(s) and active licenses</li>
-                <li>Discord community</li>
-                <li>The Academy</li>
-                {% endif %}
+                <li data-en="Your VPS" data-nl="Je VPS">{{ 'Je VPS' if current_language == 'nl' else 'Your VPS' }}</li>
+                <li data-en="Your Expert Advisor(s) and active licenses" data-nl="Je Expert Advisor(s) en actieve licenties">{{ 'Je Expert Advisor(s) en actieve licenties' if current_language == 'nl' else 'Your Expert Advisor(s) and active licenses' }}</li>
+                <li data-en="Discord community" data-nl="De Discord Community">{{ 'De Discord Community' if current_language == 'nl' else 'Discord community' }}</li>
+                <li data-en="The Academy" data-nl="De Academy">{{ 'De Academy' if current_language == 'nl' else 'The Academy' }}</li>
             </ul>
         </div>
         
