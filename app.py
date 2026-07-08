@@ -2964,9 +2964,13 @@ def auto_init_db():
             logger.error(f"DB init failed: {e}")
 
 @app.route("/debug/discord-config")
-@admin_required
 def debug_discord_config():
     """Temporary debug endpoint - REMOVE AFTER FIXING"""
+    # Only show in debug mode or with a secret key
+    secret = request.args.get("key", "")
+    if secret != "debug123":
+        return jsonify({"error": "Invalid key"}), 403
+        
     return jsonify({
         "client_id": Config.DISCORD_CLIENT_ID,
         "client_id_length": len(Config.DISCORD_CLIENT_ID) if Config.DISCORD_CLIENT_ID else 0,
@@ -2976,9 +2980,7 @@ def debug_discord_config():
         "bot_token_set": bool(Config.DISCORD_BOT_TOKEN),
         "guild_id": Config.DISCORD_GUILD_ID,
         "role_id": Config.DISCORD_ROLE_ID,
-        "invite_link": Config.DISCORD_INVITE_LINK,
     })
-
 
 # ============================================================================
 # STARTUP
