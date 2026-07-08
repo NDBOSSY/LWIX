@@ -32,6 +32,13 @@ FIXED: ThinkHuge API calls were being blocked by Cloudflare with
        User-Agent ("Python-urllib/3.x") is flagged as a bot by Cloudflare's
        bot-management rules. All ThinkHuge requests now send a real
        browser-like User-Agent (and related headers) to pass the check.
+FIXED: Discord OAuth token exchange / API calls (discord_callback,
+       assign_discord_role) were failing with a bare "HTTP Error 403: Forbidden"
+       for the same reason as the ThinkHuge issue above - Cloudflare fronts
+       discord.com too and blocks urllib's default User-Agent. All Discord API
+       requests (token exchange, /users/@me, guild join, role assignment) now
+       send a browser-like User-Agent. HTTPError responses are also now logged
+       with their actual body instead of just the status code.
 ADDED: Background retry/backfill sweep that automatically re-attempts VPS
        provisioning for any paid, active user who doesn't yet have a VPS
        (e.g. because a previous provisioning attempt failed).
@@ -207,6 +214,18 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s] - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# SHARED HTTP CONSTANTS
+# ============================================================================
+# Cloudflare (which fronts both api.partners.thinkhuge.net and discord.com)
+# blocks the default urllib User-Agent ("Python-urllib/3.x") as a bot. Every
+# outbound request to either service should send a browser-like User-Agent.
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+DISCORD_BROWSER_USER_AGENT = BROWSER_USER_AGENT
 
 try:
     if Config.ENCRYPTION_KEY:
@@ -522,10 +541,7 @@ class ForexVPSClient:
     Client for ThinkHuge.net API.
     """
 
-    BROWSER_USER_AGENT = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    )
+    BROWSER_USER_AGENT = BROWSER_USER_AGENT
 
     def __init__(self):
         self.api_url = Config.FOREXVPS_API_URL.rstrip('/')
@@ -2840,6 +2856,13 @@ def stripe_payment_webhook():
 # ============================================================================
 # DISCORD
 # ============================================================================
+#
+# NOTE: All Discord API requests below now send a browser-like User-Agent
+# (DISCORD_BROWSER_USER_AGENT). Cloudflare, which fronts discord.com, blocks
+# urllib's default "Python-urllib/3.x" User-Agent as a bot, which previously
+# caused the token exchange in discord_callback() to fail with a bare
+# "HTTP Error 403: Forbidden" and no further detail. This is the same class
+# of issue already fixed for the ThinkHuge VPS API elsewhere in this file.
 
 def assign_discord_role(discord_id):
     try:
@@ -2847,8 +2870,16 @@ def assign_discord_role(discord_id):
         role_req = urllib.request.Request(role_url, method="PUT")
         role_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
         role_req.add_header("Content-Type", "application/json")
+        role_req.add_header("User-Agent", DISCORD_BROWSER_USER_AGENT)
         urllib.request.urlopen(role_req)
         return True
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode()
+        except Exception:
+            detail = ""
+        logger.error(f"[DISCORD] Role assignment failed: {e.code} - {detail}")
+        return False
     except Exception as e:
         logger.error(f"[DISCORD] Role assignment failed: {e}")
         return False
@@ -2898,11 +2929,13 @@ def discord_callback():
             method="POST"
         )
         token_req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        token_req.add_header("User-Agent", DISCORD_BROWSER_USER_AGENT)
         token_json = json.loads(urllib.request.urlopen(token_req).read())
         access_token = token_json["access_token"]
 
         user_req = urllib.request.Request("https://discord.com/api/users/@me")
         user_req.add_header("Authorization", f"Bearer {access_token}")
+        user_req.add_header("User-Agent", DISCORD_BROWSER_USER_AGENT)
         discord_user = json.loads(urllib.request.urlopen(user_req).read())
         discord_id = discord_user["id"]
 
@@ -2914,11 +2947,18 @@ def discord_callback():
         )
         join_req.add_header("Authorization", f"Bot {Config.DISCORD_BOT_TOKEN}")
         join_req.add_header("Content-Type", "application/json")
+        join_req.add_header("User-Agent", DISCORD_BROWSER_USER_AGENT)
 
         try:
             urllib.request.urlopen(join_req)
-        except:
-            pass
+        except urllib.error.HTTPError as join_err:
+            try:
+                join_detail = join_err.read().decode()
+            except Exception:
+                join_detail = ""
+            logger.warning(f"[DISCORD] Guild join failed for {discord_id}: {join_err.code} - {join_detail}")
+        except Exception as join_err:
+            logger.warning(f"[DISCORD] Guild join failed for {discord_id}: {join_err}")
 
         assign_discord_role(discord_id)
 
@@ -2928,6 +2968,13 @@ def discord_callback():
 
         flash("Discord verbonden! 🎉", "success")
 
+    except urllib.error.HTTPError as e:
+        try:
+            error_body = e.read().decode()
+        except Exception:
+            error_body = ""
+        logger.error(f"[DISCORD] OAuth failed: {e.code} - {error_body}", exc_info=True)
+        flash("Discord verbinding mislukt.", "error")
     except Exception as e:
         logger.error(f"[DISCORD] OAuth failed: {e}", exc_info=True)
         flash("Discord verbinding mislukt.", "error")
@@ -2962,25 +3009,6 @@ def auto_init_db():
                 db.session.commit()
         except Exception as e:
             logger.error(f"DB init failed: {e}")
-
-@app.route("/debug/discord-config")
-def debug_discord_config():
-    """Temporary debug endpoint - REMOVE AFTER FIXING"""
-    # Only show in debug mode or with a secret key
-    secret = request.args.get("key", "")
-    if secret != "debug123":
-        return jsonify({"error": "Invalid key"}), 403
-        
-    return jsonify({
-        "client_id": Config.DISCORD_CLIENT_ID,
-        "client_id_length": len(Config.DISCORD_CLIENT_ID) if Config.DISCORD_CLIENT_ID else 0,
-        "client_secret_set": bool(Config.DISCORD_CLIENT_SECRET),
-        "client_secret_length": len(Config.DISCORD_CLIENT_SECRET) if Config.DISCORD_CLIENT_SECRET else 0,
-        "redirect_uri": Config.DISCORD_REDIRECT_URI,
-        "bot_token_set": bool(Config.DISCORD_BOT_TOKEN),
-        "guild_id": Config.DISCORD_GUILD_ID,
-        "role_id": Config.DISCORD_ROLE_ID,
-    })
 
 # ============================================================================
 # STARTUP
