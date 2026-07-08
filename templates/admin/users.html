@@ -50,6 +50,14 @@
         font-size: 0.75rem;
     }
 
+    .badge-cancelled {
+        background: #F59E0B;
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+
     .badge-monthly { background: #4B7BE5; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-yearly { background: #A85CF9; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
     .badge-lifetime { background: #F59E0B; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; }
@@ -246,9 +254,15 @@
                                 <span class="badge 
                                     {% if user.membership_status == 'active' %}badge-active
                                     {% elif user.membership_status == 'revoked' %}badge-revoked
+                                    {% elif user.membership_status == 'cancelled' %}badge-cancelled
                                     {% else %}badge-expired{% endif %}">
                                     {{ user.membership_status|title }}
                                 </span>
+                                {% if user.membership_status == 'cancelled' %}
+                                <br><small style="color: #807F80;" title="Auto-renewal stopped at Stripe. User keeps access until the end date.">
+                                    <i class="fas fa-info-circle me-1"></i>Auto-renewal off
+                                </small>
+                                {% endif %}
                             </td>
 
                             <!-- Start Date Column -->
@@ -268,6 +282,11 @@
                                 <br><small style="color: #3FBFB3;">
                                     <i class="fas fa-clock me-1"></i>
                                     {{ (user.membership_end - now).days }} days left
+                                </small>
+                                {% elif user.membership_end > now and user.membership_status == 'cancelled' %}
+                                <br><small style="color: #F59E0B;">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ (user.membership_end - now).days }} days left (access)
                                 </small>
                                 {% endif %}
                                 {% else %}
@@ -328,11 +347,11 @@
                                         </button>
                                     </form>
                                     {% endif %}
-                                    {% if user.membership_status == 'revoked' %}
+                                    {% if user.membership_status in ['revoked', 'cancelled'] %}
                                     <form method="POST" action="{{ url_for('reactivate_membership', user_id=user.id) }}" class="d-inline">
                                         <button type="submit" class="btn btn-outline-success btn-sm"
-                                            onclick="return confirm('Reactivate membership for {{ user.email }}?')"
-                                            title="Reactivate Membership">
+                                            onclick="return confirm('Reactivate membership for {{ user.email }}?{% if user.membership_status == 'cancelled' %} This resumes auto-renewal at Stripe and keeps the current access period.{% else %} This starts a fresh billing period.{% endif %}')"
+                                            title="{% if user.membership_status == 'cancelled' %}Resume Auto-Renewal{% else %}Reactivate Membership{% endif %}">
                                             <i class="fas fa-undo"></i>
                                         </button>
                                     </form>
