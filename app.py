@@ -2963,6 +2963,22 @@ def auto_init_db():
         except Exception as e:
             logger.error(f"DB init failed: {e}")
 
+@app.route("/debug/discord-config")
+@admin_required
+def debug_discord_config():
+    """Temporary debug endpoint - REMOVE AFTER FIXING"""
+    return jsonify({
+        "client_id": Config.DISCORD_CLIENT_ID,
+        "client_id_length": len(Config.DISCORD_CLIENT_ID) if Config.DISCORD_CLIENT_ID else 0,
+        "client_secret_set": bool(Config.DISCORD_CLIENT_SECRET),
+        "client_secret_length": len(Config.DISCORD_CLIENT_SECRET) if Config.DISCORD_CLIENT_SECRET else 0,
+        "redirect_uri": Config.DISCORD_REDIRECT_URI,
+        "bot_token_set": bool(Config.DISCORD_BOT_TOKEN),
+        "guild_id": Config.DISCORD_GUILD_ID,
+        "role_id": Config.DISCORD_ROLE_ID,
+        "invite_link": Config.DISCORD_INVITE_LINK,
+    })
+
 
 # ============================================================================
 # STARTUP
