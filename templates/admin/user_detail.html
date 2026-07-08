@@ -20,7 +20,23 @@
                     <p><strong>Name:</strong> {{ user.get_full_name() or 'N/A' }}</p>
                     <p><strong>Phone:</strong> {{ user.phone or 'N/A' }}</p>
                     <p><strong>Country:</strong> {{ user.country or 'N/A' }}</p>
-                    <p><strong>Status:</strong> <span class="badge {% if user.membership_status=='active' %}bg-success{% else %}bg-danger{% endif %}">{{ user.membership_status|title }}</span></p>
+                    <p>
+                        <strong>Status:</strong>
+                        <span class="badge {% if user.membership_status=='active' %}bg-success{% elif user.membership_status=='cancelled' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                            {{ user.membership_status|title }}
+                        </span>
+                        {% if user.membership_status in ['revoked', 'cancelled'] %}
+                        <form method="POST" action="{{ url_for('reactivate_membership', user_id=user.id) }}" class="d-inline ms-2">
+                            <button type="submit" class="btn btn-sm btn-outline-success"
+                                onclick="return confirm('Reactivate membership for {{ user.email }}?{% if user.membership_status == 'cancelled' %} This resumes auto-renewal at Stripe and keeps the current access period.{% else %} This starts a fresh billing period.{% endif %}')">
+                                <i class="fas fa-undo me-1"></i>{% if user.membership_status == 'cancelled' %}Resume Auto-Renewal{% else %}Reactivate{% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if user.membership_status == 'cancelled' %}
+                        <br><small class="text-muted"><i class="fas fa-info-circle me-1"></i>Auto-renewal is stopped at Stripe. User keeps full access until the end date below.</small>
+                        {% endif %}
+                    </p>
                     <p><strong>Created:</strong> {{ user.created_at.strftime('%B %d, %Y') }}</p>
                 </div>
             </div>
@@ -34,6 +50,7 @@
                     <p><strong>Price:</strong> {% if user.plan_price and user.plan_price>0 %}{{ user.currency }} {{ "%.2f"|format(user.plan_price) }}{% else %}Free{% endif %}</p>
                     <p><strong>Start:</strong> {{ user.membership_start.strftime('%b %d, %Y') if user.membership_start else 'N/A' }}</p>
                     <p><strong>End:</strong> {{ user.membership_end.strftime('%b %d, %Y') if user.membership_end else 'N/A' }}</p>
+                    <p><strong>Stripe Subscription:</strong> {% if user.stripe_subscription_id %}<code>{{ user.stripe_subscription_id }}</code>{% else %}N/A{% endif %}</p>
                 </div>
             </div>
         </div>
