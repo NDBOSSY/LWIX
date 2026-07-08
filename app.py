@@ -25,8 +25,7 @@ ADDED: Language toggle support (English/Nederlands)
 ADDED: "Need Help?" Contact Us support section
 ADDED: ThinkHuge VPS auto-provisioning on payment (Basic plan for all levels)
 ADDED: VPS auto-termination on membership expiry
-ADDED: VPS details sent after license generation (correct language)
-ADDED: VPS details display on user dashboard
+ADDED: VPS details display on user dashboard and admin user-detail page
 ADDED: VPS RDP port support - IP displayed with port for easy copy-paste
 FIXED: ThinkHuge API calls were being blocked by Cloudflare with
        "Error 1010: browser_signature_banned" because urllib's default
@@ -37,6 +36,16 @@ ADDED: Background retry/backfill sweep that automatically re-attempts VPS
        provisioning for any paid, active user who doesn't yet have a VPS
        (e.g. because a previous provisioning attempt failed).
 ADDED: Debug VPS endpoint for admins to diagnose VPS issues
+REMOVED: Automatic VPS "credentials ready" / "VPS terminated" emails. VPS
+       login details are already visible on the user dashboard and in the
+       admin user-detail page, so no email is sent for VPS lifecycle events
+       anymore. (License key emails and welcome/cancellation emails are
+       unaffected.)
+ADDED: Admin can reactivate a CANCELLED membership (not just a revoked one).
+       Reactivating a cancelled membership resumes auto-renewal at Stripe
+       (cancel_at_period_end=False) and keeps the existing paid period intact.
+       Reactivating a revoked membership still grants a fresh paid period,
+       same as before.
 """
 
 import os
@@ -879,7 +888,7 @@ def try_complete_pending_vps(user):
             return False
 
         password = forexvps_client.reset_password(user.vps_id)
-        
+
         # Get the RDP port from server details, fallback to default
         rdp_port = server.get("rdp_port") or server.get("port") or Config.FOREXVPS_DEFAULT_RDP_PORT
 
@@ -893,8 +902,8 @@ def try_complete_pending_vps(user):
 
         logger.info(f"[ThinkHuge] ✅ VPS now ready for {user.email}: {user.vps_id} | IP: {ip}:{rdp_port}")
 
-        if user.get_active_license():
-            send_vps_welcome_email(user)
+        # NOTE: No email is sent here anymore. VPS credentials are available
+        # on the user dashboard and in the admin user-detail page.
 
         return True
 
@@ -994,146 +1003,6 @@ def poll_pending_vps_servers():
         db.session.rollback()
 
 
-def send_vps_welcome_email(user):
-    lang = user.language_preference or 'en'
-    vps_password = decrypt_data(user.vps_password)
-    vps_port = user.vps_port or Config.FOREXVPS_DEFAULT_RDP_PORT
-    
-    if lang == 'nl':
-        subject = "Je Forex VPS is klaar! - Trading Engine"
-        body_plain = f"""
-Beste {user.first_name or 'handelaar'},
-
-Je Forex VPS is succesvol aangemaakt en klaar voor gebruik!
-
-=== VPS LOGIN GEGEVENS ===
-RDP Adres: {user.vps_ip}:{vps_port}
-Gebruikersnaam: {user.vps_username or 'trader'}
-Wachtwoord: {vps_password or 'Wordt binnen enkele minuten verzonden'}
-
-=== BELANGRIJKE INFORMATIE ===
-• De VPS is 24/7 actief zolang je abonnement loopt
-• Je kunt direct inloggen via Windows Remote Desktop (RDP)
-• Kopieer het volledige RDP adres (inclusief :{vps_port}) in Remote Desktop
-• Installeer MetaTrader en je Expert Advisors op de VPS
-• Bij vragen, neem contact op via support@tradingengine.nl
-
-Je VPS blijft actief zolang je abonnement loopt.
-
-Met vriendelijke groet,
-Het Trading Engine Team
-"""
-        body_html = f"""
-<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h2 style="color: #0b121a;">🎉 Je Forex VPS is klaar!</h2>
-    <p>Beste <strong>{user.first_name or 'handelaar'}</strong>,</p>
-    <p>Je Forex VPS is succesvol aangemaakt en klaar voor gebruik!</p>
-    
-    <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
-        <h3 style="margin: 0 0 10px; color: #0b121a;">🔐 VPS Login Gegevens</h3>
-        <p style="margin: 4px 0;"><strong>RDP Adres:</strong> <code>{user.vps_ip}:{vps_port}</code></p>
-        <p style="margin: 4px 0;"><strong>Gebruikersnaam:</strong> <code>{user.vps_username or 'trader'}</code></p>
-        <p style="margin: 4px 0;"><strong>Wachtwoord:</strong> <code>{vps_password or 'Wordt binnen enkele minuten verzonden'}</code></p>
-    </div>
-    
-    <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 8px; padding: 12px; margin: 16px 0;">
-        <p style="margin: 4px 0;">✅ De VPS is 24/7 actief zolang je abonnement loopt</p>
-        <p style="margin: 4px 0;">✅ Log in via Windows Remote Desktop (RDP)</p>
-        <p style="margin: 4px 0;">✅ Kopieer het volledige RDP adres (inclusief :{vps_port}) in Remote Desktop</p>
-        <p style="margin: 4px 0;">✅ Installeer MetaTrader en je Expert Advisors</p>
-    </div>
-    
-    <p style="color: #5b6f7e; margin-top: 30px;">
-        Met vriendelijke groet,<br>
-        <strong style="color: #0b121a;">Het Trading Engine Team</strong>
-    </p>
-</div>"""
-    else:
-        subject = "Your Forex VPS is Ready! - Trading Engine"
-        body_plain = f"""
-Dear {user.first_name or 'trader'},
-
-Your Forex VPS has been successfully created and is ready to use!
-
-=== VPS LOGIN DETAILS ===
-RDP Address: {user.vps_ip}:{vps_port}
-Username: {user.vps_username or 'trader'}
-Password: {vps_password or 'Will be sent within minutes'}
-
-=== IMPORTANT INFORMATION ===
-• The VPS runs 24/7 as long as your subscription is active
-• You can log in immediately via Windows Remote Desktop (RDP)
-• Copy the full RDP address (including :{vps_port}) into Remote Desktop
-• Install MetaTrader and your Expert Advisors on the VPS
-• For questions, contact support@tradingengine.nl
-
-Your VPS will remain active as long as your subscription is active.
-
-Best regards,
-The Trading Engine Team
-"""
-        body_html = f"""
-<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h2 style="color: #0b121a;">🎉 Your Forex VPS is Ready!</h2>
-    <p>Dear <strong>{user.first_name or 'trader'}</strong>,</p>
-    <p>Your Forex VPS has been successfully created and is ready to use!</p>
-    
-    <div style="background-color: #f7f9fc; border: 1px solid #e6eaef; border-radius: 12px; padding: 16px; margin: 20px 0;">
-        <h3 style="margin: 0 0 10px; color: #0b121a;">🔐 VPS Login Details</h3>
-        <p style="margin: 4px 0;"><strong>RDP Address:</strong> <code>{user.vps_ip}:{vps_port}</code></p>
-        <p style="margin: 4px 0;"><strong>Username:</strong> <code>{user.vps_username or 'trader'}</code></p>
-        <p style="margin: 4px 0;"><strong>Password:</strong> <code>{vps_password or 'Will be sent within minutes'}</code></p>
-    </div>
-    
-    <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 8px; padding: 12px; margin: 16px 0;">
-        <p style="margin: 4px 0;">✅ The VPS runs 24/7 as long as your subscription is active</p>
-        <p style="margin: 4px 0;">✅ Log in via Windows Remote Desktop (RDP)</p>
-        <p style="margin: 4px 0;">✅ Copy the full RDP address (including :{vps_port}) into Remote Desktop</p>
-        <p style="margin: 4px 0;">✅ Install MetaTrader and your Expert Advisors</p>
-    </div>
-    
-    <p style="color: #5b6f7e; margin-top: 30px;">
-        Best regards,<br>
-        <strong style="color: #0b121a;">The Trading Engine Team</strong>
-    </p>
-</div>"""
-    
-    send_email_async(subject, [user.email], body_plain, body_html)
-    logger.info(f"[ThinkHuge] 📧 VPS welcome email sent to {user.email} in {lang}")
-
-
-def send_vps_termination_email(user):
-    lang = user.language_preference or 'en'
-    
-    if lang == 'nl':
-        subject = "Je Forex VPS is beëindigd - Trading Engine"
-        body_plain = f"""
-Beste {user.first_name or 'handelaar'},
-
-Je Forex VPS is beëindigd omdat je abonnement is verlopen.
-
-Als je een nieuw abonnement afsluit, wordt er automatisch een nieuwe VPS voor je aangemaakt.
-
-Met vriendelijke groet,
-Het Trading Engine Team
-"""
-    else:
-        subject = "Your Forex VPS has been terminated - Trading Engine"
-        body_plain = f"""
-Dear {user.first_name or 'trader'},
-
-Your Forex VPS has been terminated because your subscription has expired.
-
-If you sign up for a new subscription, a new VPS will be automatically created for you.
-
-Best regards,
-The Trading Engine Team
-"""
-    
-    send_email_async(subject, [user.email], body_plain)
-    logger.info(f"[ThinkHuge] 📧 VPS termination email sent to {user.email}")
-
-
 def retry_pending_vps_provisioning():
     if not forexvps_client.is_configured():
         return
@@ -1170,8 +1039,6 @@ def retry_pending_vps_provisioning():
 
             if success:
                 logger.info(f"[ThinkHuge] ✅ Retry succeeded for {user.email}")
-                if user.get_active_license():
-                    send_vps_welcome_email(user)
             elif user.vps_status == 'provisioning':
                 logger.info(f"[ThinkHuge] Retry created server for {user.email}, now provisioning (will poll for IP)")
             else:
@@ -1194,23 +1061,21 @@ def cleanup_expired_vps():
             User.vps_id.isnot(None),
             User.vps_status == 'active'
         ).all()
-        
+
         for user in expired_users:
             logger.info(f"[ThinkHuge] Terminating VPS for expired membership: {user.email} (ended {user.membership_end})")
-            
+
             result = forexvps_client.terminate_vps(user.vps_id)
-            
+
             if result.get('success'):
                 user.vps_status = 'terminated'
                 user.vps_terminated_at = datetime.utcnow()
                 db.session.commit()
-                
-                send_vps_termination_email(user)
-                
+
                 logger.info(f"[ThinkHuge] ✅ VPS terminated for {user.email}")
             else:
                 logger.error(f"[ThinkHuge] ❌ Failed to terminate VPS for {user.email}: {result.get('error')}")
-    
+
     except Exception as e:
         logger.error(f"[ThinkHuge] Error in cleanup_expired_vps: {e}")
         db.session.rollback()
@@ -1249,7 +1114,7 @@ def cleanup_stale_sessions():
     except Exception as e:
         logger.error(f"Auto-cleanup error: {e}")
         db.session.rollback()
-    
+
     cleanup_expired_vps()
     poll_pending_vps_servers()
     retry_pending_vps_provisioning()
@@ -1450,18 +1315,18 @@ def api_set_language():
         data = request.get_json()
         if not data:
             return jsonify({"success": False, "error": "Invalid request"}), 400
-            
+
         lang = data.get('language', 'en')
-        
+
         if lang in Config.LANGUAGES:
             session['language'] = lang
             if current_user.is_authenticated:
                 current_user.language_preference = lang
                 db.session.commit()
-            
+
             logger.info(f"[LANG] API language set to: {lang}")
             return jsonify({"success": True, "language": lang})
-        
+
         return jsonify({"success": False, "error": "Invalid language"}), 400
     except Exception as e:
         logger.error(f"[LANG] Error setting language: {e}")
@@ -1747,7 +1612,7 @@ def user_dashboard():
 
 
 # ============================================================================
-# GENERATE LICENSE (with VPS details email after generation)
+# GENERATE LICENSE
 # ============================================================================
 
 @app.route("/generate-license", methods=["POST"])
@@ -1816,14 +1681,11 @@ def generate_license():
                 f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Keep this key safe.</p>"
             )
 
+        # Provision VPS if the user doesn't already have an active one.
+        # NOTE: No "VPS ready" email is sent here anymore - VPS credentials
+        # are visible on the user dashboard as soon as they're available.
         if not (current_user.vps_id and current_user.vps_status == 'active'):
             provision_vps_for_user(current_user, current_user.get_plan_level())
-
-        if current_user.vps_id and current_user.vps_status == 'active':
-            send_vps_welcome_email(current_user)
-            logger.info(f"[LICENSE GEN] 📧 VPS details sent to {current_user.email} in {lang}")
-        else:
-            logger.info(f"[LICENSE GEN] No active VPS for {current_user.email}, skipping VPS email")
 
         return jsonify({
             "success": True,
@@ -2148,8 +2010,6 @@ def admin_retry_vps(user_id):
 
     success = provision_vps_for_user(user, user.get_plan_level())
     if success:
-        if user.get_active_license():
-            send_vps_welcome_email(user)
         flash(f"VPS succesvol aangemaakt voor {user.email}.", "success")
     elif user.vps_status == 'provisioning':
         flash(f"VPS wordt aangemaakt voor {user.email} (ThinkHuge is nog bezig, IP volgt automatisch).", "success")
@@ -2220,7 +2080,7 @@ def admin_user_detail(user_id):
 
     orders = user.orders.order_by(Order.created_at.desc()).all()
     licenses = user.licenses.order_by(License.created_at.desc()).all()
-    
+
     vps_password = decrypt_data(user.vps_password) if user.vps_password else None
 
     return render_template(
@@ -2273,15 +2133,91 @@ def revoke_membership(user_id):
 @app.route("/admin/reactivate-membership/<int:user_id>", methods=["POST"])
 @admin_required
 def reactivate_membership(user_id):
+    """
+    Reactivate a user's membership.
+
+    Two distinct cases are handled:
+
+    1. previous_status == "cancelled":
+       The user's auto-renewal was stopped at Stripe (cancel_at_period_end),
+       but their existing paid period may not have ended yet - they never
+       necessarily lost access. Reactivating here means: resume auto-renewal
+       at Stripe (cancel_at_period_end=False) and flip the local status back
+       to "active", WITHOUT resetting membership_start/membership_end. If
+       the period had already lapsed (membership_end in the past), we grant
+       a fresh period from now instead of leaving them with an already-expired
+       end date.
+
+    2. previous_status == "revoked" (or anything else):
+       Admin is manually granting a brand new paid period, same behavior
+       this route had before - fresh membership_start/membership_end.
+    """
     user = db.session.get(User, user_id)
-    if user:
+    if not user:
+        flash("Gebruiker niet gevonden.", "error")
+        return redirect(url_for("admin_users"))
+
+    previous_status = user.membership_status
+
+    if previous_status == "cancelled":
+        if user.stripe_subscription_id and stripe is not None:
+            try:
+                stripe.Subscription.modify(
+                    user.stripe_subscription_id,
+                    cancel_at_period_end=False,
+                )
+                logger.info(
+                    f"[REACTIVATE] Stripe subscription {user.stripe_subscription_id} "
+                    f"auto-renewal resumed for {user.email}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"[REACTIVATE] Stripe error resuming subscription for {user.email}: {e}"
+                )
+                flash(
+                    f"Kon Stripe abonnement niet hervatten voor {user.email}: {e}. "
+                    f"Lokale status is wel bijgewerkt, controleer Stripe handmatig.",
+                    "error"
+                )
+        elif user.stripe_subscription_id and stripe is None:
+            logger.error("[REACTIVATE] Stripe library not installed, cannot resume subscription")
+            flash(
+                f"Stripe library niet beschikbaar - kon auto-renewal niet hervatten voor "
+                f"{user.email}. Lokale status is wel bijgewerkt.",
+                "error"
+            )
+        else:
+            logger.warning(
+                f"[REACTIVATE] No stripe_subscription_id on file for {user.email} - "
+                f"nothing to resume at Stripe, only updating local status."
+            )
+
+        user.membership_status = "active"
+        if not user.membership_end or user.membership_end < datetime.utcnow():
+            user.membership_end = datetime.utcnow() + timedelta(days=user.subscription_duration_days or 30)
+        db.session.commit()
+
+        log_audit(
+            current_user.id, "membership_reactivated",
+            f"Geannuleerd abonnement hervat: {user.email} | auto-renewal hersteld bij Stripe",
+            request.remote_addr
+        )
+        flash(f"Abonnement van {user.email} is hervat (auto-renewal weer actief).", "success")
+
+    else:
         user.membership_status = "active"
         user.membership_start = datetime.utcnow()
         user.membership_end = datetime.utcnow() + timedelta(days=user.subscription_duration_days or 30)
         db.session.commit()
-        log_audit(current_user.id, "membership_reactivated", f"Geactiveerd: {user.email}", request.remote_addr)
-        flash("Abonnement opnieuw geactiveerd.", "success")
-    return redirect(url_for("admin_users"))
+
+        log_audit(
+            current_user.id, "membership_reactivated",
+            f"Geactiveerd: {user.email} (was {previous_status})",
+            request.remote_addr
+        )
+        flash(f"Abonnement opnieuw geactiveerd voor {user.email}.", "success")
+
+    return redirect(request.referrer or url_for("admin_users"))
 
 
 @app.route("/admin/extend-membership/<int:user_id>", methods=["POST"])
