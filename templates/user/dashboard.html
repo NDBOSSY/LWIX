@@ -569,6 +569,70 @@
     .discord-body .info-text strong { display: block; font-size: 0.85rem; }
     .discord-body .info-text span { font-size: 0.78rem; color: var(--ink-muted); }
 
+    /* Academy card */
+    .academy-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 1.5rem;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        margin-bottom: 1.25rem;
+        box-shadow: var(--shadow-card);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .academy-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+    }
+    .academy-card .academy-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .academy-card .academy-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+    .academy-card .academy-text h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    .academy-card .academy-text p {
+        font-size: 0.8rem;
+        opacity: 0.9;
+        margin: 0.2rem 0 0;
+    }
+    .academy-card .btn-academy {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 0.55rem 1.2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        white-space: nowrap;
+        transition: all 0.15s;
+    }
+    .academy-card .btn-academy:hover {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
     /* Support section */
     .support-section {
         display: flex;
@@ -666,14 +730,25 @@
         align-items: center;
         gap: 0.5rem;
     }
-    .btn-danger {
-        background: var(--red);
-        color: white;
-        border-color: var(--red);
+    .btn-danger-subtle {
+        background: transparent;
+        color: var(--ink-muted);
+        border: 1px solid var(--border);
+        padding: 0.35rem 0.8rem;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.72rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        text-decoration: none;
     }
-    .btn-danger:hover {
-        background: #a82918;
-        border-color: #a82918;
+    .btn-danger-subtle:hover {
+        background: var(--red-light);
+        color: var(--red);
+        border-color: var(--red-light);
     }
 
     .btn {
@@ -957,7 +1032,7 @@
                             {{ 'Je abonnement wordt automatisch verlengd. Bij opzeggen blijft je membership actief tot het einde van de betaalde periode.' if current_language == 'nl' else 'Your subscription auto-renews. Cancelling will keep your membership active until the paid period ends.' }}
                         </span>
                     </div>
-                    <button class="btn btn-danger" onclick="showCancelModal()">
+                    <button class="btn-danger-subtle" onclick="showCancelModal()">
                         <i class="fas fa-times-circle"></i> 
                         <span data-en="Cancel Membership" data-nl="Membership Opzeggen">
                             {{ 'Membership Opzeggen' if current_language == 'nl' else 'Cancel Membership' }}
@@ -1042,6 +1117,26 @@
                 {% endif %}
             </div>
         </div>
+    </div>
+
+    <!-- Academy Card -->
+    <div class="academy-card">
+        <div class="academy-info">
+            <div class="academy-icon">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <div class="academy-text">
+                <h3 data-en="Academy" data-nl="Academy">Academy</h3>
+                <p data-en="Start Here — Access your Trading Engine Academy and follow the onboarding steps." 
+                   data-nl="Start Hier — Krijg toegang tot de Trading Engine Academy en volg de onboarding stappen.">
+                    {{ 'Start Hier — Krijg toegang tot de Trading Engine Academy en volg de onboarding stappen.' if current_language == 'nl' else 'Start Here — Access your Trading Engine Academy and follow the onboarding steps.' }}
+                </p>
+            </div>
+        </div>
+        <a href="https://www.tradingengine.nl/academy" target="_blank" class="btn-academy">
+            <i class="fas fa-external-link-alt"></i> 
+            <span data-en="Open Academy" data-nl="Open Academy">Open Academy</span>
+        </a>
     </div>
 
     <!-- Forex VPS Panel -->
@@ -1468,7 +1563,7 @@
                 {% if current_language == 'nl' %}
                 <li>Je VPS</li>
                 <li>Je Expert Advisor(s) en actieve licenties</li>
-                <li>Discord community</li>
+                <li>De Discord Community</li>
                 <li>De Academy</li>
                 {% else %}
                 <li>Your VPS</li>
