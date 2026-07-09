@@ -2146,6 +2146,82 @@ def revoke_membership(user_id):
     return redirect(url_for("admin_users"))
 
 
+@app.route("/admin/delete-user/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_delete_user(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        flash("Gebruiker niet gevonden.", "error")
+        return redirect(url_for("admin_users"))
+
+    if user.is_admin:
+        flash("Admin accounts kunnen niet worden verwijderd.", "error")
+        return redirect(url_for("admin_users"))
+
+    # Extra safety: admin must type the user's exact email to confirm.
+    confirm_email = request.form.get("confirm_email", "").strip().lower()
+    if confirm_email != user.email.lower():
+        flash("Bevestigingsemail komt niet overeen. Gebruiker is niet verwijderd.", "error")
+        return redirect(request.referrer or url_for("admin_users"))
+
+    email_for_log = user.email
+    id_for_log = user.id
+
+    try:
+        # Terminate VPS at ThinkHuge first (if they have one), so we don't
+        # orphan a running server with no user record pointing to it.
+        if user.vps_id and user.vps_status not in ("terminated", None):
+            result = forexvps_client.terminate_vps(user.vps_id)
+            if not result.get("success"):
+                logger.warning(
+                    f"[DELETE USER] Could not terminate VPS {user.vps_id} for "
+                    f"{email_for_log}: {result.get('error')}"
+                )
+
+        # Cancel any live Stripe subscription immediately (not just
+        # cancel_at_period_end) — once the user row is gone we lose the
+        # ability to track/stop it later.
+        if user.stripe_subscription_id and stripe is not None:
+            try:
+                stripe.Subscription.delete(user.stripe_subscription_id)
+                logger.info(
+                    f"[DELETE USER] Stripe subscription {user.stripe_subscription_id} "
+                    f"cancelled immediately for {email_for_log}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[DELETE USER] Could not cancel Stripe subscription for "
+                    f"{email_for_log}: {e}"
+                )
+
+        # EAFile.uploaded_by references users.id but has no ORM relationship/
+        # cascade — detach it manually so uploaded EA files aren't affected.
+        EAFile.query.filter_by(uploaded_by=user.id).update({"uploaded_by": None})
+
+        # AuditLog.user_id has no delete cascade either — wipe this user's
+        # trail explicitly (client wants a full removal, not just revoke).
+        AuditLog.query.filter_by(user_id=user.id).delete()
+
+        # This cascades (via cascade="all, delete-orphan") to:
+        # otp_tokens, licenses -> license_accounts -> ea_sessions, orders
+        db.session.delete(user)
+        db.session.commit()
+
+        logger.info(f"[DELETE USER] ✅ Permanently deleted {email_for_log} (id={id_for_log})")
+        # user_id=None here on purpose — the user no longer exists, this is
+        # a system-level record that a deletion happened.
+        log_audit(None, "user_deleted", f"Permanently deleted: {email_for_log} (was id={id_for_log})", request.remote_addr)
+
+        flash(f"{email_for_log} is permanent verwijderd.", "success")
+
+    except Exception as e:
+        logger.error(f"[DELETE USER] Error deleting {email_for_log}: {e}", exc_info=True)
+        db.session.rollback()
+        flash(f"Verwijderen mislukt: {e}", "error")
+
+    return redirect(url_for("admin_users"))
+
+
 @app.route("/admin/reactivate-membership/<int:user_id>", methods=["POST"])
 @admin_required
 def reactivate_membership(user_id):
