@@ -356,6 +356,13 @@
                                         </button>
                                     </form>
                                     {% endif %}
+                                    <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" 
+                                          class="d-inline delete-user-form" data-email="{{ user.email }}">
+                                        <input type="hidden" name="confirm_email" class="confirm-email-input">
+                                        <button type="button" class="btn btn-outline-danger btn-sm delete-user-btn" title="Delete Permanently">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -368,11 +375,41 @@
 </div>
 
 <script>
+    // Copy to clipboard function
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            // Optional: Show a brief tooltip or notification
+            console.log('Copied: ' + text);
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+        });
+    }
+
     // Search functionality
     document.getElementById('searchUsers').addEventListener('keyup', function () {
         const term = this.value.toLowerCase();
         document.querySelectorAll('#usersTable tbody tr').forEach(row => {
             row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+        });
+    });
+
+    // Delete user confirmation
+    document.querySelectorAll('.delete-user-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const form = this.closest('.delete-user-form');
+            const email = form.dataset.email;
+            const typed = prompt(
+                `⚠️ PERMANENT DELETE\n\nThis removes ${email} and ALL their data ` +
+                `(licenses, MT5 slots, orders, VPS, audit logs) from the database. ` +
+                `This cannot be undone.\n\nType the email address to confirm:`
+            );
+            if (typed === null) return;
+            if (typed.trim().toLowerCase() !== email.toLowerCase()) {
+                alert('Email did not match. Deletion cancelled.');
+                return;
+            }
+            form.querySelector('.confirm-email-input').value = typed.trim();
+            form.submit();
         });
     });
 </script>
