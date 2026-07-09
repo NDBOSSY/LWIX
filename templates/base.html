@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#4B7BE5">
+    <meta name="theme-color" content="#FFFFFF">
     <title>{% block title %}EALicense Platform{% endblock %}</title>
 
     <!-- Bootstrap 5 -->
@@ -69,12 +69,12 @@
             flex: 1;
         }
 
-        /* Navigation - GRADIENT BACKGROUND */
+        /* Navigation - SUBTLE LIGHT GRADIENT BACKGROUND */
         .navbar {
-            background: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%) !important;
+            background: linear-gradient(135deg, #FFFFFF 0%, #EEF2FF 100%) !important;
             backdrop-filter: blur(10px);
-            border-bottom: 2px solid #6FDFDF;
-            box-shadow: 0 4px 20px rgba(75, 123, 229, 0.3);
+            border-bottom: 1px solid #E5E7EB;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
             padding: 0.6rem 0;
         }
 
@@ -103,21 +103,21 @@
         .navbar-brand-text {
             font-weight: 800;
             font-size: 1.3rem;
-            color: white;
+            color: #2D2D2D;
             letter-spacing: -0.5px;
         }
 
         .navbar-toggler {
-            border-color: rgba(255, 255, 255, 0.5);
+            border-color: rgba(45, 45, 45, 0.3);
         }
 
         .navbar-toggler-icon {
-            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3e%3cpath stroke='rgba(255, 255, 255, 0.8)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3e%3cpath stroke='rgba(45, 45, 45, 0.8)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
         }
 
         /* Navigation Links */
         .nav-link {
-            color: rgba(255, 255, 255, 0.9) !important;
+            color: #5B6F7E !important;
             font-weight: 500;
             padding: 0.5rem 1rem !important;
             border-radius: 10px;
@@ -126,8 +126,8 @@
         }
 
         .nav-link:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: white !important;
+            background: rgba(75, 123, 229, 0.08);
+            color: #4B7BE5 !important;
             transform: translateY(-1px);
         }
 
@@ -137,9 +137,9 @@
 
         /* Dashboard Button */
         .nav-btn-dashboard {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(75, 123, 229, 0.1);
+            color: #4B7BE5;
+            border: 1px solid rgba(75, 123, 229, 0.2);
             padding: 0.5rem 1.2rem;
             border-radius: 10px;
             font-weight: 600;
@@ -152,17 +152,17 @@
         }
 
         .nav-btn-dashboard:hover {
-            background: rgba(255, 255, 255, 0.3);
-            color: white;
+            background: rgba(75, 123, 229, 0.18);
+            color: #4B7BE5;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 5px 15px rgba(75, 123, 229, 0.15);
         }
 
         /* Logout Button */
         .nav-btn-logout {
-            background: rgba(239, 68, 68, 0.2);
-            color: white;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.08);
+            color: #DC2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
             padding: 0.5rem 1.2rem;
             border-radius: 10px;
             font-weight: 600;
@@ -175,17 +175,17 @@
         }
 
         .nav-btn-logout:hover {
-            background: rgba(239, 68, 68, 0.4);
-            color: white;
+            background: rgba(239, 68, 68, 0.15);
+            color: #DC2626;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.15);
         }
 
         /* User Dropdown */
         .nav-user-dropdown {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
+            background: #F5F5F5;
+            border: 1px solid #E5E7EB;
+            color: #2D2D2D;
             padding: 0.5rem 1.2rem;
             border-radius: 10px;
             font-weight: 500;
@@ -195,7 +195,7 @@
         }
 
         .nav-user-dropdown:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: #E5E7EB;
         }
 
         .dropdown-menu {
