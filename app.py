@@ -2,57 +2,7 @@
 Subscription & Licensing Platform
 Complete Flask Application with Wix Integration, Stripe Integration, OTP Auth, 
 License Management, Discord Integration & ThinkHuge VPS Auto-Provisioning
-
-ACCOUNT SLOT LOGIC:
-- Each UNIQUE MT5 account number = 1 slot
-- Multiple EAs on same MT5 account share 1 slot
-- Slot freed only when ALL EAs on that account are removed
-- Heartbeat auto-cleanup for crashed EAs (fully automatic)
-
-FIXED: Proper MT5 account tracking with unique account_number
-FIXED: Unlimited validations (max_validations=None skips the check)
-FIXED: Heartbeats no longer increment validation_count
-FIXED: Cancellation = stop auto-renewal, user keeps full access until paid period ends
-FIXED: Cancellation now actually cancels the Stripe subscription (cancel_at_period_end),
-       instead of only flipping a local status flag. Previously Stripe kept billing and
-       auto-renewing because it was never told to stop, and the next renewal webhook
-       would silently re-activate the membership and push membership_end forward again.
-ADDED: stripe_subscription_id / stripe_customer_id columns to track the real Stripe
-       subscription so it can be cancelled at the source.
-ADDED: Stripe customer.subscription.deleted webhook handler for audit-log visibility
-       when a cancelled subscription's paid period actually ends at Stripe.
-ADDED: Language toggle support (English/Nederlands)
-ADDED: "Need Help?" Contact Us support section
-ADDED: ThinkHuge VPS auto-provisioning on payment (Basic plan for all levels)
-ADDED: VPS auto-termination on membership expiry
-ADDED: VPS details display on user dashboard and admin user-detail page
-ADDED: VPS RDP port support - IP displayed with port for easy copy-paste
-FIXED: ThinkHuge API calls were being blocked by Cloudflare with
-       "Error 1010: browser_signature_banned" because urllib's default
-       User-Agent ("Python-urllib/3.x") is flagged as a bot by Cloudflare's
-       bot-management rules. All ThinkHuge requests now send a real
-       browser-like User-Agent (and related headers) to pass the check.
-FIXED: Discord OAuth token exchange / API calls (discord_callback,
-       assign_discord_role) were failing with a bare "HTTP Error 403: Forbidden"
-       for the same reason as the ThinkHuge issue above - Cloudflare fronts
-       discord.com too and blocks urllib's default User-Agent. All Discord API
-       requests (token exchange, /users/@me, guild join, role assignment) now
-       send a browser-like User-Agent. HTTPError responses are also now logged
-       with their actual body instead of just the status code.
-ADDED: Background retry/backfill sweep that automatically re-attempts VPS
-       provisioning for any paid, active user who doesn't yet have a VPS
-       (e.g. because a previous provisioning attempt failed).
-ADDED: Debug VPS endpoint for admins to diagnose VPS issues
-REMOVED: Automatic VPS "credentials ready" / "VPS terminated" emails. VPS
-       login details are already visible on the user dashboard and in the
-       admin user-detail page, so no email is sent for VPS lifecycle events
-       anymore. (License key emails and welcome/cancellation emails are
-       unaffected.)
-ADDED: Admin can reactivate a CANCELLED membership (not just a revoked one).
-       Reactivating a cancelled membership resumes auto-renewal at Stripe
-       (cancel_at_period_end=False) and keeps the existing paid period intact.
-       Reactivating a revoked membership still grants a fresh paid period,
-       same as before.
++ Trading Journal with MT5 Sync Agent Integration
 """
 
 import os
@@ -68,9 +18,11 @@ import time
 import urllib.parse
 import urllib.request
 import urllib.error
+import statistics
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
+from collections import defaultdict
 
 from flask import (
     Flask, request, jsonify, render_template, redirect,
@@ -218,9 +170,6 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # SHARED HTTP CONSTANTS
 # ============================================================================
-# Cloudflare (which fronts both api.partners.thinkhuge.net and discord.com)
-# blocks the default urllib User-Agent ("Python-urllib/3.x") as a bot. Every
-# outbound request to either service should send a browser-like User-Agent.
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -247,7 +196,7 @@ except Exception:
 Path(Config.UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
 
 logger.info("=" * 80)
-logger.info("APPLICATION STARTING - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS")
+logger.info("APPLICATION STARTING - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS + TRADING JOURNAL")
 logger.info("=" * 80)
 
 
@@ -328,6 +277,7 @@ class User(UserMixin, db.Model):
     otp_tokens = db.relationship("OTPToken", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     licenses = db.relationship("License", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     orders = db.relationship("Order", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+    journal_accounts = db.relationship("JournalAccount", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
     def is_membership_active(self):
         if self.membership_status not in ["active", "cancelled"]:
@@ -530,6 +480,84 @@ class Setting(db.Model):
     key = db.Column(db.String(50), unique=True, nullable=False)
     value = db.Column(db.String(200), nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class JournalAccount(db.Model):
+    __tablename__ = "journal_accounts"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+
+    name = db.Column(db.String(100), nullable=False)
+    broker = db.Column(db.String(100), nullable=True)
+    prop_firm = db.Column(db.String(100), nullable=True)
+    mt5_login = db.Column(db.String(50), nullable=False)
+    mt5_server = db.Column(db.String(100), nullable=True)
+    currency = db.Column(db.String(10), default="USD")
+    starting_balance = db.Column(db.Float, default=0.0)
+
+    current_balance = db.Column(db.Float, nullable=True)
+    current_equity = db.Column(db.Float, nullable=True)
+
+    sync_token = db.Column(db.String(64), unique=True, nullable=False)
+    auto_sync = db.Column(db.Boolean, default=True)
+    sync_requested_at = db.Column(db.DateTime, nullable=True)
+    last_synced_at = db.Column(db.DateTime, nullable=True)
+    last_sync_error = db.Column(db.String(300), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    archived = db.Column(db.Boolean, default=False)
+
+    trades = db.relationship(
+        "JournalTrade", backref="account", lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "mt5_login", name="uq_user_mt5_login"),
+    )
+
+
+class JournalTrade(db.Model):
+    __tablename__ = "journal_trades"
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey("journal_accounts.id"), nullable=False, index=True)
+
+    mt5_ticket = db.Column(db.String(50), nullable=False)
+    symbol = db.Column(db.String(20), nullable=False)
+    trade_type = db.Column(db.String(10), nullable=False)
+    volume = db.Column(db.Float, nullable=False)
+
+    entry_price = db.Column(db.Float, nullable=True)
+    sl = db.Column(db.Float, nullable=True)
+    tp = db.Column(db.Float, nullable=True)
+    exit_price = db.Column(db.Float, nullable=True)
+
+    open_time = db.Column(db.DateTime, nullable=True)
+    close_time = db.Column(db.DateTime, nullable=False, index=True)
+
+    profit = db.Column(db.Float, nullable=False, default=0.0)
+    pips = db.Column(db.Float, nullable=True)
+    magic_number = db.Column(db.Integer, nullable=True)
+    comment = db.Column(db.String(200), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("account_id", "mt5_ticket", name="uq_account_ticket"),
+    )
+
+    def duration_seconds(self):
+        if self.open_time and self.close_time:
+            return int((self.close_time - self.open_time).total_seconds())
+        return None
+
+    def duration_display(self):
+        secs = self.duration_seconds()
+        if secs is None:
+            return "—"
+        h, rem = divmod(secs, 3600)
+        m, _ = divmod(rem, 60)
+        return f"{h}h {m}m" if h else f"{m}m"
 
 
 # ============================================================================
@@ -888,6 +916,105 @@ def format_date_english(date_obj):
 
 
 # ============================================================================
+# JOURNAL HELPERS
+# ============================================================================
+
+def compute_journal_stats(trades):
+    """trades: list of JournalTrade. Returns a dict of aggregate stats."""
+    if not trades:
+        return {
+            "total_trades": 0, "wins": 0, "losses": 0, "breakeven": 0,
+            "win_rate": 0.0, "profit_factor": 0.0, "expectancy": 0.0,
+            "net_profit": 0.0, "avg_win": 0.0, "avg_loss": 0.0,
+            "largest_win": 0.0, "largest_loss": 0.0,
+            "gross_profit": 0.0, "gross_loss": 0.0, "avg_rr": 0.0,
+            "longest_win_streak": 0, "longest_loss_streak": 0,
+            "avg_duration_seconds": 0,
+        }
+
+    wins = [t for t in trades if t.profit > 0]
+    losses = [t for t in trades if t.profit < 0]
+    breakeven = [t for t in trades if t.profit == 0]
+
+    gross_profit = sum(t.profit for t in wins)
+    gross_loss = abs(sum(t.profit for t in losses))
+    net_profit = sum(t.profit for t in trades)
+
+    win_rate = (len(wins) / len(trades)) * 100 if trades else 0.0
+    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else (gross_profit if gross_profit > 0 else 0.0)
+    expectancy = net_profit / len(trades) if trades else 0.0
+
+    avg_win = (gross_profit / len(wins)) if wins else 0.0
+    avg_loss = (-gross_loss / len(losses)) if losses else 0.0
+    avg_rr = abs(avg_win / avg_loss) if avg_loss else 0.0
+
+    ordered = sorted(trades, key=lambda t: t.close_time)
+    longest_win_streak = longest_loss_streak = cur_win = cur_loss = 0
+    for t in ordered:
+        if t.profit > 0:
+            cur_win += 1; cur_loss = 0
+            longest_win_streak = max(longest_win_streak, cur_win)
+        elif t.profit < 0:
+            cur_loss += 1; cur_win = 0
+            longest_loss_streak = max(longest_loss_streak, cur_loss)
+        else:
+            cur_win = cur_loss = 0
+
+    durations = [t.duration_seconds() for t in trades if t.duration_seconds() is not None]
+    avg_duration = int(statistics.mean(durations)) if durations else 0
+
+    return {
+        "total_trades": len(trades), "wins": len(wins), "losses": len(losses), "breakeven": len(breakeven),
+        "win_rate": round(win_rate, 2), "profit_factor": round(profit_factor, 2),
+        "expectancy": round(expectancy, 2), "net_profit": round(net_profit, 2),
+        "avg_win": round(avg_win, 2), "avg_loss": round(avg_loss, 2),
+        "largest_win": round(max((t.profit for t in trades), default=0.0), 2),
+        "largest_loss": round(min((t.profit for t in trades), default=0.0), 2),
+        "gross_profit": round(gross_profit, 2), "gross_loss": round(gross_loss, 2),
+        "avg_rr": round(avg_rr, 2),
+        "longest_win_streak": longest_win_streak, "longest_loss_streak": longest_loss_streak,
+        "avg_duration_seconds": avg_duration,
+    }
+
+
+def journal_daily_pl_map(trades):
+    out = defaultdict(float)
+    for t in trades:
+        out[t.close_time.strftime("%Y-%m-%d")] += t.profit
+    return dict(out)
+
+
+def journal_max_drawdown(trades, starting_balance):
+    ordered = sorted(trades, key=lambda t: t.close_time)
+    equity = peak = starting_balance
+    max_dd = max_dd_pct = 0.0
+    for t in ordered:
+        equity += t.profit
+        peak = max(peak, equity)
+        dd = peak - equity
+        dd_pct = (dd / peak * 100) if peak > 0 else 0
+        max_dd = max(max_dd, dd)
+        max_dd_pct = max(max_dd_pct, dd_pct)
+    return round(max_dd, 2), round(max_dd_pct, 2)
+
+
+def get_selected_journal_account(requested_id=None):
+    """Resolve which JournalAccount is 'active' for the logged-in user."""
+    account = None
+    if requested_id:
+        account = JournalAccount.query.filter_by(id=requested_id, user_id=current_user.id, archived=False).first()
+    if not account:
+        last_id = session.get("journal_account_id")
+        if last_id:
+            account = JournalAccount.query.filter_by(id=last_id, user_id=current_user.id, archived=False).first()
+    if not account:
+        account = JournalAccount.query.filter_by(user_id=current_user.id, archived=False).order_by(JournalAccount.created_at).first()
+    if account:
+        session["journal_account_id"] = account.id
+    return account
+
+
+# ============================================================================
 # VPS PROVISIONING FUNCTIONS
 # ============================================================================
 
@@ -905,7 +1032,6 @@ def try_complete_pending_vps(user):
 
         password = forexvps_client.reset_password(user.vps_id)
 
-        # Get the RDP port from server details, fallback to default
         rdp_port = server.get("rdp_port") or server.get("port") or Config.FOREXVPS_DEFAULT_RDP_PORT
 
         user.vps_ip = ip
@@ -917,9 +1043,6 @@ def try_complete_pending_vps(user):
         db.session.commit()
 
         logger.info(f"[ThinkHuge] ✅ VPS now ready for {user.email}: {user.vps_id} | IP: {ip}:{rdp_port}")
-
-        # NOTE: No email is sent here anymore. VPS credentials are available
-        # on the user dashboard and in the admin user-detail page.
 
         return True
 
@@ -1180,6 +1303,61 @@ def run_migrations():
                 db.session.commit()
                 logger.info("✅ ea_sessions table created")
 
+            if 'journal_accounts' not in existing_tables:
+                logger.info("Creating journal_accounts table...")
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS journal_accounts (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        name VARCHAR(100) NOT NULL,
+                        broker VARCHAR(100),
+                        prop_firm VARCHAR(100),
+                        mt5_login VARCHAR(50) NOT NULL,
+                        mt5_server VARCHAR(100),
+                        currency VARCHAR(10) DEFAULT 'USD',
+                        starting_balance FLOAT DEFAULT 0.0,
+                        current_balance FLOAT,
+                        current_equity FLOAT,
+                        sync_token VARCHAR(64) UNIQUE NOT NULL,
+                        auto_sync BOOLEAN DEFAULT TRUE,
+                        sync_requested_at TIMESTAMP,
+                        last_synced_at TIMESTAMP,
+                        last_sync_error VARCHAR(300),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        archived BOOLEAN DEFAULT FALSE,
+                        CONSTRAINT uq_user_mt5_login UNIQUE (user_id, mt5_login)
+                    )
+                """))
+                db.session.commit()
+                logger.info("✅ journal_accounts table created")
+
+            if 'journal_trades' not in existing_tables:
+                logger.info("Creating journal_trades table...")
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS journal_trades (
+                        id SERIAL PRIMARY KEY,
+                        account_id INTEGER NOT NULL REFERENCES journal_accounts(id) ON DELETE CASCADE,
+                        mt5_ticket VARCHAR(50) NOT NULL,
+                        symbol VARCHAR(20) NOT NULL,
+                        trade_type VARCHAR(10) NOT NULL,
+                        volume FLOAT NOT NULL,
+                        entry_price FLOAT,
+                        sl FLOAT,
+                        tp FLOAT,
+                        exit_price FLOAT,
+                        open_time TIMESTAMP,
+                        close_time TIMESTAMP NOT NULL,
+                        profit FLOAT NOT NULL DEFAULT 0.0,
+                        pips FLOAT,
+                        magic_number INTEGER,
+                        comment VARCHAR(200),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_account_ticket UNIQUE (account_id, mt5_ticket)
+                    )
+                """))
+                db.session.commit()
+                logger.info("✅ journal_trades table created")
+
             columns = [col['name'] for col in inspector.get_columns('users')]
             if 'language_preference' not in columns:
                 logger.info("Adding language_preference column to users table...")
@@ -1211,8 +1389,6 @@ def run_migrations():
                     db.session.commit()
                     logger.info(f"✅ {col_name} column added")
 
-            # Stripe subscription tracking columns (needed to actually cancel
-            # the recurring subscription at Stripe when a user cancels)
             stripe_columns = ['stripe_subscription_id', 'stripe_customer_id']
             for col_name in stripe_columns:
                 if col_name not in columns:
@@ -1306,7 +1482,9 @@ def health():
         "active_licenses": License.query.filter_by(status="active").count(),
         "active_accounts": LicenseAccount.query.count(),
         "active_sessions": EASession.query.count(),
-        "active_vps": User.query.filter_by(vps_status='active').count()
+        "active_vps": User.query.filter_by(vps_status='active').count(),
+        "journal_accounts": JournalAccount.query.filter_by(archived=False).count(),
+        "journal_trades": JournalTrade.query.count()
     })
 
 
@@ -1550,7 +1728,7 @@ def logout():
 
 
 # ============================================================================
-# USER DASHBOARD
+# USER DASHBOARD (with Trading Journal integration)
 # ============================================================================
 
 @app.route("/dashboard")
@@ -1608,6 +1786,8 @@ def user_dashboard():
 
     return render_template(
         "user/dashboard.html",
+        journal=journal_dashboard_data(),
+        journal_trades=journal_trades_data(),
         user=user,
         license=license,
         ea_files=ea_files,
@@ -1697,9 +1877,6 @@ def generate_license():
                 f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Keep this key safe.</p>"
             )
 
-        # Provision VPS if the user doesn't already have an active one.
-        # NOTE: No "VPS ready" email is sent here anymore - VPS credentials
-        # are visible on the user dashboard as soon as they're available.
         if not (current_user.vps_id and current_user.vps_status == 'active'):
             provision_vps_for_user(current_user, current_user.get_plan_level())
 
@@ -1718,7 +1895,7 @@ def generate_license():
 
 
 # ============================================================================
-# CANCEL MEMBERSHIP (Stop auto-renewal at Stripe, keep full access until period end)
+# CANCEL MEMBERSHIP
 # ============================================================================
 
 @app.route("/cancel-membership", methods=["POST"])
@@ -1745,23 +1922,6 @@ def cancel_membership():
         if not membership_end_date:
             membership_end_date = datetime.utcnow()
 
-        # --------------------------------------------------------------
-        # CRITICAL FIX: actually cancel the recurring subscription at Stripe.
-        #
-        # Previously this route only flipped membership_status to
-        # "cancelled" in our own database. Stripe was never told to stop
-        # billing, so the subscription kept auto-renewing: Stripe would
-        # charge the card again on the next cycle, our payment webhook
-        # would see "payment succeeded" and treat it like any normal
-        # renewal, flipping membership_status back to "active" and pushing
-        # membership_end forward by another full period. That's why a
-        # cancellation appeared to "extend" the subscription by a month.
-        #
-        # cancel_at_period_end=True tells Stripe: stop auto-renewing, but
-        # don't revoke access early - the customer keeps what they already
-        # paid for until the current period ends, exactly matching the
-        # behavior described in this app's UI and emails.
-        # --------------------------------------------------------------
         if user.stripe_subscription_id:
             if stripe is None:
                 logger.error("[CANCEL] Stripe library not installed, cannot cancel subscription")
@@ -1781,10 +1941,6 @@ def cancel_membership():
                     f"set to cancel_at_period_end for {user.email}"
                 )
             except stripe.error.InvalidRequestError as e:
-                # Subscription may already be cancelled/missing at Stripe's end.
-                # Don't hard-fail the user's cancel request over this, but log
-                # loudly so it can be checked manually - we still proceed to
-                # mark the membership cancelled locally below.
                 logger.warning(
                     f"[CANCEL] Stripe subscription {user.stripe_subscription_id} "
                     f"could not be modified for {user.email}: {e}"
@@ -1927,6 +2083,289 @@ def download_ea(file_id):
 
 
 # ============================================================================
+# TRADING JOURNAL ROUTES
+# ============================================================================
+
+@app.route("/dashboard/journal-data")
+@login_required
+def journal_dashboard_data():
+    accounts = JournalAccount.query.filter_by(user_id=current_user.id, archived=False).order_by(JournalAccount.created_at).all()
+
+    requested_id = request.args.get("jaccount", type=int)
+    account = get_selected_journal_account(requested_id)
+
+    if not account:
+        return {"has_accounts": False, "accounts": []}
+
+    now = datetime.utcnow()
+    all_trades = account.trades.order_by(JournalTrade.close_time.asc()).all()
+
+    today_start = datetime(now.year, now.month, now.day)
+    week_start = today_start - timedelta(days=today_start.weekday())
+    month_start = datetime(now.year, now.month, 1)
+
+    week_trades = [t for t in all_trades if t.close_time >= week_start]
+    month_trades = [t for t in all_trades if t.close_time >= month_start]
+
+    overall = compute_journal_stats(all_trades)
+    week_stats = compute_journal_stats(week_trades)
+
+    starting_balance = account.starting_balance or 0.0
+    total_return_pct = (overall["net_profit"] / starting_balance * 100) if starting_balance else 0.0
+    max_dd, max_dd_pct = journal_max_drawdown(all_trades, starting_balance)
+    active_days = len({t.close_time.strftime("%Y-%m-%d") for t in all_trades})
+
+    month_param = request.args.get("jmonth")
+    if month_param:
+        try:
+            cal_year, cal_month = [int(x) for x in month_param.split("-")]
+        except Exception:
+            cal_year, cal_month = now.year, now.month
+    else:
+        cal_year, cal_month = now.year, now.month
+
+    cal_start = datetime(cal_year, cal_month, 1)
+    cal_end = datetime(cal_year + (1 if cal_month == 12 else 0), 1 if cal_month == 12 else cal_month + 1, 1)
+    cal_trades = [t for t in all_trades if cal_start <= t.close_time < cal_end]
+    cal_daily_pl = journal_daily_pl_map(cal_trades)
+
+    weekly_bars = []
+    week_pl = journal_daily_pl_map(week_trades)
+    for i in range(7):
+        d = week_start + timedelta(days=i)
+        key = d.strftime("%Y-%m-%d")
+        weekly_bars.append({"label": d.strftime("%a"), "date": key, "pl": round(week_pl.get(key, 0.0), 2)})
+
+    return {
+        "has_accounts": True,
+        "accounts": accounts,
+        "account": account,
+        "overall": overall,
+        "week_stats": week_stats,
+        "total_return_pct": round(total_return_pct, 2),
+        "max_dd": max_dd, "max_dd_pct": max_dd_pct,
+        "active_days": active_days,
+        "cal_year": cal_year, "cal_month": cal_month,
+        "cal_daily_pl": cal_daily_pl,
+        "cal_first_weekday": cal_start.weekday(),
+        "cal_days_in_month": (cal_end - cal_start).days,
+        "weekly_bars": weekly_bars,
+        "recent_trades": list(reversed(all_trades))[:8],
+        "current_balance": account.current_balance if account.current_balance is not None else starting_balance,
+        "current_equity": account.current_equity if account.current_equity is not None else starting_balance,
+    }
+
+
+@app.route("/dashboard/journal-trades")
+@login_required
+def journal_trades_data():
+    account = get_selected_journal_account(request.args.get("jaccount", type=int))
+    if not account:
+        return {"trades": [], "symbols": []}
+
+    query = account.trades
+    symbol = request.args.get("jsymbol", "").strip().upper()
+    trade_type = request.args.get("jtype", "").strip().lower()
+    start = request.args.get("jstart")
+    end = request.args.get("jend")
+    q = request.args.get("jq", "").strip()
+
+    if symbol:
+        query = query.filter(JournalTrade.symbol == symbol)
+    if trade_type in ("buy", "sell"):
+        query = query.filter(JournalTrade.trade_type == trade_type)
+    if start:
+        try:
+            query = query.filter(JournalTrade.close_time >= datetime.strptime(start, "%Y-%m-%d"))
+        except ValueError:
+            pass
+    if end:
+        try:
+            query = query.filter(JournalTrade.close_time < datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1))
+        except ValueError:
+            pass
+    if q:
+        query = query.filter(JournalTrade.symbol.ilike(f"%{q}%"))
+
+    sort = request.args.get("jsort", "close_time")
+    direction = request.args.get("jdir", "desc")
+    sort_col = getattr(JournalTrade, sort, JournalTrade.close_time)
+    query = query.order_by(sort_col.desc() if direction == "desc" else sort_col.asc())
+
+    trades = query.limit(500).all()
+    symbols = sorted({t.symbol for t in account.trades.all()})
+
+    return {
+        "account": account, "trades": trades, "symbols": symbols,
+        "jsort": sort, "jdir": direction,
+        "filters": {"symbol": symbol, "type": trade_type, "q": q, "start": start or "", "end": end or ""},
+    }
+
+
+@app.route("/journal/account/new", methods=["POST"])
+@login_required
+def journal_account_new():
+    name = request.form.get("name", "").strip()
+    mt5_login = request.form.get("mt5_login", "").strip()
+
+    if not name or not mt5_login:
+        flash("Account name and MT5 login number are required.", "error")
+        return redirect(url_for("user_dashboard", section="journal"))
+
+    if JournalAccount.query.filter_by(user_id=current_user.id, mt5_login=mt5_login).first():
+        flash("You already have an account linked to that MT5 login number.", "error")
+        return redirect(url_for("user_dashboard", section="journal"))
+
+    try:
+        starting_balance = float(request.form.get("starting_balance") or 0)
+    except ValueError:
+        starting_balance = 0.0
+
+    account = JournalAccount(
+        user_id=current_user.id, name=name,
+        broker=request.form.get("broker", "").strip() or None,
+        prop_firm=request.form.get("prop_firm", "").strip() or None,
+        mt5_login=mt5_login,
+        mt5_server=request.form.get("mt5_server", "").strip() or None,
+        currency=request.form.get("currency", "USD").strip() or "USD",
+        starting_balance=starting_balance,
+        current_balance=starting_balance, current_equity=starting_balance,
+        sync_token=secrets.token_hex(24),
+    )
+    db.session.add(account)
+    db.session.commit()
+
+    session["journal_account_id"] = account.id
+    flash(f"'{name}' added. Install the sync agent on that account's VPS to start importing trades.", "success")
+    return redirect(url_for("user_dashboard", section="journal", jaccount=account.id))
+
+
+@app.route("/journal/account/<int:account_id>/delete", methods=["POST"])
+@login_required
+def journal_account_delete(account_id):
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    name = account.name
+    db.session.delete(account)
+    db.session.commit()
+    if session.get("journal_account_id") == account_id:
+        session.pop("journal_account_id", None)
+    flash(f"'{name}' and all its trade history were deleted.", "success")
+    return redirect(url_for("user_dashboard", section="journal"))
+
+
+@app.route("/journal/account/<int:account_id>/regen-token", methods=["POST"])
+@login_required
+def journal_account_regen_token(account_id):
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    account.sync_token = secrets.token_hex(24)
+    db.session.commit()
+    flash("New sync token generated. Update the agent config on the VPS.", "success")
+    return redirect(url_for("user_dashboard", section="journal", jaccount=account_id))
+
+
+@app.route("/journal/account/<int:account_id>/sync-now", methods=["POST"])
+@login_required
+def journal_account_sync_now(account_id):
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    account.sync_requested_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "message": "Sync requested. The agent on your VPS will push new trades within a few seconds if it's running.",
+    })
+
+
+@app.route("/journal/api/day/<int:account_id>/<day>")
+@login_required
+def journal_api_day(account_id, day):
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    try:
+        d = datetime.strptime(day, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Invalid date"}), 400
+    next_d = d + timedelta(days=1)
+    trades = account.trades.filter(JournalTrade.close_time >= d, JournalTrade.close_time < next_d).order_by(JournalTrade.close_time).all()
+    stats = compute_journal_stats(trades)
+    return jsonify({
+        "date": day, "stats": stats,
+        "trades": [{
+            "symbol": t.symbol, "type": t.trade_type, "volume": t.volume,
+            "entry": t.entry_price, "sl": t.sl, "tp": t.tp, "exit": t.exit_price,
+            "profit": t.profit, "pips": t.pips,
+            "open_time": t.open_time.strftime("%H:%M") if t.open_time else None,
+            "close_time": t.close_time.strftime("%H:%M"),
+            "duration": t.duration_display(), "magic": t.magic_number,
+        } for t in trades]
+    })
+
+
+@app.route("/journal/api/ingest", methods=["POST"])
+def journal_api_ingest():
+    """
+    Called by mt5_sync_agent.py running on the user's Windows VPS.
+    Auth: header 'X-Sync-Token: <account.sync_token>'
+    """
+    token = request.headers.get("X-Sync-Token", "")
+    account = JournalAccount.query.filter_by(sync_token=token).first() if token else None
+    if not account:
+        return jsonify({"success": False, "error": "Invalid sync token"}), 401
+
+    data = request.get_json(silent=True) or {}
+    trades_payload = data.get("trades", [])
+
+    imported = skipped = 0
+    for tr in trades_payload:
+        try:
+            ticket = str(tr["ticket"])
+        except KeyError:
+            continue
+
+        if JournalTrade.query.filter_by(account_id=account.id, mt5_ticket=ticket).first():
+            skipped += 1
+            continue
+
+        try:
+            close_time = datetime.fromisoformat(tr["close_time"])
+        except Exception:
+            continue
+
+        open_time = None
+        if tr.get("open_time"):
+            try:
+                open_time = datetime.fromisoformat(tr["open_time"])
+            except Exception:
+                pass
+
+        db.session.add(JournalTrade(
+            account_id=account.id, mt5_ticket=ticket,
+            symbol=tr.get("symbol", "UNKNOWN"),
+            trade_type=(tr.get("type") or "buy").lower(),
+            volume=float(tr.get("volume") or 0),
+            entry_price=tr.get("entry_price"), sl=tr.get("sl"), tp=tr.get("tp"),
+            exit_price=tr.get("exit_price"), open_time=open_time, close_time=close_time,
+            profit=float(tr.get("profit") or 0), pips=tr.get("pips"),
+            magic_number=tr.get("magic_number"), comment=tr.get("comment"),
+        ))
+        imported += 1
+
+    if "balance" in data:
+        account.current_balance = data["balance"]
+    if "equity" in data:
+        account.current_equity = data["equity"]
+
+    account.last_synced_at = datetime.utcnow()
+    account.last_sync_error = None
+    account.sync_requested_at = None
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "imported": imported,
+        "skipped": skipped,
+    })
+
+
+# ============================================================================
 # ADMIN ROUTES
 # ============================================================================
 
@@ -1944,6 +2383,8 @@ def admin_dashboard():
     total_revenue = db.session.query(db.func.sum(Order.total_amount)).scalar() or 0
     total_downloads = db.session.query(db.func.sum(EAFile.download_count)).scalar() or 0
     active_vps = User.query.filter_by(vps_status='active').count()
+    journal_accounts = JournalAccount.query.filter_by(archived=False).count()
+    journal_trades = JournalTrade.query.count()
 
     recent_users = User.query.filter_by(is_admin=False).order_by(User.created_at.desc()).limit(10).all()
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
@@ -1981,6 +2422,8 @@ def admin_dashboard():
         total_revenue=total_revenue,
         total_downloads=total_downloads,
         active_vps=active_vps,
+        journal_accounts=journal_accounts,
+        journal_trades=journal_trades,
         recent_users=recent_users,
         recent_orders=recent_orders,
         recent_licenses=recent_licenses,
@@ -2096,12 +2539,14 @@ def admin_user_detail(user_id):
 
     orders = user.orders.order_by(Order.created_at.desc()).all()
     licenses = user.licenses.order_by(License.created_at.desc()).all()
+    journal_accounts = user.journal_accounts.filter_by(archived=False).order_by(JournalAccount.created_at).all()
 
     vps_password = decrypt_data(user.vps_password) if user.vps_password else None
 
     return render_template(
         "admin/user_detail.html",
         user=user, orders=orders, licenses=licenses,
+        journal_accounts=journal_accounts,
         vps_password=vps_password,
         now=datetime.utcnow()
     )
@@ -2158,7 +2603,6 @@ def admin_delete_user(user_id):
         flash("Admin accounts kunnen niet worden verwijderd.", "error")
         return redirect(url_for("admin_users"))
 
-    # Extra safety: admin must type the user's exact email to confirm.
     confirm_email = request.form.get("confirm_email", "").strip().lower()
     if confirm_email != user.email.lower():
         flash("Bevestigingsemail komt niet overeen. Gebruiker is niet verwijderd.", "error")
@@ -2168,8 +2612,6 @@ def admin_delete_user(user_id):
     id_for_log = user.id
 
     try:
-        # Terminate VPS at ThinkHuge first (if they have one), so we don't
-        # orphan a running server with no user record pointing to it.
         if user.vps_id and user.vps_status not in ("terminated", None):
             result = forexvps_client.terminate_vps(user.vps_id)
             if not result.get("success"):
@@ -2178,9 +2620,6 @@ def admin_delete_user(user_id):
                     f"{email_for_log}: {result.get('error')}"
                 )
 
-        # Cancel any live Stripe subscription immediately (not just
-        # cancel_at_period_end) — once the user row is gone we lose the
-        # ability to track/stop it later.
         if user.stripe_subscription_id and stripe is not None:
             try:
                 stripe.Subscription.delete(user.stripe_subscription_id)
@@ -2194,22 +2633,13 @@ def admin_delete_user(user_id):
                     f"{email_for_log}: {e}"
                 )
 
-        # EAFile.uploaded_by references users.id but has no ORM relationship/
-        # cascade — detach it manually so uploaded EA files aren't affected.
         EAFile.query.filter_by(uploaded_by=user.id).update({"uploaded_by": None})
-
-        # AuditLog.user_id has no delete cascade either — wipe this user's
-        # trail explicitly (client wants a full removal, not just revoke).
         AuditLog.query.filter_by(user_id=user.id).delete()
 
-        # This cascades (via cascade="all, delete-orphan") to:
-        # otp_tokens, licenses -> license_accounts -> ea_sessions, orders
         db.session.delete(user)
         db.session.commit()
 
         logger.info(f"[DELETE USER] ✅ Permanently deleted {email_for_log} (id={id_for_log})")
-        # user_id=None here on purpose — the user no longer exists, this is
-        # a system-level record that a deletion happened.
         log_audit(None, "user_deleted", f"Permanently deleted: {email_for_log} (was id={id_for_log})", request.remote_addr)
 
         flash(f"{email_for_log} is permanent verwijderd.", "success")
@@ -2225,25 +2655,6 @@ def admin_delete_user(user_id):
 @app.route("/admin/reactivate-membership/<int:user_id>", methods=["POST"])
 @admin_required
 def reactivate_membership(user_id):
-    """
-    Reactivate a user's membership.
-
-    Two distinct cases are handled:
-
-    1. previous_status == "cancelled":
-       The user's auto-renewal was stopped at Stripe (cancel_at_period_end),
-       but their existing paid period may not have ended yet - they never
-       necessarily lost access. Reactivating here means: resume auto-renewal
-       at Stripe (cancel_at_period_end=False) and flip the local status back
-       to "active", WITHOUT resetting membership_start/membership_end. If
-       the period had already lapsed (membership_end in the past), we grant
-       a fresh period from now instead of leaving them with an already-expired
-       end date.
-
-    2. previous_status == "revoked" (or anything else):
-       Admin is manually granting a brand new paid period, same behavior
-       this route had before - fresh membership_start/membership_end.
-    """
     user = db.session.get(User, user_id)
     if not user:
         flash("Gebruiker niet gevonden.", "error")
@@ -2384,7 +2795,7 @@ def delete_ea(ea_id):
 
 
 # ============================================================================
-# API - LICENSE VALIDATION (FIXED - MT5 ACCOUNT TRACKING)
+# API - LICENSE VALIDATION
 # ============================================================================
 
 @app.route("/api/validate-license", methods=["POST"])
@@ -2621,7 +3032,7 @@ def api_user_info():
 
 
 # ============================================================================
-# WIX WEBHOOK (with VPS provisioning)
+# WIX WEBHOOK
 # ============================================================================
 
 @app.route("/webhook/wix/payment", methods=["POST"])
@@ -2742,7 +3153,7 @@ def wix_payment_webhook():
 
 
 # ============================================================================
-# STRIPE WEBHOOK (with VPS provisioning + subscription cancellation tracking)
+# STRIPE WEBHOOK
 # ============================================================================
 
 @app.route("/webhook/stripe/payment", methods=["POST"])
@@ -2789,10 +3200,6 @@ def stripe_payment_webhook():
             currency = (session_data.get("currency") or "eur").upper()
             order_id = session_data.get("id", "")
 
-            # The Stripe subscription + customer ID, present when the Checkout
-            # Session was created with mode="subscription". This is what lets
-            # us actually cancel the recurring billing later (see
-            # cancel_membership()) instead of only flipping a local flag.
             stripe_subscription_id = session_data.get("subscription")
             stripe_customer_id = session_data.get("customer")
 
@@ -2833,11 +3240,6 @@ def stripe_payment_webhook():
                 db.session.flush()
                 is_new = True
             else:
-                # If this user had previously cancelled and this event is a
-                # genuinely new checkout (new subscription id), treat it as a
-                # fresh signup. If it's a duplicate/replayed event for an
-                # order we've already recorded, don't silently resurrect or
-                # re-extend a cancelled membership.
                 already_processed = bool(order_id) and Order.query.filter_by(wix_order_id=order_id).first() is not None
                 if user.membership_status == "cancelled" and already_processed:
                     logger.info(
@@ -2895,12 +3297,6 @@ def stripe_payment_webhook():
             )
 
         elif event_type == "customer.subscription.deleted":
-            # Fired by Stripe once a cancel_at_period_end subscription's paid
-            # period actually ends (or on an immediate cancellation). Purely
-            # for audit-log visibility here — membership expiry itself is
-            # already handled by is_membership_active()/cleanup_expired_vps()
-            # based on membership_end, so this is not required for correctness,
-            # just for a clean audit trail.
             sub = event["data"]["object"]._to_dict_recursive()
             sub_id = sub.get("id")
             user = User.query.filter_by(stripe_subscription_id=sub_id).first()
@@ -2909,8 +3305,6 @@ def stripe_payment_webhook():
                 log_audit(user.id, "stripe_subscription_deleted", f"sub_id={sub_id}", request.remote_addr)
 
         elif event_type == "customer.subscription.updated":
-            # Optional: useful for logging when Stripe confirms
-            # cancel_at_period_end was actually set, or reversed.
             sub = event["data"]["object"]._to_dict_recursive()
             sub_id = sub.get("id")
             cancel_at_period_end = sub.get("cancel_at_period_end")
@@ -2932,13 +3326,6 @@ def stripe_payment_webhook():
 # ============================================================================
 # DISCORD
 # ============================================================================
-#
-# NOTE: All Discord API requests below now send a browser-like User-Agent
-# (DISCORD_BROWSER_USER_AGENT). Cloudflare, which fronts discord.com, blocks
-# urllib's default "Python-urllib/3.x" User-Agent as a bot, which previously
-# caused the token exchange in discord_callback() to fail with a bare
-# "HTTP Error 403: Forbidden" and no further detail. This is the same class
-# of issue already fixed for the ThinkHuge VPS API elsewhere in this file.
 
 def assign_discord_role(discord_id):
     try:
@@ -3096,7 +3483,7 @@ with app.app_context():
 start_auto_cleanup()
 
 logger.info("=" * 80)
-logger.info("APPLICATION STARTUP COMPLETE - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS READY")
+logger.info("APPLICATION STARTUP COMPLETE - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS + TRADING JOURNAL READY")
 logger.info("=" * 80)
 
 if __name__ == "__main__":
