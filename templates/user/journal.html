@@ -327,6 +327,7 @@
     .badge.buy { background: var(--j-green-bg); color: var(--j-green); }
     .badge.sell { background: var(--j-red-bg); color: var(--j-red); }
     .badge.breakeven { background: var(--j-sunken); color: var(--j-muted); border: 1px solid var(--j-border); }
+    .badge.neutral { background: var(--j-accent-bg); color: var(--j-accent); }
 
     /* Filters */
     .filter-bar {
@@ -354,7 +355,7 @@
         font-size: 0.8rem;
         background: #fff;
     }
-    .filter-bar .btn-filter {
+    .btn-filter {
         padding: 0.45rem 1rem;
         border-radius: 8px;
         border: 1px solid var(--j-accent);
@@ -364,7 +365,7 @@
         font-size: 0.8rem;
         cursor: pointer;
     }
-    .filter-bar .btn-clear {
+    .btn-clear {
         padding: 0.45rem 0.9rem;
         border-radius: 8px;
         border: 1px solid var(--j-border-strong);
@@ -784,7 +785,7 @@
                                                ('entry_price','Entry'),('sl','SL'),('tp','TP'),('exit_price','Exit'),
                                                ('profit','Profit'),('pips','Pips'),('magic_number','Magic')] %}
                         <th>
-                            <a href="{{ url_for('journal_page', account_id=account.id, tab='trades', jsort=col, jdir='asc' if sort==col and direction=='desc' else 'desc', **{k:v for k,v in filters.items() if v}) }}">
+                            <a href="{{ url_for('journal_page', account_id=account.id, tab='trades', jsort=col, jdir='asc' if sort==col and direction=='desc' else 'desc', jsymbol=filters.symbol, jtype=filters.type, jstart=filters.start, jend=filters.end, jq=filters.q) }}">
                                 {{ label }} {% if sort == col %}{{ '↓' if direction=='desc' else '↑' }}{% endif %}
                             </a>
                         </th>
@@ -851,28 +852,15 @@
         <div class="panel">
             <div class="panel-head"><div class="t"><i class="fas fa-chart-line"></i> Monthly Summary</div></div>
             <div class="panel-body">
-                {% set month_trades = trades|selectattr('close_time')|select('ge', cal_start)|select('lt', cal_end)|list %}
-                {% set month_stats = compute_journal_stats(month_trades) %}
-                <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_stats.net_profit >= 0 else 'neg' }}">${{ '%.2f'|format(month_stats.net_profit) }}</span></div>
-                <div class="stat-row"><span class="k">Total Trades</span><span class="v">{{ month_stats.total_trades }}</span></div>
-                <div class="stat-row"><span class="k">Win Rate</span><span class="v">{{ month_stats.win_rate }}%</span></div>
-                <div class="stat-row"><span class="k">Profit Factor</span><span class="v">{{ month_stats.profit_factor }}</span></div>
-                <div class="stat-row"><span class="k">Largest Win</span><span class="v pos">${{ month_stats.largest_win }}</span></div>
-                <div class="stat-row"><span class="k">Largest Loss</span><span class="v neg">${{ month_stats.largest_loss }}</span></div>
+                {% set month_trades_list = cal_daily_pl %}
+                {% set month_net = cal_daily_pl.values()|sum %}
+                {% set month_trade_count = cal_daily_pl|length %}
+                <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_net >= 0 else 'neg' }}">${{ '%.2f'|format(month_net) }}</span></div>
+                <div class="stat-row"><span class="k">Trading Days</span><span class="v">{{ month_trade_count }}</span></div>
                 <div class="stat-row"><span class="k">Best Day</span><span class="v pos">${{ '%.2f'|format(cal_daily_pl.values()|max if cal_daily_pl else 0) }}</span></div>
                 <div class="stat-row"><span class="k">Worst Day</span><span class="v neg">${{ '%.2f'|format(cal_daily_pl.values()|min if cal_daily_pl else 0) }}</span></div>
-                <div class="stat-row"><span class="k">Trading Days</span><span class="v">{{ cal_daily_pl|length }}</span></div>
             </div>
         </div>
-    </div>
-
-    <!-- Day detail trades will load here -->
-    <div class="panel" id="dayDetailPanel" style="display:none;">
-        <div class="panel-head">
-            <div class="t"><i class="fas fa-calendar-day"></i> <span id="dayDetailTitle">Day Details</span></div>
-            <button class="btn btn-outline" onclick="closeDayDetail()" style="font-size:0.75rem;">Close</button>
-        </div>
-        <div class="panel-body" id="dayDetailBody">Loading…</div>
     </div>
 
     {% elif active_tab == 'accounts' %}
@@ -883,7 +871,7 @@
             <div>
                 <h3>
                     {{ a.name }}
-                    {% if a.id == account.id %}<span class="badge" style="background: var(--j-accent-bg); color: var(--j-accent); font-size:0.65rem;">CURRENT</span>{% endif %}
+                    {% if a.id == account.id %}<span class="badge neutral" style="font-size:0.65rem;">CURRENT</span>{% endif %}
                 </h3>
                 <div class="meta">
                     {{ a.broker or 'MT5' }}{% if a.prop_firm %} · {{ a.prop_firm }}{% endif %} · 
