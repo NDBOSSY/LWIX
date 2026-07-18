@@ -403,9 +403,9 @@
     <!-- ================================================================ -->
     <div style="max-width: 700px;">
         <p style="color: var(--j-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
-            Connect your MT5 account to start tracking your trades automatically.
-            Enter your MT5 login number and download the sync agent to your VPS.
-        </p>
+    Connect your MT5 account to start tracking your trades automatically.
+    Enter your MT5 login number and download the sync agent to your computer.
+</p>
 
         {% if accounts %}
         <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem;">
@@ -457,7 +457,7 @@
         <div class="new-form">
             <h3><i class="fas fa-plug"></i> Connect MT5 Account</h3>
             <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
-                Enter your MT5 login number. After creating, download the sync agent to your VPS
+                Enter your MT5 login number. After creating, download the sync agent to your computer
                 and it will automatically detect your broker, server, currency, balance, and import all your trades.
             </p>
             <form method="POST" action="{{ url_for('journal_account_new') }}">
@@ -481,7 +481,7 @@
         <div class="agent-note">
             <strong><i class="fas fa-info-circle"></i> How It Works:</strong> The sync agent runs on your VPS alongside MT5.
             It reads closed trades directly from the MT5 terminal and pushes them to your journal automatically every 5 minutes.
-            No passwords needed — MT5 is already logged in on your VPS.
+            No passwords needed — MT5 is already logged in on your computer.
         </div>
     </div>
 
