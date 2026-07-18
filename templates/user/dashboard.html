@@ -936,8 +936,8 @@
     <!-- Top Bar with Language Toggle -->
     <div class="top-bar">
 
-    <div>
-        <a href="{{ url_for('journal_page') }}" class="btn btn-primary" style="text-decoration: none;">
+       <div>
+        <a href="{{ url_for('journal_page') }}" class="btn" style="background: linear-gradient(135deg, #1e54e5, #6d3ce0); color: #fff; border: none; text-decoration: none; padding: 0.55rem 1.2rem; border-radius: 10px; font-weight: 600; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.15s;">
             <i class="fas fa-chart-line"></i> 
             <span data-en="Trading Journal" data-nl="Trading Journaal">
                 {{ 'Trading Journaal' if current_language == 'nl' else 'Trading Journal' }}
