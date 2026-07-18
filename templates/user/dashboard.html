@@ -935,6 +935,15 @@
 <div class="dashboard-wrapper">
     <!-- Top Bar with Language Toggle -->
     <div class="top-bar">
+
+    <div>
+        <a href="{{ url_for('journal_page') }}" class="btn btn-primary" style="text-decoration: none;">
+            <i class="fas fa-chart-line"></i> 
+            <span data-en="Trading Journal" data-nl="Trading Journaal">
+                {{ 'Trading Journaal' if current_language == 'nl' else 'Trading Journal' }}
+            </span>
+        </a>
+    </div>
         <div></div>
         <div class="language-toggle" id="languageToggle">
             <button 
