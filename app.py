@@ -2365,6 +2365,165 @@ def journal_api_ingest():
     })
 
 
+
+@app.route("/journal")
+@login_required
+def journal_page():
+    """
+    Single-page Trading Journal that contains everything:
+    Dashboard, Trades, Calendar, Statistics, and Account Management
+    all in one tabbed interface.
+    """
+    if not current_user.is_membership_active():
+        flash("Actief abonnement vereist.", "error")
+        return redirect(url_for("user_dashboard"))
+    
+    # Get all user's journal accounts
+    accounts = JournalAccount.query.filter_by(
+        user_id=current_user.id, archived=False
+    ).order_by(JournalAccount.created_at).all()
+    
+    # Get selected account
+    requested_id = request.args.get("account_id", type=int)
+    account = get_selected_journal_account(requested_id)
+    
+    # If no account exists, show the create form
+    if not account:
+        return render_template(
+            "journal/index.html",
+            accounts=accounts,
+            account=None,
+            active_tab="accounts"
+        )
+    
+    # Load all the data for the selected account
+    now = datetime.utcnow()
+    all_trades = account.trades.order_by(JournalTrade.close_time.asc()).all()
+    
+    # Calendar data
+    today_start = datetime(now.year, now.month, now.day)
+    week_start = today_start - timedelta(days=today_start.weekday())
+    month_start = datetime(now.year, now.month, 1)
+    
+    week_trades = [t for t in all_trades if t.close_time >= week_start]
+    
+    overall = compute_journal_stats(all_trades)
+    week_stats = compute_journal_stats(week_trades)
+    
+    starting_balance = account.starting_balance or 0.0
+    total_return_pct = (overall["net_profit"] / starting_balance * 100) if starting_balance else 0.0
+    max_dd, max_dd_pct = journal_max_drawdown(all_trades, starting_balance)
+    active_days = len({t.close_time.strftime("%Y-%m-%d") for t in all_trades})
+    
+    # Month for calendar
+    month_param = request.args.get("month")
+    if month_param:
+        try:
+            cal_year, cal_month = [int(x) for x in month_param.split("-")]
+        except Exception:
+            cal_year, cal_month = now.year, now.month
+    else:
+        cal_year, cal_month = now.year, now.month
+    
+    cal_start = datetime(cal_year, cal_month, 1)
+    cal_end = datetime(cal_year + (1 if cal_month == 12 else 0), 1 if cal_month == 12 else cal_month + 1, 1)
+    cal_trades = [t for t in all_trades if cal_start <= t.close_time < cal_end]
+    cal_daily_pl = journal_daily_pl_map(cal_trades)
+    cal_first_weekday = cal_start.weekday()
+    cal_days_in_month = (cal_end - cal_start).days
+    
+    # Weekly chart data
+    weekly_bars = []
+    week_pl = journal_daily_pl_map(week_trades)
+    for i in range(7):
+        d = week_start + timedelta(days=i)
+        key = d.strftime("%Y-%m-%d")
+        weekly_bars.append({
+            "label": d.strftime("%a"), 
+            "date": key, 
+            "pl": round(week_pl.get(key, 0.0), 2)
+        })
+    
+    # Trade filters
+    symbol = request.args.get("jsymbol", "").strip().upper()
+    trade_type = request.args.get("jtype", "").strip().lower()
+    start = request.args.get("jstart")
+    end = request.args.get("jend")
+    q = request.args.get("jq", "").strip()
+    
+    query = account.trades
+    if symbol:
+        query = query.filter(JournalTrade.symbol == symbol)
+    if trade_type in ("buy", "sell"):
+        query = query.filter(JournalTrade.trade_type == trade_type)
+    if start:
+        try:
+            query = query.filter(JournalTrade.close_time >= datetime.strptime(start, "%Y-%m-%d"))
+        except ValueError:
+            pass
+    if end:
+        try:
+            query = query.filter(JournalTrade.close_time < datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1))
+        except ValueError:
+            pass
+    if q:
+        query = query.filter(JournalTrade.symbol.ilike(f"%{q}%"))
+    
+    sort = request.args.get("jsort", "close_time")
+    direction = request.args.get("jdir", "desc")
+    sort_col = getattr(JournalTrade, sort, JournalTrade.close_time)
+    query = query.order_by(sort_col.desc() if direction == "desc" else sort_col.asc())
+    
+    trades = query.limit(500).all()
+    symbols = sorted({t.symbol for t in account.trades.all()})
+    
+    # Build base query string for sorting links
+    base_qs = ""
+    for key in ["jsymbol", "jtype", "jstart", "jend", "jq"]:
+        val = request.args.get(key, "")
+        if val:
+            base_qs += f"{key}={urllib.parse.quote(val)}&"
+    base_qs = base_qs.rstrip("&")
+    
+    # Active tab
+    active_tab = request.args.get("tab", "dashboard")
+    
+    return render_template(
+        "journal/index.html",
+        accounts=accounts,
+        account=account,
+        active_tab=active_tab,
+        # Dashboard data
+        overall=overall,
+        week_stats=week_stats,
+        total_return_pct=round(total_return_pct, 2),
+        max_dd=max_dd,
+        max_dd_pct=max_dd_pct,
+        active_days=active_days,
+        current_balance=account.current_balance if account.current_balance is not None else starting_balance,
+        current_equity=account.current_equity if account.current_equity is not None else starting_balance,
+        # Calendar data
+        cal_year=cal_year,
+        cal_month=cal_month,
+        cal_daily_pl=cal_daily_pl,
+        cal_first_weekday=cal_first_weekday,
+        cal_days_in_month=cal_days_in_month,
+        # Weekly chart
+        weekly_bars=weekly_bars,
+        # Recent trades
+        recent_trades=list(reversed(all_trades))[:8],
+        # Trade list data
+        trades=trades,
+        symbols=symbols,
+        sort=sort,
+        direction=direction,
+        base_qs=base_qs,
+        filters={"symbol": symbol, "type": trade_type, "q": q, "start": start or "", "end": end or ""},
+        # Month names for calendar
+        month_names=['','January','February','March','April','May','June','July','August','September','October','November','December']
+    )
+
+
 # ============================================================================
 # ADMIN ROUTES
 # ============================================================================
