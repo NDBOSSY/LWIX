@@ -1,0 +1,1037 @@
+{% extends "base.html" %}
+{% block title %}Trading Journal - Trading Engine{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+    :root {
+        --j-bg: #ffffff;
+        --j-surface: #ffffff;
+        --j-sunken: #f7f9fc;
+        --j-border: #e6eaef;
+        --j-border-strong: #cdd5de;
+        --j-ink: #0b121a;
+        --j-ink-secondary: #1e2a36;
+        --j-muted: #5b6f7e;
+        --j-soft: #96a6b5;
+        --j-green: #0c8b51;
+        --j-green-bg: #e7f4ed;
+        --j-red: #c8311e;
+        --j-red-bg: #fcebe8;
+        --j-accent: #1e54e5;
+        --j-accent-bg: #eaf0fd;
+        --j-amber: #a86200;
+        --j-shadow: 0 2px 6px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .journal-wrapper {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem 1.75rem 4rem;
+        font-family: 'Inter', sans-serif;
+        color: var(--j-ink);
+    }
+
+    .journal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .journal-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .journal-header h1 i { color: var(--j-accent); }
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--j-muted);
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--j-ink); }
+
+    /* Account switcher bar */
+    .account-bar {
+        background: var(--j-sunken);
+        border: 1px solid var(--j-border);
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .account-bar select {
+        border: 1px solid var(--j-border-strong);
+        border-radius: 9px;
+        padding: 0.5rem 0.9rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        background: #fff;
+        color: var(--j-ink);
+        min-width: 220px;
+    }
+    .sync-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1rem;
+        border-radius: 9px;
+        border: 1px solid var(--j-border-strong);
+        background: #fff;
+        font-weight: 600;
+        font-size: 0.82rem;
+        cursor: pointer;
+        color: var(--j-ink);
+        transition: all 0.15s;
+    }
+    .sync-btn:hover { border-color: var(--j-accent); color: var(--j-accent); }
+    .sync-info {
+        font-size: 0.78rem;
+        color: var(--j-muted);
+    }
+    .sync-info .dot {
+        width: 7px; height: 7px; border-radius: 10px;
+        background: var(--j-green); display: inline-block; margin-right: 0.35rem;
+    }
+
+    /* Tabs */
+    .journal-tabs {
+        display: flex;
+        gap: 0.25rem;
+        border-bottom: 2px solid var(--j-border);
+        margin-bottom: 1.5rem;
+    }
+    .journal-tabs a {
+        padding: 0.7rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--j-muted);
+        text-decoration: none;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .journal-tabs a:hover { color: var(--j-ink); }
+    .journal-tabs a.active {
+        color: var(--j-accent);
+        border-bottom-color: var(--j-accent);
+    }
+    .journal-tabs a i { width: 16px; text-align: center; }
+
+    /* KPIs */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+        gap: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+        background: var(--j-sunken);
+        border: 1px solid var(--j-border);
+        border-radius: 14px;
+        padding: 1rem 1.1rem;
+        transition: box-shadow 0.2s;
+    }
+    .kpi-card:hover { box-shadow: var(--j-shadow); }
+    .kpi-card .lbl {
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--j-soft);
+    }
+    .kpi-card .val {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 1.3rem;
+        margin-top: 0.25rem;
+    }
+    .kpi-card .sub {
+        font-size: 0.72rem;
+        color: var(--j-muted);
+        margin-top: 0.15rem;
+    }
+    .kpi-card.pos .val { color: var(--j-green); }
+    .kpi-card.neg .val { color: var(--j-red); }
+    .kpi-card.accent .val { color: var(--j-accent); }
+
+    /* Grid layouts */
+    .grid-3col {
+        display: grid;
+        grid-template-columns: 1fr 1.15fr 0.85fr;
+        gap: 1.1rem;
+        margin-bottom: 1.5rem;
+        align-items: start;
+    }
+    .grid-2col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 1150px) { .grid-3col, .grid-2col { grid-template-columns: 1fr; } }
+
+    /* Panels */
+    .panel {
+        background: var(--j-surface);
+        border: 1px solid var(--j-border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--j-shadow);
+    }
+    .panel-head {
+        padding: 0.85rem 1.1rem;
+        border-bottom: 1px solid var(--j-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--j-sunken);
+        font-weight: 700;
+        font-size: 0.82rem;
+    }
+    .panel-head .t {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .panel-head .t i { color: var(--j-soft); width: 16px; text-align: center; }
+    .panel-body { padding: 1rem 1.1rem; }
+
+    /* Calendar */
+    .cal-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+    .cal-nav button {
+        border: 1px solid var(--j-border);
+        background: #fff;
+        width: 26px; height: 26px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+    }
+    .cal-dow {
+        font-size: 0.63rem;
+        font-weight: 700;
+        color: var(--j-soft);
+        text-align: center;
+        padding-bottom: 0.3rem;
+        text-transform: uppercase;
+    }
+    .cal-day {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        border: 1px solid var(--j-border);
+        font-size: 0.68rem;
+        padding: 0.25rem 0.3rem;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background: #fff;
+        transition: box-shadow 0.15s;
+    }
+    .cal-day.empty { visibility: hidden; }
+    .cal-day .n { font-weight: 600; color: var(--j-muted); }
+    .cal-day .p {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 0.62rem;
+        text-align: right;
+    }
+    .cal-day.pos { background: var(--j-green-bg); border-color: #c9edd9; }
+    .cal-day.pos .p { color: var(--j-green); }
+    .cal-day.neg { background: var(--j-red-bg); border-color: #f5c6cb; }
+    .cal-day.neg .p { color: var(--j-red); }
+    .cal-day:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .cal-day.today { border-color: var(--j-accent); }
+
+    /* Rows */
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.45rem 0;
+        border-bottom: 1px solid var(--j-border);
+        font-size: 0.8rem;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row .k { color: var(--j-muted); }
+    .stat-row .v {
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-row .v.pos { color: var(--j-green); }
+    .stat-row .v.neg { color: var(--j-red); }
+
+    /* Tables */
+    .jr-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+    }
+    .jr-table thead th {
+        text-align: left;
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--j-soft);
+        padding: 0.6rem 0.8rem;
+        border-bottom: 1px solid var(--j-border);
+        background: var(--j-sunken);
+        white-space: nowrap;
+    }
+    .jr-table thead th a { color: inherit; text-decoration: none; }
+    .jr-table thead th a:hover { color: var(--j-accent); }
+    .jr-table tbody td {
+        padding: 0.6rem 0.8rem;
+        border-bottom: 1px solid var(--j-border);
+        white-space: nowrap;
+    }
+    .jr-table tbody tr:last-child td { border-bottom: none; }
+    .jr-table tbody tr:hover { background: var(--j-sunken); }
+    .jr-table td.pos { color: var(--j-green); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .jr-table td.neg { color: var(--j-red); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 0.15rem 0.55rem;
+        border-radius: 20px;
+    }
+    .badge.buy { background: var(--j-green-bg); color: var(--j-green); }
+    .badge.sell { background: var(--j-red-bg); color: var(--j-red); }
+    .badge.breakeven { background: var(--j-sunken); color: var(--j-muted); border: 1px solid var(--j-border); }
+
+    /* Filters */
+    .filter-bar {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+        align-items: end;
+    }
+    .filter-bar .f-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    .filter-bar label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: var(--j-soft);
+        text-transform: uppercase;
+    }
+    .filter-bar input, .filter-bar select {
+        padding: 0.45rem 0.65rem;
+        border: 1px solid var(--j-border);
+        border-radius: 8px;
+        font-size: 0.8rem;
+        background: #fff;
+    }
+    .filter-bar .btn-filter {
+        padding: 0.45rem 1rem;
+        border-radius: 8px;
+        border: 1px solid var(--j-accent);
+        background: var(--j-accent);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.8rem;
+        cursor: pointer;
+    }
+    .filter-bar .btn-clear {
+        padding: 0.45rem 0.9rem;
+        border-radius: 8px;
+        border: 1px solid var(--j-border-strong);
+        background: #fff;
+        color: var(--j-muted);
+        font-weight: 500;
+        font-size: 0.78rem;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    /* Accounts page */
+    .acc-card {
+        border: 1px solid var(--j-border);
+        border-radius: 14px;
+        padding: 1.1rem 1.3rem;
+        margin-bottom: 0.9rem;
+        background: #fff;
+        transition: box-shadow 0.15s;
+    }
+    .acc-card:hover { box-shadow: var(--j-shadow); }
+    .acc-card.selected { border-color: var(--j-accent); box-shadow: 0 0 0 3px var(--j-accent-bg); }
+    .acc-card h3 { font-size: 0.95rem; font-weight: 700; margin: 0 0 0.3rem; display: flex; align-items: center; gap: 0.5rem; }
+    .acc-card .meta { font-size: 0.78rem; color: var(--j-muted); margin-top: 0.2rem; }
+    .acc-card .acc-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .acc-btn {
+        border: 1px solid var(--j-border-strong);
+        background: #fff;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        color: var(--j-ink);
+        transition: all 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    .acc-btn:hover { border-color: var(--j-ink); }
+    .acc-btn.primary { background: var(--j-accent); border-color: var(--j-accent); color: #fff; }
+    .acc-btn.primary:hover { background: #1642c9; }
+    .acc-btn.danger:hover { background: var(--j-red-bg); border-color: var(--j-red); color: var(--j-red); }
+    .token-box {
+        margin-top: 0.6rem;
+        background: var(--j-sunken);
+        border: 1px dashed var(--j-border-strong);
+        border-radius: 8px;
+        padding: 0.5rem 0.7rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.72rem;
+        word-break: break-all;
+        color: var(--j-muted);
+    }
+    .new-form {
+        border: 1px solid var(--j-border);
+        border-radius: 14px;
+        padding: 1.3rem;
+        margin-top: 1.5rem;
+        background: #fff;
+    }
+    .new-form h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.9rem; }
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.8rem;
+    }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-grid label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--j-muted);
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    .form-grid input {
+        width: 100%;
+        padding: 0.5rem 0.7rem;
+        border: 1px solid var(--j-border);
+        border-radius: 8px;
+        font-size: 0.85rem;
+    }
+    .agent-note {
+        background: var(--j-accent-bg);
+        border: 1px solid #d7ddff;
+        border-radius: 10px;
+        padding: 0.8rem 1rem;
+        font-size: 0.78rem;
+        color: #2b3d8f;
+        margin-top: 1.5rem;
+        line-height: 1.5;
+    }
+
+    /* Modals */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(10,14,20,0.45);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+        background: #fff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        width: 92%;
+        max-width: 520px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+    .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
+
+    /* Toast */
+    .toast {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--j-ink);
+        color: #fff;
+        padding: 0.6rem 1.2rem;
+        border-radius: 30px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 2000;
+        pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+    .toast.error { background: var(--j-red); }
+    .toast.success { background: var(--j-green); }
+
+    .empty-state {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        color: var(--j-muted);
+    }
+    .empty-state .icon-wrap {
+        width: 48px; height: 48px;
+        border-radius: 12px;
+        background: var(--j-sunken);
+        border: 1px solid var(--j-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.8rem;
+        color: var(--j-soft);
+        font-size: 1.2rem;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1.1rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.82rem;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-decoration: none;
+    }
+    .btn-primary { background: var(--j-ink); color: #fff; }
+    .btn-primary:hover { background: var(--j-accent); }
+    .btn-outline { background: #fff; border: 1px solid var(--j-border-strong); color: var(--j-ink); }
+    .btn-outline:hover { border-color: var(--j-ink); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="journal-wrapper">
+    <!-- Header -->
+    <div class="journal-header">
+        <h1>
+            <i class="fas fa-chart-line"></i> 
+            Trading Journal
+        </h1>
+        <a href="{{ url_for('user_dashboard') }}" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% if not account %}
+    <!-- NO ACCOUNTS - Show accounts/create page -->
+    <div style="max-width: 920px;">
+        <p style="color: var(--j-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            No trading accounts yet. Add your first MT5 account to start tracking your trades.
+        </p>
+
+        {% if accounts %}
+        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem;">Your Accounts</h2>
+        {% for a in accounts %}
+        <div class="acc-card">
+            <div>
+                <h3>{{ a.name }}</h3>
+                <div class="meta">
+                    {{ a.broker or 'MT5' }}{% if a.prop_firm %} · {{ a.prop_firm }}{% endif %} · 
+                    Login {{ a.mt5_login }} · {{ a.mt5_server or 'no server' }} · {{ a.currency }}
+                </div>
+                <div class="meta">
+                    Starting: ${{ '%.2f'|format(a.starting_balance) }} · 
+                    Trades: {{ a.trades.count() }} · 
+                    Last synced: {{ a.last_synced_at.strftime('%d %b %H:%M') if a.last_synced_at else 'never' }}
+                </div>
+                <div class="token-box">
+                    Sync token: {{ a.sync_token }}<br>
+                    Endpoint: /journal/api/ingest · header: X-Sync-Token
+                </div>
+            </div>
+            <div class="acc-actions">
+                <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">Open</a>
+                <form method="POST" action="{{ url_for('journal_account_regen_token', account_id=a.id) }}" style="display:inline;">
+                    <button class="acc-btn" type="submit">New Token</button>
+                </form>
+                <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history?');">
+                    <button class="acc-btn danger" type="submit">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="new-form">
+            <h3>Add Trading Account</h3>
+            <form method="POST" action="{{ url_for('journal_account_new') }}">
+                <div class="form-grid">
+                    <div><label>Account Name *</label><input name="name" placeholder="FTMO 100K" required></div>
+                    <div><label>MT5 Login Number *</label><input name="mt5_login" placeholder="10012345" required></div>
+                    <div><label>Broker</label><input name="broker" placeholder="IC Markets"></div>
+                    <div><label>Prop Firm (optional)</label><input name="prop_firm" placeholder="FTMO"></div>
+                    <div><label>MT5 Server</label><input name="mt5_server" placeholder="ICMarketsSC-Demo"></div>
+                    <div><label>Currency</label><input name="currency" value="USD"></div>
+                    <div><label>Starting Balance</label><input name="starting_balance" type="number" step="0.01" placeholder="100000"></div>
+                </div>
+                <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
+                    <i class="fas fa-plus"></i> Add Account
+                </button>
+            </form>
+        </div>
+
+        <div class="agent-note">
+            <strong>📡 Connecting MT5:</strong> trades are imported automatically by a small sync agent that runs on your Windows VPS. 
+            Download <code>mt5_sync_agent.py</code>, configure it with your account's sync token, and run it. 
+            It pushes new closed trades every few minutes automatically.
+        </div>
+    </div>
+
+    {% else %}
+    <!-- HAS ACCOUNT - Show full journal UI -->
+
+    <!-- Account Switcher Bar -->
+    <div class="account-bar">
+        <div>
+            <select onchange="if(this.value) window.location.href=this.value;">
+                {% for a in accounts %}
+                <option value="{{ url_for('journal_page', account_id=a.id, tab=active_tab) }}" {{ 'selected' if a.id == account.id else '' }}>
+                    {{ a.name }} ({{ a.mt5_login }})
+                </option>
+                {% endfor %}
+            </select>
+            <span style="font-size:0.8rem; color: var(--j-muted); margin-left:0.75rem;">
+                {{ account.broker or 'MT5' }}{% if account.prop_firm %} · {{ account.prop_firm }}{% endif %} · {{ account.currency }}
+            </span>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <span class="sync-info">
+                <span class="dot"></span> 
+                Last sync: {{ account.last_synced_at.strftime('%d %b %H:%M') if account.last_synced_at else 'never' }}
+            </span>
+            <button class="sync-btn" onclick="requestSync({{ account.id }})">
+                <i class="fas fa-sync-alt" id="syncIcon"></i> Sync Now
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="journal-tabs">
+        <a href="{{ url_for('journal_page', account_id=account.id, tab='dashboard') }}" class="{{ 'active' if active_tab == 'dashboard' else '' }}">
+            <i class="fas fa-grip"></i> Dashboard
+        </a>
+        <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="{{ 'active' if active_tab == 'trades' else '' }}">
+            <i class="fas fa-list"></i> Trades
+        </a>
+        <a href="{{ url_for('journal_page', account_id=account.id, tab='calendar') }}" class="{{ 'active' if active_tab == 'calendar' else '' }}">
+            <i class="fas fa-calendar"></i> Calendar
+        </a>
+        <a href="{{ url_for('journal_page', account_id=account.id, tab='accounts') }}" class="{{ 'active' if active_tab == 'accounts' else '' }}">
+            <i class="fas fa-cog"></i> Accounts & Settings
+        </a>
+    </div>
+
+    {% if active_tab == 'dashboard' %}
+    <!-- DASHBOARD TAB -->
+    <div class="kpi-grid">
+        <div class="kpi-card"><div class="lbl">Balance</div><div class="val">${{ '%.2f'|format(current_balance) }}</div></div>
+        <div class="kpi-card"><div class="lbl">Equity</div><div class="val">${{ '%.2f'|format(current_equity) }}</div></div>
+        <div class="kpi-card {{ 'pos' if overall.net_profit >= 0 else 'neg' }}">
+            <div class="lbl">Net Profit</div>
+            <div class="val">{{ '+' if overall.net_profit >= 0 else '' }}${{ '%.2f'|format(overall.net_profit) }}</div>
+            <div class="sub">{{ total_return_pct }}% return</div>
+        </div>
+        <div class="kpi-card"><div class="lbl">Total Trades</div><div class="val">{{ overall.total_trades }}</div><div class="sub">{{ active_days }} active days</div></div>
+        <div class="kpi-card"><div class="lbl">Win Rate</div><div class="val">{{ overall.win_rate }}%</div><div class="sub">{{ overall.wins }}/{{ overall.total_trades }}</div></div>
+        <div class="kpi-card accent"><div class="lbl">Profit Factor</div><div class="val">{{ overall.profit_factor }}</div></div>
+    </div>
+
+    <div class="grid-3col">
+        <!-- Weekly Overview Chart -->
+        <div class="panel">
+            <div class="panel-head"><div class="t"><i class="fas fa-chart-bar"></i> Weekly P/L</div></div>
+            <div class="panel-body"><canvas id="weeklyChart" height="180"></canvas></div>
+        </div>
+
+        <!-- Week Summary -->
+        <div class="panel">
+            <div class="panel-head"><div class="t"><i class="fas fa-list-check"></i> This Week</div></div>
+            <div class="panel-body">
+                <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if week_stats.net_profit >= 0 else 'neg' }}">{{ '+' if week_stats.net_profit >= 0 else '' }}${{ '%.2f'|format(week_stats.net_profit) }}</span></div>
+                <div class="stat-row"><span class="k">Trades</span><span class="v">{{ week_stats.total_trades }}</span></div>
+                <div class="stat-row"><span class="k">Win Rate</span><span class="v">{{ week_stats.win_rate }}%</span></div>
+                <div class="stat-row"><span class="k">Profit Factor</span><span class="v">{{ week_stats.profit_factor }}</span></div>
+                <div class="stat-row"><span class="k">Expectancy</span><span class="v">${{ week_stats.expectancy }}</span></div>
+                <div class="stat-row"><span class="k">Avg Win/Loss</span><span class="v">${{ overall.avg_win }} / ${{ overall.avg_loss }}</span></div>
+            </div>
+        </div>
+
+        <!-- Overall Stats -->
+        <div class="panel">
+            <div class="panel-head"><div class="t"><i class="fas fa-chart-pie"></i> Overall</div></div>
+            <div class="panel-body">
+                <div class="stat-row"><span class="k">Largest Win</span><span class="v pos">${{ overall.largest_win }}</span></div>
+                <div class="stat-row"><span class="k">Largest Loss</span><span class="v neg">${{ overall.largest_loss }}</span></div>
+                <div class="stat-row"><span class="k">Max Drawdown</span><span class="v neg">${{ max_dd }} ({{ max_dd_pct }}%)</span></div>
+                <div class="stat-row"><span class="k">Win Streak</span><span class="v">{{ overall.longest_win_streak }}</span></div>
+                <div class="stat-row"><span class="k">Loss Streak</span><span class="v">{{ overall.longest_loss_streak }}</span></div>
+                <div class="stat-row"><span class="k">Avg Duration</span><span class="v">{{ overall.avg_duration_seconds // 3600 }}h {{ (overall.avg_duration_seconds % 3600) // 60 }}m</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Trades -->
+    <div class="panel">
+        <div class="panel-head">
+            <div class="t"><i class="fas fa-clock-rotate-left"></i> Recent Trades</div>
+            <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" style="font-size:0.78rem; font-weight:600; color:var(--j-accent); text-decoration:none;">View all →</a>
+        </div>
+        {% if recent_trades %}
+        <table class="jr-table">
+            <thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Vol</th><th>Entry</th><th>Exit</th><th>Profit</th><th>Pips</th><th>Duration</th></tr></thead>
+            <tbody>
+            {% for t in recent_trades %}
+            <tr>
+                <td>{{ t.close_time.strftime('%d %b, %H:%M') }}</td>
+                <td style="font-weight:600;">{{ t.symbol }}</td>
+                <td><span class="badge {{ t.trade_type }}">{{ t.trade_type|upper }}</span></td>
+                <td>{{ t.volume }}</td>
+                <td>{{ t.entry_price or '—' }}</td>
+                <td>{{ t.exit_price or '—' }}</td>
+                <td class="{{ 'pos' if t.profit >= 0 else 'neg' }}">{{ '+' if t.profit >= 0 else '' }}${{ '%.2f'|format(t.profit) }}</td>
+                <td>{{ t.pips or '—' }}</td>
+                <td>{{ t.duration_display() }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon-wrap"><i class="fas fa-plug"></i></div>
+            <p>No trades yet. Install the sync agent on your VPS to start importing.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {% elif active_tab == 'trades' %}
+    <!-- TRADES TAB -->
+    <div class="panel">
+        <div class="panel-head">
+            <div class="t"><i class="fas fa-list"></i> Trade History — {{ trades|length }} trades</div>
+        </div>
+        <div class="panel-body">
+            <!-- Filters -->
+            <form class="filter-bar" method="GET">
+                <input type="hidden" name="account_id" value="{{ account.id }}">
+                <input type="hidden" name="tab" value="trades">
+                <div class="f-group"><label>Symbol</label>
+                    <select name="jsymbol">
+                        <option value="">All</option>
+                        {% for s in symbols %}<option value="{{ s }}" {{ 'selected' if filters.symbol == s else '' }}>{{ s }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="f-group"><label>Type</label>
+                    <select name="jtype">
+                        <option value="">All</option>
+                        <option value="buy" {{ 'selected' if filters.type == 'buy' else '' }}>Buy</option>
+                        <option value="sell" {{ 'selected' if filters.type == 'sell' else '' }}>Sell</option>
+                    </select>
+                </div>
+                <div class="f-group"><label>From</label><input type="date" name="jstart" value="{{ filters.start }}"></div>
+                <div class="f-group"><label>To</label><input type="date" name="jend" value="{{ filters.end }}"></div>
+                <div class="f-group"><label>Search</label><input type="text" name="jq" placeholder="Symbol..." value="{{ filters.q }}"></div>
+                <button type="submit" class="btn-filter">Apply</button>
+                <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="btn-clear">Clear</a>
+            </form>
+
+            {% if trades %}
+            <table class="jr-table">
+                <thead>
+                    <tr>
+                        {% for col, label in [('close_time','Date'),('symbol','Symbol'),('trade_type','Type'),('volume','Vol'),
+                                               ('entry_price','Entry'),('sl','SL'),('tp','TP'),('exit_price','Exit'),
+                                               ('profit','Profit'),('pips','Pips'),('magic_number','Magic')] %}
+                        <th>
+                            <a href="{{ url_for('journal_page', account_id=account.id, tab='trades', jsort=col, jdir='asc' if sort==col and direction=='desc' else 'desc', **{k:v for k,v in filters.items() if v}) }}">
+                                {{ label }} {% if sort == col %}{{ '↓' if direction=='desc' else '↑' }}{% endif %}
+                            </a>
+                        </th>
+                        {% endfor %}
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for t in trades %}
+                <tr>
+                    <td>{{ t.close_time.strftime('%d %b %Y %H:%M') }}</td>
+                    <td style="font-weight:600;">{{ t.symbol }}</td>
+                    <td><span class="badge {{ t.trade_type }}">{{ t.trade_type|upper }}</span></td>
+                    <td>{{ t.volume }}</td>
+                    <td>{{ t.entry_price or '—' }}</td>
+                    <td>{{ t.sl or '—' }}</td>
+                    <td>{{ t.tp or '—' }}</td>
+                    <td>{{ t.exit_price or '—' }}</td>
+                    <td class="{{ 'pos' if t.profit >= 0 else 'neg' }}">{{ '+' if t.profit >= 0 else '' }}${{ '%.2f'|format(t.profit) }}</td>
+                    <td>{{ t.pips or '—' }}</td>
+                    <td>{{ t.magic_number or '—' }}</td>
+                    <td>{{ t.duration_display() }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <div class="icon-wrap"><i class="fas fa-search"></i></div>
+                <p>No trades match these filters.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% elif active_tab == 'calendar' %}
+    <!-- CALENDAR TAB -->
+    <div class="grid-2col">
+        <div class="panel">
+            <div class="panel-head">
+                <div class="t"><i class="fas fa-calendar"></i> {{ month_names[cal_month] }} {{ cal_year }}</div>
+                <div class="cal-nav">
+                    <button onclick="window.location.href='{{ url_for('journal_page', account_id=account.id, tab='calendar', month=(cal_year-1|string+'-12') if cal_month==1 else (cal_year|string+'-%02d'|format(cal_month-1))) }}'">‹</button>
+                    <span style="font-weight:600;">{{ month_names[cal_month] }} {{ cal_year }}</span>
+                    <button onclick="window.location.href='{{ url_for('journal_page', account_id=account.id, tab='calendar', month=(cal_year+1|string+'-01') if cal_month==12 else (cal_year|string+'-%02d'|format(cal_month+1))) }}'">›</button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="cal-grid">
+                    {% for dow in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<div class="cal-dow">{{ dow }}</div>{% endfor %}
+                    {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
+                    {% for day_num in range(1, cal_days_in_month + 1) %}
+                        {% set key = '%04d-%02d-%02d'|format(cal_year, cal_month, day_num) %}
+                        {% set pl = cal_daily_pl.get(key) %}
+                        <div class="cal-day {{ 'pos' if pl and pl > 0 else ('neg' if pl and pl < 0 else '') }} {{ 'today' if key == now.strftime('%Y-%m-%d') else '' }}" onclick="openDay('{{ key }}')">
+                            <span class="n">{{ day_num }}</span>
+                            {% if pl %}<span class="p">{{ '+' if pl > 0 else '' }}{{ '%.0f'|format(pl) }}</span>{% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head"><div class="t"><i class="fas fa-chart-line"></i> Monthly Summary</div></div>
+            <div class="panel-body">
+                {% set month_trades = trades|selectattr('close_time')|select('ge', cal_start)|select('lt', cal_end)|list %}
+                {% set month_stats = compute_journal_stats(month_trades) %}
+                <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_stats.net_profit >= 0 else 'neg' }}">${{ '%.2f'|format(month_stats.net_profit) }}</span></div>
+                <div class="stat-row"><span class="k">Total Trades</span><span class="v">{{ month_stats.total_trades }}</span></div>
+                <div class="stat-row"><span class="k">Win Rate</span><span class="v">{{ month_stats.win_rate }}%</span></div>
+                <div class="stat-row"><span class="k">Profit Factor</span><span class="v">{{ month_stats.profit_factor }}</span></div>
+                <div class="stat-row"><span class="k">Largest Win</span><span class="v pos">${{ month_stats.largest_win }}</span></div>
+                <div class="stat-row"><span class="k">Largest Loss</span><span class="v neg">${{ month_stats.largest_loss }}</span></div>
+                <div class="stat-row"><span class="k">Best Day</span><span class="v pos">${{ '%.2f'|format(cal_daily_pl.values()|max if cal_daily_pl else 0) }}</span></div>
+                <div class="stat-row"><span class="k">Worst Day</span><span class="v neg">${{ '%.2f'|format(cal_daily_pl.values()|min if cal_daily_pl else 0) }}</span></div>
+                <div class="stat-row"><span class="k">Trading Days</span><span class="v">{{ cal_daily_pl|length }}</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Day detail trades will load here -->
+    <div class="panel" id="dayDetailPanel" style="display:none;">
+        <div class="panel-head">
+            <div class="t"><i class="fas fa-calendar-day"></i> <span id="dayDetailTitle">Day Details</span></div>
+            <button class="btn btn-outline" onclick="closeDayDetail()" style="font-size:0.75rem;">Close</button>
+        </div>
+        <div class="panel-body" id="dayDetailBody">Loading…</div>
+    </div>
+
+    {% elif active_tab == 'accounts' %}
+    <!-- ACCOUNTS TAB -->
+    <div style="max-width: 920px;">
+        {% for a in accounts %}
+        <div class="acc-card {{ 'selected' if a.id == account.id else '' }}">
+            <div>
+                <h3>
+                    {{ a.name }}
+                    {% if a.id == account.id %}<span class="badge" style="background: var(--j-accent-bg); color: var(--j-accent); font-size:0.65rem;">CURRENT</span>{% endif %}
+                </h3>
+                <div class="meta">
+                    {{ a.broker or 'MT5' }}{% if a.prop_firm %} · {{ a.prop_firm }}{% endif %} · 
+                    Login {{ a.mt5_login }} · {{ a.mt5_server or 'no server' }} · {{ a.currency }}
+                </div>
+                <div class="meta">
+                    Starting: ${{ '%.2f'|format(a.starting_balance) }} · 
+                    Trades: {{ a.trades.count() }} · 
+                    Last synced: {{ a.last_synced_at.strftime('%d %b %Y %H:%M') if a.last_synced_at else 'never' }}
+                </div>
+                <div class="token-box">
+                    Sync token: {{ a.sync_token }}<br>
+                    Endpoint: /journal/api/ingest · header: X-Sync-Token
+                </div>
+            </div>
+            <div class="acc-actions">
+                <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">Open</a>
+                <form method="POST" action="{{ url_for('journal_account_regen_token', account_id=a.id) }}" style="display:inline;">
+                    <button class="acc-btn" type="submit">New Token</button>
+                </form>
+                <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history?');">
+                    <button class="acc-btn danger" type="submit">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="new-form">
+            <h3>Add Trading Account</h3>
+            <form method="POST" action="{{ url_for('journal_account_new') }}">
+                <div class="form-grid">
+                    <div><label>Account Name *</label><input name="name" placeholder="FTMO 100K" required></div>
+                    <div><label>MT5 Login Number *</label><input name="mt5_login" placeholder="10012345" required></div>
+                    <div><label>Broker</label><input name="broker" placeholder="IC Markets"></div>
+                    <div><label>Prop Firm (optional)</label><input name="prop_firm" placeholder="FTMO"></div>
+                    <div><label>MT5 Server</label><input name="mt5_server" placeholder="ICMarketsSC-Demo"></div>
+                    <div><label>Currency</label><input name="currency" value="USD"></div>
+                    <div><label>Starting Balance</label><input name="starting_balance" type="number" step="0.01" placeholder="100000"></div>
+                </div>
+                <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
+                    <i class="fas fa-plus"></i> Add Account
+                </button>
+            </form>
+        </div>
+
+        <div class="agent-note">
+            <strong>📡 Connecting MT5:</strong> trades are imported automatically by the sync agent running on your Windows VPS. 
+            Download <code>mt5_sync_agent.py</code>, configure it with your account's sync token from above, and run it on the VPS. 
+            It pushes new closed trades every few minutes automatically, and immediately when you hit "Sync Now" in the dashboard.<br><br>
+            <strong>Why the VPS?</strong> The MetaTrader5 Python library can only communicate with a terminal running on the same machine — 
+            no cloud server can reach into your desktop directly. The sync agent runs alongside your MT5 and EA on the same Windows VPS.
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+
+<!-- Day Detail Modal -->
+<div class="modal-overlay" id="dayModal">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 id="dayModalTitle">Day Details</h3>
+            <span style="cursor:pointer; color:var(--j-soft); font-size:1.1rem;" onclick="closeDayModal()">&times;</span>
+        </div>
+        <div id="dayModalBody">Loading…</div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="jrToast"></div>
+
+<script>
+    // Weekly chart
+    {% if active_tab == 'dashboard' and weekly_bars %}
+    const weeklyLabels = {{ weekly_bars|map(attribute='label')|list|tojson }};
+    const weeklyData = {{ weekly_bars|map(attribute='pl')|list|tojson }};
+    new Chart(document.getElementById('weeklyChart'), {
+        type: 'bar',
+        data: { labels: weeklyLabels, datasets: [{
+            data: weeklyData,
+            backgroundColor: weeklyData.map(v => v >= 0 ? '#0c8b51' : '#c8311e'),
+            borderRadius: 5, barThickness: 26
+        }]},
+        options: {
+            plugins: { legend: { display:false } },
+            scales: { 
+                y: { grid:{ color:'#eef0f3' }, ticks: { callback: v => '$'+v } }, 
+                x: { grid:{ display:false } } 
+            }
+        }
+    });
+    {% endif %}
+
+    const accountId = {{ account.id if account else 0 }};
+
+    function openDay(dateStr){
+        document.getElementById('dayModal').classList.add('show');
+        document.getElementById('dayModalTitle').textContent = dateStr;
+        document.getElementById('dayModalBody').innerHTML = '<p style="color:var(--j-muted);">Loading…</p>';
+        fetch('/journal/api/day/' + accountId + '/' + dateStr)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.trades || !data.trades.length){
+                    document.getElementById('dayModalBody').innerHTML = '<p style="color:var(--j-muted);">No trades on this day.</p>';
+                    return;
+                }
+                let rows = data.trades.map(t => `
+                    <div class="stat-row">
+                        <span class="k">${t.symbol} · ${t.type.toUpperCase()} · ${t.volume} lots · ${t.duration}</span>
+                        <span class="v ${t.profit >= 0 ? 'pos' : 'neg'}">${t.profit >= 0 ? '+' : ''}$${t.profit.toFixed(2)}</span>
+                    </div>
+                `).join('');
+                document.getElementById('dayModalBody').innerHTML = `
+                    <div class="stat-row"><span class="k">Net P/L</span><span class="v ${data.stats.net_profit >= 0 ? 'pos':'neg'}">$${data.stats.net_profit.toFixed(2)}</span></div>
+                    <div class="stat-row"><span class="k">Trades</span><span class="v">${data.stats.total_trades}</span></div>
+                    <div class="stat-row"><span class="k">Win Rate</span><span class="v">${data.stats.win_rate}%</span></div>
+                    <div style="margin-top:0.75rem; border-top:1px solid var(--j-border); padding-top:0.5rem;">${rows}</div>
+                `;
+            })
+            .catch(() => {
+                document.getElementById('dayModalBody').innerHTML = '<p style="color:var(--j-red);">Failed to load day data.</p>';
+            });
+    }
+
+    function closeDayModal(){ document.getElementById('dayModal').classList.remove('show'); }
+    document.getElementById('dayModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDayModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDayModal(); });
+
+    function showToast(msg, type){
+        const t = document.getElementById('jrToast');
+        t.textContent = msg;
+        t.className = 'toast';
+        if (type === 'error') t.classList.add('error');
+        if (type === 'success') t.classList.add('success');
+        t.classList.add('show');
+        if (t._hideTimeout) clearTimeout(t._hideTimeout);
+        t._hideTimeout = setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    function requestSync(id){
+        const icon = document.getElementById('syncIcon');
+        if (icon) icon.classList.add('fa-spin');
+        fetch('/journal/account/' + id + '/sync-now', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => { showToast(data.message || 'Sync requested', 'success'); })
+            .catch(() => showToast('Could not reach the server.', 'error'))
+            .finally(() => { if (icon) setTimeout(() => icon.classList.remove('fa-spin'), 1200); });
+    }
+</script>
+{% endblock %}
