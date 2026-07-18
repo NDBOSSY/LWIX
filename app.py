@@ -3,6 +3,65 @@ Subscription & Licensing Platform
 Complete Flask Application with Wix Integration, Stripe Integration, OTP Auth, 
 License Management, Discord Integration & ThinkHuge VPS Auto-Provisioning
 + Trading Journal with MT5 Sync Agent Integration
+
+ACCOUNT SLOT LOGIC:
+- Each UNIQUE MT5 account number = 1 slot
+- Multiple EAs on same MT5 account share 1 slot
+- Slot freed only when ALL EAs on that account are removed
+- Heartbeat auto-cleanup for crashed EAs (fully automatic)
+
+FIXED: Proper MT5 account tracking with unique account_number
+FIXED: Unlimited validations (max_validations=None skips the check)
+FIXED: Heartbeats no longer increment validation_count
+FIXED: Cancellation = stop auto-renewal, user keeps full access until paid period ends
+FIXED: Cancellation now actually cancels the Stripe subscription (cancel_at_period_end),
+       instead of only flipping a local status flag. Previously Stripe kept billing and
+       auto-renewing because it was never told to stop, and the next renewal webhook
+       would silently re-activate the membership and push membership_end forward again.
+ADDED: stripe_subscription_id / stripe_customer_id columns to track the real Stripe
+       subscription so it can be cancelled at the source.
+ADDED: Stripe customer.subscription.deleted webhook handler for audit-log visibility
+       when a cancelled subscription's paid period actually ends at Stripe.
+ADDED: Language toggle support (English/Nederlands)
+ADDED: "Need Help?" Contact Us support section
+ADDED: ThinkHuge VPS auto-provisioning on payment (Basic plan for all levels)
+ADDED: VPS auto-termination on membership expiry
+ADDED: VPS details display on user dashboard and admin user-detail page
+ADDED: VPS RDP port support - IP displayed with port for easy copy-paste
+FIXED: ThinkHuge API calls were being blocked by Cloudflare with
+       "Error 1010: browser_signature_banned" because urllib's default
+       User-Agent ("Python-urllib/3.x") is flagged as a bot by Cloudflare's
+       bot-management rules. All ThinkHuge requests now send a real
+       browser-like User-Agent (and related headers) to pass the check.
+FIXED: Discord OAuth token exchange / API calls (discord_callback,
+       assign_discord_role) were failing with a bare "HTTP Error 403: Forbidden"
+       for the same reason as the ThinkHuge issue above - Cloudflare fronts
+       discord.com too and blocks urllib's default User-Agent. All Discord API
+       requests (token exchange, /users/@me, guild join, role assignment) now
+       send a browser-like User-Agent. HTTPError responses are also now logged
+       with their actual body instead of just the status code.
+ADDED: Background retry/backfill sweep that automatically re-attempts VPS
+       provisioning for any paid, active user who doesn't yet have a VPS
+       (e.g. because a previous provisioning attempt failed).
+ADDED: Debug VPS endpoint for admins to diagnose VPS issues
+REMOVED: Automatic VPS "credentials ready" / "VPS terminated" emails. VPS
+       login details are already visible on the user dashboard and in the
+       admin user-detail page, so no email is sent for VPS lifecycle events
+       anymore. (License key emails and welcome/cancellation emails are
+       unaffected.)
+ADDED: Admin can reactivate a CANCELLED membership (not just a revoked one).
+       Reactivating a cancelled membership resumes auto-renewal at Stripe
+       (cancel_at_period_end=False) and keeps the existing paid period intact.
+       Reactivating a revoked membership still grants a fresh paid period,
+       same as before.
+ADDED: Trading Journal with MT5 Sync Agent integration
+ADDED: Journal account management with auto-detection of broker/server/currency
+ADDED: One-click sync agent download with pre-embedded token
+ADDED: Live dashboard auto-refresh every 60 seconds
+ADDED: Calendar view with daily P/L
+ADDED: Trade filtering, sorting, and search
+ADDED: Weekly P/L chart
+ADDED: Comprehensive trade statistics (win rate, profit factor, drawdown, etc.)
 """
 
 import os
@@ -55,6 +114,8 @@ load_dotenv()
 
 
 class Config:
+    """Application configuration loaded from environment variables."""
+    
     SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///licensing.db")
     if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
@@ -62,6 +123,7 @@ class Config:
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Email configuration (Brevo SMTP)
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp-relay.brevo.com")
     MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
@@ -70,9 +132,12 @@ class Config:
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", "noreply@tradingengine.nl")
 
+    # Webhook secrets
     WIX_WEBHOOK_SECRET = os.getenv("WIX_WEBHOOK_SECRET", "")
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
     STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", os.getenv("STRIPE_SECRET_KEY", ""))
+    
+    # Discord configuration
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
     DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "")
     DISCORD_ROLE_ID = os.getenv("DISCORD_ROLE_ID", "")
@@ -81,9 +146,13 @@ class Config:
     DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
     DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "")
 
+    # Encryption
     ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")
+    
+    # Rate limiting
     RATELIMIT_STORAGE_URL = os.getenv("REDIS_URL", "memory://")
 
+    # Application URLs and settings
     APP_URL = os.getenv("APP_URL", "http://localhost:5000")
     OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", 10))
     ADMIN_OTP_EXPIRY_MINUTES = 5
@@ -98,6 +167,7 @@ class Config:
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
+    # Language support
     LANGUAGES = {
         'en': 'English',
         'nl': 'Nederlands'
@@ -124,7 +194,6 @@ class Config:
     FOREXVPS_OS_TEMPLATE_ID = os.getenv("FOREXVPS_OS_TEMPLATE_ID", "").strip() or None
     FOREXVPS_OS_TEMPLATE_SEARCH = os.getenv("FOREXVPS_OS_TEMPLATE_SEARCH", "Windows 2022").strip()
 
-    # Default RDP port for ThinkHuge VPS instances
     FOREXVPS_DEFAULT_RDP_PORT = os.getenv("FOREXVPS_DEFAULT_RDP_PORT", "42014")
 
     FOREXVPS_RETRY_INTERVAL_SECONDS = int(os.getenv("FOREXVPS_RETRY_INTERVAL_SECONDS", 600))
@@ -132,21 +201,29 @@ class Config:
 
     @staticmethod
     def is_railway():
+        """Check if running on Railway.app."""
         return bool(os.getenv("RAILWAY_STATIC_URL"))
 
+
+# ============================================================================
+# APPLICATION INITIALIZATION
+# ============================================================================
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Initialize Stripe
 if stripe is not None and Config.STRIPE_API_KEY:
     stripe.api_key = Config.STRIPE_API_KEY
 
+# Railway-specific proxy configuration
 if Config.is_railway():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     app.config["SESSION_COOKIE_SECURE"] = True
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
+# Initialize extensions
 db = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager(app)
@@ -154,6 +231,7 @@ login_manager.login_view = "user_login"
 login_manager.login_message = "Log in om deze pagina te bekijken."
 CORS(app, supports_credentials=True)
 
+# Rate limiting
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -161,6 +239,7 @@ limiter = Limiter(
     storage_uri=Config.RATELIMIT_STORAGE_URL
 )
 
+# Logging
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s] - %(message)s"
@@ -170,11 +249,16 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # SHARED HTTP CONSTANTS
 # ============================================================================
+
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 DISCORD_BROWSER_USER_AGENT = BROWSER_USER_AGENT
+
+# ============================================================================
+# ENCRYPTION SETUP
+# ============================================================================
 
 try:
     if Config.ENCRYPTION_KEY:
@@ -193,6 +277,7 @@ except Exception:
     encryption_key = Fernet.generate_key()
     cipher_suite = Fernet(encryption_key)
 
+# Ensure upload directory exists
 Path(Config.UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
 
 logger.info("=" * 80)
@@ -205,7 +290,7 @@ logger.info("=" * 80)
 # ============================================================================
 
 def get_user_language():
-    """Get the user's preferred language"""
+    """Get the user's preferred language from session, user preference, or browser."""
     if 'language' in session:
         return session['language']
     if current_user.is_authenticated and hasattr(current_user, 'language_preference'):
@@ -217,7 +302,7 @@ def get_user_language():
 
 @app.context_processor
 def inject_globals():
-    """Make variables available to all templates"""
+    """Make language variables available to all templates."""
     return {
         'current_language': get_user_language(),
         'supported_languages': Config.LANGUAGES
@@ -230,20 +315,34 @@ def inject_globals():
 
 
 class User(UserMixin, db.Model):
+    """User model for authentication, membership, and VPS tracking."""
+    
     __tablename__ = "users"
+    
+    # Primary key
     id = db.Column(db.Integer, primary_key=True)
+    
+    # Contact information
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     first_name = db.Column(db.String(100), nullable=True)
     last_name = db.Column(db.String(100), nullable=True)
     phone = db.Column(db.String(30), nullable=True)
     country = db.Column(db.String(100), nullable=True)
+    
+    # Account status
     email_verified = db.Column(db.Boolean, default=False)
     is_admin = db.Column(db.Boolean, default=False)
+    
+    # Wix integration
     wix_contact_id = db.Column(db.String(100), nullable=True)
     wix_payment_id = db.Column(db.String(100), unique=True, nullable=True)
     wix_order_id = db.Column(db.String(100), nullable=True)
+    
+    # Stripe integration
     stripe_subscription_id = db.Column(db.String(100), nullable=True)
     stripe_customer_id = db.Column(db.String(100), nullable=True)
+    
+    # Membership
     membership_status = db.Column(db.String(20), default="pending", index=True)
     membership_start = db.Column(db.DateTime, nullable=True)
     membership_end = db.Column(db.DateTime, nullable=True)
@@ -252,12 +351,20 @@ class User(UserMixin, db.Model):
     plan_price = db.Column(db.Float, nullable=True)
     currency = db.Column(db.String(10), nullable=True)
     subscription_type = db.Column(db.String(50), nullable=True)
+    
+    # Discord
     discord_user_id = db.Column(db.String(100), nullable=True)
     discord_joined = db.Column(db.Boolean, default=False)
+    
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
+    
+    # Security
     login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
+    
+    # Preferences
     language_preference = db.Column(db.String(5), default='en')
 
     # ThinkHuge VPS fields
@@ -274,12 +381,14 @@ class User(UserMixin, db.Model):
     vps_last_error = db.Column(db.String(300), nullable=True)
     thinkhuge_user_id = db.Column(db.String(100), nullable=True)
 
+    # Relationships
     otp_tokens = db.relationship("OTPToken", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     licenses = db.relationship("License", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     orders = db.relationship("Order", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     journal_accounts = db.relationship("JournalAccount", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
     def is_membership_active(self):
+        """Check if the user's membership is currently active."""
         if self.membership_status not in ["active", "cancelled"]:
             return False
         if self.membership_end and self.membership_end < datetime.utcnow():
@@ -289,19 +398,28 @@ class User(UserMixin, db.Model):
         return True
 
     def get_active_license(self):
+        """Get the user's active license, if any."""
         return self.licenses.filter_by(status="active").first()
 
     def get_full_name(self):
-        if self.first_name and self.last_name: return f"{self.first_name} {self.last_name}"
-        elif self.first_name: return self.first_name
+        """Get the user's full name or fall back to email."""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
         return self.email
 
     def get_plan_level(self):
+        """Determine the user's plan level based on plan name."""
         if not self.plan_name:
             return 1
+        
+        # Check for explicit level number
         match = re.search(r'level\s*(\d+)', self.plan_name.lower())
         if match:
             return int(match.group(1))
+        
+        # Infer from plan name keywords
         plan_lower = self.plan_name.lower()
         if any(word in plan_lower for word in ['starter', 'basic', 'beginner', 'standard']):
             return 1
@@ -309,27 +427,26 @@ class User(UserMixin, db.Model):
             return 2
         elif any(word in plan_lower for word in ['elite', 'vip', 'premium', 'expert']):
             return 3
+        
         return 1
 
-    def get_membership_duration_display(self):
-        if not self.subscription_duration_days: return "Default"
-        if self.subscription_type == "lifetime": return "Lifetime"
-        if self.subscription_duration_days >= 365: return f"{self.subscription_duration_days / 365:.0f} Year"
-        if self.subscription_duration_days >= 30: return f"{self.subscription_duration_days / 30:.0f} Month"
-        return f"{self.subscription_duration_days} Days"
-
     def get_subscription_type_display(self, lang='en'):
+        """Get a human-readable subscription type."""
         if not self.subscription_type:
             return "Standaard" if lang == 'nl' else "Standard"
+        
         translations = {
             'lifetime': {'en': 'Lifetime', 'nl': 'Levenslang'},
             'monthly': {'en': 'Monthly', 'nl': 'Maandelijks'},
             'yearly': {'en': 'Yearly', 'nl': 'Jaarlijks'},
             'standard': {'en': 'Standard', 'nl': 'Standaard'}
         }
-        return translations.get(self.subscription_type.lower(), {}).get(lang, self.subscription_type.title())
+        return translations.get(self.subscription_type.lower(), {}).get(
+            lang, self.subscription_type.title()
+        )
 
     def get_status_display(self, lang='en'):
+        """Get a human-readable membership status."""
         translations = {
             'active': {'en': 'ACTIVE', 'nl': 'ACTIEF'},
             'cancelled': {'en': 'CANCELLED', 'nl': 'GEANNULEERD'},
@@ -337,21 +454,32 @@ class User(UserMixin, db.Model):
             'pending': {'en': 'PENDING', 'nl': 'IN AFWACHTING'},
             'revoked': {'en': 'REVOKED', 'nl': 'INGETROKKEN'}
         }
-        return translations.get(self.membership_status, {}).get(lang, self.membership_status.upper())
+        return translations.get(self.membership_status, {}).get(
+            lang, self.membership_status.upper()
+        )
 
     def to_dict(self):
+        """Serialize user to dictionary."""
         return {
-            "id": self.id, "email": self.email, "first_name": self.first_name,
-            "last_name": self.last_name, "full_name": self.get_full_name(),
-            "plan_level": self.get_plan_level(), "membership_status": self.membership_status,
-            "plan_name": self.plan_name, "subscription_type": self.subscription_type,
+            "id": self.id,
+            "email": self.email,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "full_name": self.get_full_name(),
+            "plan_level": self.get_plan_level(),
+            "membership_status": self.membership_status,
+            "plan_name": self.plan_name,
+            "subscription_type": self.subscription_type,
             "is_active": self.is_membership_active(),
             "language_preference": self.language_preference
         }
 
 
 class OTPToken(db.Model):
+    """One-time password token for login authentication."""
+    
     __tablename__ = "otp_tokens"
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     token = db.Column(db.String(6), nullable=False)
@@ -362,11 +490,15 @@ class OTPToken(db.Model):
     purpose = db.Column(db.String(50), default="login")
 
     def is_valid(self):
+        """Check if token is still valid."""
         return not self.used and self.expires_at > datetime.utcnow() and self.attempts < 3
 
 
 class License(db.Model):
+    """License key for EA activation."""
+    
     __tablename__ = "licenses"
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     license_key = db.Column(db.String(100), unique=True, nullable=False, index=True)
@@ -382,9 +514,12 @@ class License(db.Model):
     max_validations = db.Column(db.Integer, nullable=True, default=None)
     ea_version = db.Column(db.String(20), nullable=True)
 
-    accounts = db.relationship("LicenseAccount", backref="license", lazy="dynamic", cascade="all, delete-orphan")
+    accounts = db.relationship(
+        "LicenseAccount", backref="license", lazy="dynamic", cascade="all, delete-orphan"
+    )
 
     def is_valid(self):
+        """Check if license is currently valid."""
         if self.status != "active":
             return False
         if self.expires_at < datetime.utcnow():
@@ -396,23 +531,32 @@ class License(db.Model):
         return True
 
     def mask_license_key(self):
+        """Mask the license key for display."""
         if len(self.license_key) > 8:
             return f"{self.license_key[:4]}...{self.license_key[-4:]}"
         return self.license_key
 
 
 class LicenseAccount(db.Model):
+    """MT5 account linked to a license."""
+    
     __tablename__ = "license_accounts"
+    
     id = db.Column(db.Integer, primary_key=True)
     license_id = db.Column(db.Integer, db.ForeignKey("licenses.id"), nullable=False)
     account_number = db.Column(db.String(50), nullable=False)
     activated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    sessions = db.relationship("EASession", backref="license_account", lazy="dynamic", cascade="all, delete-orphan")
+    sessions = db.relationship(
+        "EASession", backref="license_account", lazy="dynamic", cascade="all, delete-orphan"
+    )
 
 
 class EASession(db.Model):
+    """Active EA session tracking."""
+    
     __tablename__ = "ea_sessions"
+    
     id = db.Column(db.Integer, primary_key=True)
     license_account_id = db.Column(db.Integer, db.ForeignKey("license_accounts.id"), nullable=False)
     session_id = db.Column(db.String(100), nullable=False, index=True)
@@ -427,7 +571,10 @@ class EASession(db.Model):
 
 
 class Order(db.Model):
+    """Order/payment record."""
+    
     __tablename__ = "orders"
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     wix_order_id = db.Column(db.String(100), unique=True, nullable=True)
@@ -446,7 +593,10 @@ class Order(db.Model):
 
 
 class AuditLog(db.Model):
+    """Audit trail for security events."""
+    
     __tablename__ = "audit_logs"
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     action = db.Column(db.String(50), nullable=False)
@@ -457,7 +607,10 @@ class AuditLog(db.Model):
 
 
 class EAFile(db.Model):
+    """Expert Advisor file for download."""
+    
     __tablename__ = "ea_files"
+    
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(200), nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
@@ -475,7 +628,10 @@ class EAFile(db.Model):
 
 
 class Setting(db.Model):
+    """Application settings key-value store."""
+    
     __tablename__ = "settings"
+    
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(50), unique=True, nullable=False)
     value = db.Column(db.String(200), nullable=False)
@@ -483,10 +639,14 @@ class Setting(db.Model):
 
 
 class JournalAccount(db.Model):
+    """Trading journal account linked to an MT5 login."""
+    
     __tablename__ = "journal_accounts"
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
 
+    # Basic info - name is user-defined, rest auto-detected by sync agent
     name = db.Column(db.String(100), nullable=False)
     broker = db.Column(db.String(100), nullable=True)
     prop_firm = db.Column(db.String(100), nullable=True)
@@ -495,18 +655,22 @@ class JournalAccount(db.Model):
     currency = db.Column(db.String(10), default="USD")
     starting_balance = db.Column(db.Float, default=0.0)
 
+    # Live balance/equity updated by sync agent
     current_balance = db.Column(db.Float, nullable=True)
     current_equity = db.Column(db.Float, nullable=True)
 
+    # Sync agent configuration
     sync_token = db.Column(db.String(64), unique=True, nullable=False)
     auto_sync = db.Column(db.Boolean, default=True)
     sync_requested_at = db.Column(db.DateTime, nullable=True)
     last_synced_at = db.Column(db.DateTime, nullable=True)
     last_sync_error = db.Column(db.String(300), nullable=True)
 
+    # Metadata
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     archived = db.Column(db.Boolean, default=False)
 
+    # Relationships
     trades = db.relationship(
         "JournalTrade", backref="account", lazy="dynamic",
         cascade="all, delete-orphan"
@@ -518,28 +682,36 @@ class JournalAccount(db.Model):
 
 
 class JournalTrade(db.Model):
+    """Individual trade record in the trading journal."""
+    
     __tablename__ = "journal_trades"
+    
     id = db.Column(db.Integer, primary_key=True)
     account_id = db.Column(db.Integer, db.ForeignKey("journal_accounts.id"), nullable=False, index=True)
 
+    # Trade identification
     mt5_ticket = db.Column(db.String(50), nullable=False)
     symbol = db.Column(db.String(20), nullable=False)
-    trade_type = db.Column(db.String(10), nullable=False)
+    trade_type = db.Column(db.String(10), nullable=False)  # 'buy' or 'sell'
     volume = db.Column(db.Float, nullable=False)
 
+    # Price levels
     entry_price = db.Column(db.Float, nullable=True)
     sl = db.Column(db.Float, nullable=True)
     tp = db.Column(db.Float, nullable=True)
     exit_price = db.Column(db.Float, nullable=True)
 
+    # Timing
     open_time = db.Column(db.DateTime, nullable=True)
     close_time = db.Column(db.DateTime, nullable=False, index=True)
 
+    # Results
     profit = db.Column(db.Float, nullable=False, default=0.0)
     pips = db.Column(db.Float, nullable=True)
     magic_number = db.Column(db.Integer, nullable=True)
     comment = db.Column(db.String(200), nullable=True)
 
+    # Metadata
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (
@@ -547,11 +719,13 @@ class JournalTrade(db.Model):
     )
 
     def duration_seconds(self):
+        """Calculate trade duration in seconds."""
         if self.open_time and self.close_time:
             return int((self.close_time - self.open_time).total_seconds())
         return None
 
     def duration_display(self):
+        """Format duration as human-readable string."""
         secs = self.duration_seconds()
         if secs is None:
             return "—"
@@ -566,7 +740,8 @@ class JournalTrade(db.Model):
 
 class ForexVPSClient:
     """
-    Client for ThinkHuge.net API.
+    Client for ThinkHuge.net VPS provisioning API.
+    Handles server creation, management, and termination.
     """
 
     BROWSER_USER_AGENT = BROWSER_USER_AGENT
@@ -585,9 +760,11 @@ class ForexVPSClient:
         }
 
     def is_configured(self):
+        """Check if the VPS API is properly configured."""
         return bool(self.api_key)
 
     def _request(self, path, method="GET", payload=None, timeout=120):
+        """Make an HTTP request to the ThinkHuge API."""
         data = json.dumps(payload).encode() if payload is not None else None
         req = urllib.request.Request(
             f"{self.api_url}{path}",
@@ -599,6 +776,7 @@ class ForexVPSClient:
 
     @staticmethod
     def _read_json(response):
+        """Read and parse JSON response, handling gzip/deflate encoding."""
         raw = response.read()
         encoding = (response.headers.get("Content-Encoding") or "").lower()
         if encoding == "gzip":
@@ -612,6 +790,7 @@ class ForexVPSClient:
 
     @staticmethod
     def _error_detail(e):
+        """Extract error details from HTTPError response."""
         try:
             body = e.read().decode()
         except Exception:
@@ -627,6 +806,7 @@ class ForexVPSClient:
             return body
 
     def _list(self, path, search=None, per_page=100):
+        """List resources with optional search filter."""
         query = f"?per_page={per_page}"
         if search:
             query += f"&filter[search]={urllib.parse.quote(search)}"
@@ -635,15 +815,19 @@ class ForexVPSClient:
         return result.get("data", [])
 
     def list_locations(self, search=None):
+        """List available VPS locations."""
         return self._list("/locations", search=search)
 
     def list_os_templates(self, search=None):
+        """List available OS templates."""
         return self._list("/os_templates", search=search)
 
     def list_plans(self, search=None):
+        """List available VPS plans."""
         return self._list("/plans", search=search)
 
     def find_location_id(self):
+        """Find the best location ID, using cache or config override."""
         if Config.FOREXVPS_LOCATION_ID:
             return Config.FOREXVPS_LOCATION_ID
         if getattr(self, "_location_id_cache", None):
@@ -658,6 +842,7 @@ class ForexVPSClient:
         return self._location_id_cache
 
     def find_os_template_id(self):
+        """Find the best OS template ID."""
         if Config.FOREXVPS_OS_TEMPLATE_ID:
             return Config.FOREXVPS_OS_TEMPLATE_ID
         if getattr(self, "_os_template_id_cache", None):
@@ -672,6 +857,7 @@ class ForexVPSClient:
         return self._os_template_id_cache
 
     def find_plan_id(self, plan_level):
+        """Find the best plan ID for a given plan level."""
         override = Config.FOREXVPS_PLAN_ID_OVERRIDES.get(plan_level)
         if override:
             return override
@@ -691,6 +877,7 @@ class ForexVPSClient:
         return plan_id
 
     def get_or_create_user_id(self, email, name=""):
+        """Get existing ThinkHuge user ID or create a new one."""
         query = f"?filter[email]={urllib.parse.quote(email)}"
         response = self._request(f"/users{query}", method="GET", timeout=30)
         result = self._read_json(response)
@@ -709,6 +896,7 @@ class ForexVPSClient:
         return result["data"]["id"]
 
     def create_server(self, user_id, location_id, os_template_id, plan_id, hostname):
+        """Create a new VPS server."""
         payload = {
             "user_id": user_id,
             "location_id": location_id,
@@ -721,16 +909,19 @@ class ForexVPSClient:
         return result["data"]
 
     def get_server(self, server_id):
+        """Get server details by ID."""
         response = self._request(f"/servers/{server_id}", method="GET", timeout=30)
         result = self._read_json(response)
         return result["data"]
 
     def reset_password(self, server_id):
+        """Reset the server password and return the new one."""
         response = self._request(f"/servers/{server_id}/reset-password", method="POST", payload={}, timeout=60)
         result = self._read_json(response)
         return result["password"]
 
     def create_vps(self, plan_level, email, name="", hostname=""):
+        """Provision a complete VPS for a user."""
         if not self.is_configured():
             logger.warning("[ThinkHuge] API not configured, skipping VPS creation")
             return {"success": False, "error": "API not configured"}
@@ -791,6 +982,7 @@ class ForexVPSClient:
             return {"success": False, "error": str(e)}
 
     def terminate_vps(self, server_id):
+        """Terminate a VPS server."""
         if not self.is_configured():
             return {"success": False, "error": "API not configured"}
 
@@ -811,20 +1003,26 @@ class ForexVPSClient:
             return {"success": False, "error": str(e)}
 
 
+# Initialize the VPS client
 forexvps_client = ForexVPSClient()
 
 
 # ============================================================================
-# HELPERS
+# HELPER FUNCTIONS
 # ============================================================================
 
 def encrypt_data(data):
+    """Encrypt sensitive data using Fernet symmetric encryption."""
     if not data:
         return None
-    try: return cipher_suite.encrypt(data.encode()).decode()
-    except: return data
+    try:
+        return cipher_suite.encrypt(data.encode()).decode()
+    except Exception:
+        return data
+
 
 def decrypt_data(data):
+    """Decrypt data that was encrypted with encrypt_data."""
     if not data:
         return None
     try:
@@ -833,16 +1031,24 @@ def decrypt_data(data):
         logger.warning("[decrypt_data] Failed to decrypt a stored value - key may have changed since it was encrypted")
         return None
 
+
 def generate_license_key():
+    """Generate a unique license key in format XXXX-XXXX-XXXX."""
     return "-".join([secrets.token_hex(2).upper() for _ in range(3)])
 
+
 def generate_otp():
+    """Generate a 6-digit OTP code."""
     return "".join([str(secrets.randbelow(10)) for _ in range(6)])
 
+
 def parse_duration_to_days(duration_str):
+    """Parse a duration string into days and subscription type."""
     if not duration_str:
         return Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS, "one_time"
+    
     d = duration_str.lower().strip()
+    
     if "month" in d or "maand" in d:
         m = re.findall(r'\d+', d)
         return (int(m[0]) * 30 if m else 30), "monthly"
@@ -851,31 +1057,51 @@ def parse_duration_to_days(duration_str):
         return (int(y[0]) * 365 if y else 365), "yearly"
     elif "lifetime" in d or "levenslang" in d or "annulering" in d:
         return 36500, "lifetime"
+    
     return Config.DEFAULT_SUBSCRIPTION_DURATION_DAYS, "one_time"
 
+
 def parse_wix_date(date_str):
-    if not date_str: return None
-    if "annulering" in date_str.lower(): return None
+    """Parse a date string from Wix in various formats."""
+    if not date_str:
+        return None
+    if "annulering" in date_str.lower():
+        return None
+    
     for fmt in ["%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%d", "%d/%m/%Y", "%m-%d-%Y"]:
-        try: return datetime.strptime(date_str.strip(), fmt)
-        except: continue
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            continue
     return None
 
+
 def send_email_async(subject, recipients, body, html_body=None):
+    """Send an email asynchronously in a background thread."""
     def send():
         try:
             with app.app_context():
-                msg = Message(subject=subject, recipients=recipients, body=body, html=html_body)
+                msg = Message(
+                    subject=subject,
+                    recipients=recipients,
+                    body=body,
+                    html=html_body
+                )
                 mail.send(msg)
                 logger.info(f"[EMAIL] Sent to {recipients}: {subject}")
         except Exception as e:
             logger.error(f"[EMAIL] Failed: {e}")
+    
     threading.Thread(target=send).start()
 
+
 def log_audit(user_id, action, details=None, ip_address=None):
+    """Log an audit event to the database."""
     try:
         log = AuditLog(
-            user_id=user_id, action=action, details=details,
+            user_id=user_id,
+            action=action,
+            details=details,
             ip_address=ip_address or (request.remote_addr if request else "system")
         )
         db.session.add(log)
@@ -883,10 +1109,14 @@ def log_audit(user_id, action, details=None, ip_address=None):
     except Exception as e:
         logger.error(f"[AUDIT] Failed: {e}")
 
+
 def allowed_file(filename):
+    """Check if a file has an allowed extension for EA uploads."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in {"ex4", "ex5", "dll", "zip"}
 
+
 def get_max_accounts_for_level(plan_level):
+    """Get the maximum number of MT5 accounts allowed for a plan level."""
     if plan_level <= 1:
         return 2
     elif plan_level == 2:
@@ -896,11 +1126,15 @@ def get_max_accounts_for_level(plan_level):
     else:
         return 10
 
+
 def get_plan_level_display(plan_level):
+    """Get a human-readable plan level display string."""
     level_names = {1: "LVL 1", 2: "LVL 2", 3: "LVL 3", 4: "PREMIUM"}
     return level_names.get(plan_level, f"LVL {plan_level}")
 
+
 def format_date_dutch(date_obj):
+    """Format a date in Dutch format."""
     if not date_obj:
         return "N/B"
     months_nl = [
@@ -909,75 +1143,135 @@ def format_date_dutch(date_obj):
     ]
     return f"{date_obj.day} {months_nl[date_obj.month - 1]} {date_obj.year}"
 
+
 def format_date_english(date_obj):
+    """Format a date in English format."""
     if not date_obj:
         return "N/A"
     return date_obj.strftime("%B %d, %Y")
 
 
 # ============================================================================
-# JOURNAL HELPERS
+# JOURNAL HELPER FUNCTIONS
 # ============================================================================
 
 def compute_journal_stats(trades):
-    """trades: list of JournalTrade. Returns a dict of aggregate stats."""
+    """
+    Compute aggregate statistics from a list of JournalTrade objects.
+    
+    Args:
+        trades: List of JournalTrade objects
+        
+    Returns:
+        Dictionary with comprehensive trade statistics
+    """
     if not trades:
         return {
-            "total_trades": 0, "wins": 0, "losses": 0, "breakeven": 0,
-            "win_rate": 0.0, "profit_factor": 0.0, "expectancy": 0.0,
-            "net_profit": 0.0, "avg_win": 0.0, "avg_loss": 0.0,
-            "largest_win": 0.0, "largest_loss": 0.0,
-            "gross_profit": 0.0, "gross_loss": 0.0, "avg_rr": 0.0,
-            "longest_win_streak": 0, "longest_loss_streak": 0,
+            "total_trades": 0,
+            "wins": 0,
+            "losses": 0,
+            "breakeven": 0,
+            "win_rate": 0.0,
+            "profit_factor": 0.0,
+            "expectancy": 0.0,
+            "net_profit": 0.0,
+            "avg_win": 0.0,
+            "avg_loss": 0.0,
+            "largest_win": 0.0,
+            "largest_loss": 0.0,
+            "gross_profit": 0.0,
+            "gross_loss": 0.0,
+            "avg_rr": 0.0,
+            "longest_win_streak": 0,
+            "longest_loss_streak": 0,
             "avg_duration_seconds": 0,
         }
 
+    # Categorize trades
     wins = [t for t in trades if t.profit > 0]
     losses = [t for t in trades if t.profit < 0]
     breakeven = [t for t in trades if t.profit == 0]
 
+    # Profit calculations
     gross_profit = sum(t.profit for t in wins)
     gross_loss = abs(sum(t.profit for t in losses))
     net_profit = sum(t.profit for t in trades)
 
+    # Win rate
     win_rate = (len(wins) / len(trades)) * 100 if trades else 0.0
-    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else (gross_profit if gross_profit > 0 else 0.0)
+
+    # Profit factor
+    if gross_loss > 0:
+        profit_factor = gross_profit / gross_loss
+    elif gross_profit > 0:
+        profit_factor = gross_profit
+    else:
+        profit_factor = 0.0
+
+    # Expectancy
     expectancy = net_profit / len(trades) if trades else 0.0
 
+    # Average win/loss
     avg_win = (gross_profit / len(wins)) if wins else 0.0
     avg_loss = (-gross_loss / len(losses)) if losses else 0.0
     avg_rr = abs(avg_win / avg_loss) if avg_loss else 0.0
 
+    # Win/loss streaks
     ordered = sorted(trades, key=lambda t: t.close_time)
-    longest_win_streak = longest_loss_streak = cur_win = cur_loss = 0
+    longest_win_streak = 0
+    longest_loss_streak = 0
+    cur_win = 0
+    cur_loss = 0
+    
     for t in ordered:
         if t.profit > 0:
-            cur_win += 1; cur_loss = 0
+            cur_win += 1
+            cur_loss = 0
             longest_win_streak = max(longest_win_streak, cur_win)
         elif t.profit < 0:
-            cur_loss += 1; cur_win = 0
+            cur_loss += 1
+            cur_win = 0
             longest_loss_streak = max(longest_loss_streak, cur_loss)
         else:
-            cur_win = cur_loss = 0
+            cur_win = 0
+            cur_loss = 0
 
+    # Average duration
     durations = [t.duration_seconds() for t in trades if t.duration_seconds() is not None]
     avg_duration = int(statistics.mean(durations)) if durations else 0
 
     return {
-        "total_trades": len(trades), "wins": len(wins), "losses": len(losses), "breakeven": len(breakeven),
-        "win_rate": round(win_rate, 2), "profit_factor": round(profit_factor, 2),
-        "expectancy": round(expectancy, 2), "net_profit": round(net_profit, 2),
-        "avg_win": round(avg_win, 2), "avg_loss": round(avg_loss, 2),
+        "total_trades": len(trades),
+        "wins": len(wins),
+        "losses": len(losses),
+        "breakeven": len(breakeven),
+        "win_rate": round(win_rate, 2),
+        "profit_factor": round(profit_factor, 2),
+        "expectancy": round(expectancy, 2),
+        "net_profit": round(net_profit, 2),
+        "avg_win": round(avg_win, 2),
+        "avg_loss": round(avg_loss, 2),
         "largest_win": round(max((t.profit for t in trades), default=0.0), 2),
         "largest_loss": round(min((t.profit for t in trades), default=0.0), 2),
-        "gross_profit": round(gross_profit, 2), "gross_loss": round(gross_loss, 2),
+        "gross_profit": round(gross_profit, 2),
+        "gross_loss": round(gross_loss, 2),
         "avg_rr": round(avg_rr, 2),
-        "longest_win_streak": longest_win_streak, "longest_loss_streak": longest_loss_streak,
+        "longest_win_streak": longest_win_streak,
+        "longest_loss_streak": longest_loss_streak,
         "avg_duration_seconds": avg_duration,
     }
 
 
 def journal_daily_pl_map(trades):
+    """
+    Create a dictionary mapping dates to daily profit/loss totals.
+    
+    Args:
+        trades: List of JournalTrade objects
+        
+    Returns:
+        Dictionary with date strings as keys and P/L floats as values
+    """
     out = defaultdict(float)
     for t in trades:
         out[t.close_time.strftime("%Y-%m-%d")] += t.profit
@@ -985,9 +1279,22 @@ def journal_daily_pl_map(trades):
 
 
 def journal_max_drawdown(trades, starting_balance):
+    """
+    Calculate maximum drawdown from a list of trades.
+    
+    Args:
+        trades: List of JournalTrade objects sorted by close_time
+        starting_balance: Initial account balance
+        
+    Returns:
+        Tuple of (max_drawdown_amount, max_drawdown_percentage)
+    """
     ordered = sorted(trades, key=lambda t: t.close_time)
-    equity = peak = starting_balance
-    max_dd = max_dd_pct = 0.0
+    equity = starting_balance
+    peak = starting_balance
+    max_dd = 0.0
+    max_dd_pct = 0.0
+    
     for t in ordered:
         equity += t.profit
         peak = max(peak, equity)
@@ -995,22 +1302,47 @@ def journal_max_drawdown(trades, starting_balance):
         dd_pct = (dd / peak * 100) if peak > 0 else 0
         max_dd = max(max_dd, dd)
         max_dd_pct = max(max_dd_pct, dd_pct)
+    
     return round(max_dd, 2), round(max_dd_pct, 2)
 
 
 def get_selected_journal_account(requested_id=None):
-    """Resolve which JournalAccount is 'active' for the logged-in user."""
+    """
+    Resolve which JournalAccount is currently active for the logged-in user.
+    
+    Priority:
+    1. Explicitly requested account_id
+    2. Last used account_id from session
+    3. First available account
+    
+    Args:
+        requested_id: Optional account ID to select
+        
+    Returns:
+        JournalAccount object or None
+    """
     account = None
+    
     if requested_id:
-        account = JournalAccount.query.filter_by(id=requested_id, user_id=current_user.id, archived=False).first()
+        account = JournalAccount.query.filter_by(
+            id=requested_id, user_id=current_user.id, archived=False
+        ).first()
+    
     if not account:
         last_id = session.get("journal_account_id")
         if last_id:
-            account = JournalAccount.query.filter_by(id=last_id, user_id=current_user.id, archived=False).first()
+            account = JournalAccount.query.filter_by(
+                id=last_id, user_id=current_user.id, archived=False
+            ).first()
+    
     if not account:
-        account = JournalAccount.query.filter_by(user_id=current_user.id, archived=False).order_by(JournalAccount.created_at).first()
+        account = JournalAccount.query.filter_by(
+            user_id=current_user.id, archived=False
+        ).order_by(JournalAccount.created_at).first()
+    
     if account:
         session["journal_account_id"] = account.id
+    
     return account
 
 
@@ -1019,6 +1351,15 @@ def get_selected_journal_account(requested_id=None):
 # ============================================================================
 
 def try_complete_pending_vps(user):
+    """
+    Check if a provisioning VPS has become ready and update user record.
+    
+    Args:
+        user: User object with vps_status='provisioning'
+        
+    Returns:
+        True if VPS is now ready, False otherwise
+    """
     if not user.vps_id:
         return False
 
@@ -1031,7 +1372,6 @@ def try_complete_pending_vps(user):
             return False
 
         password = forexvps_client.reset_password(user.vps_id)
-
         rdp_port = server.get("rdp_port") or server.get("port") or Config.FOREXVPS_DEFAULT_RDP_PORT
 
         user.vps_ip = ip
@@ -1042,8 +1382,7 @@ def try_complete_pending_vps(user):
         user.vps_last_error = None
         db.session.commit()
 
-        logger.info(f"[ThinkHuge] ✅ VPS now ready for {user.email}: {user.vps_id} | IP: {ip}:{rdp_port}")
-
+        logger.info(f"[ThinkHuge] VPS now ready for {user.email}: {user.vps_id} | IP: {ip}:{rdp_port}")
         return True
 
     except urllib.error.HTTPError as e:
@@ -1060,22 +1399,34 @@ def try_complete_pending_vps(user):
 
 
 def provision_vps_for_user(user, plan_level):
+    """
+    Provision a VPS for a user if they don't already have one.
+    
+    Args:
+        user: User object
+        plan_level: Integer plan level (1, 2, or 3)
+        
+    Returns:
+        True if VPS is active, False otherwise
+    """
     if not forexvps_client.is_configured():
         logger.info(f"[ThinkHuge] Skipping VPS provisioning - API not configured")
         return False
 
+    # Already has active VPS
     if user.vps_id and user.vps_status == 'active':
         logger.info(f"[ThinkHuge] User {user.email} already has active VPS: {user.vps_id}")
         return True
 
+    # VPS is provisioning - check if ready
     if user.vps_id and user.vps_status == 'provisioning':
         user.vps_last_attempt_at = datetime.utcnow()
         db.session.commit()
-        logger.info(f"[ThinkHuge] User {user.email} VPS {user.vps_id} already provisioning, checking if it's ready now")
+        logger.info(f"[ThinkHuge] User {user.email} VPS {user.vps_id} already provisioning, checking if ready")
         return try_complete_pending_vps(user)
 
+    # Create new VPS
     vps_plan_name = Config.FOREXVPS_PLANS.get(plan_level, "Basic")
-
     logger.info(f"[ThinkHuge] Provisioning VPS for {user.email} | plan={vps_plan_name} | level={plan_level}")
 
     result = forexvps_client.create_vps(
@@ -1091,7 +1442,7 @@ def provision_vps_for_user(user, plan_level):
         error_msg = str(result.get('error'))[:300]
         user.vps_last_error = error_msg
         db.session.commit()
-        logger.error(f"[ThinkHuge] ❌ Failed to provision VPS for {user.email}: {result.get('error')}")
+        logger.error(f"[ThinkHuge] Failed to provision VPS for {user.email}: {result.get('error')}")
         return False
 
     user.vps_id = result.get('server_id')
@@ -1107,19 +1458,20 @@ def provision_vps_for_user(user, plan_level):
         user.vps_username = result.get('username')
         user.vps_password = encrypt_data(result.get('password', ''))
         db.session.commit()
-        logger.info(f"[ThinkHuge] ✅ VPS provisioned and ready for {user.email}: {user.vps_id} | IP: {user.vps_ip}:{user.vps_port}")
+        logger.info(f"[ThinkHuge] VPS provisioned and ready for {user.email}: {user.vps_id} | IP: {user.vps_ip}:{user.vps_port}")
         return True
     else:
         user.vps_status = 'provisioning'
         db.session.commit()
         logger.info(
-            f"[ThinkHuge] ⏳ VPS creation started for {user.email}: {user.vps_id} "
-            f"(status={result.get('status')}) - still provisioning, will poll for IP/password"
+            f"[ThinkHuge] VPS creation started for {user.email}: {user.vps_id} "
+            f"(status={result.get('status')}) - still provisioning"
         )
         return False
 
 
 def poll_pending_vps_servers():
+    """Poll all provisioning VPS servers to check if they're ready."""
     if not forexvps_client.is_configured():
         return
 
@@ -1132,7 +1484,7 @@ def poll_pending_vps_servers():
         if not pending_users:
             return
 
-        logger.info(f"[ThinkHuge] 🔎 Polling {len(pending_users)} pending VPS server(s)")
+        logger.info(f"[ThinkHuge] Polling {len(pending_users)} pending VPS server(s)")
 
         for user in pending_users:
             try_complete_pending_vps(user)
@@ -1143,6 +1495,7 @@ def poll_pending_vps_servers():
 
 
 def retry_pending_vps_provisioning():
+    """Retry VPS provisioning for users who don't have one yet."""
     if not forexvps_client.is_configured():
         return
 
@@ -1160,14 +1513,14 @@ def retry_pending_vps_provisioning():
         if not candidates:
             return
 
-        logger.info(f"[ThinkHuge] 🔁 Retry sweep: {len(candidates)} user(s) missing an active VPS")
+        logger.info(f"[ThinkHuge] Retry sweep: {len(candidates)} user(s) missing an active VPS")
 
         for user in candidates:
             if user.membership_start:
                 age_minutes = (datetime.utcnow() - user.membership_start).total_seconds() / 60
                 if age_minutes > Config.FOREXVPS_RETRY_MAX_AGE_MINUTES:
                     logger.warning(
-                        f"[ThinkHuge] ⚠️ Giving up auto-retry for {user.email} "
+                        f"[ThinkHuge] Giving up auto-retry for {user.email} "
                         f"(pending {age_minutes:.0f}min, last_error={user.vps_last_error}). "
                         f"Needs manual admin attention."
                     )
@@ -1177,9 +1530,9 @@ def retry_pending_vps_provisioning():
             success = provision_vps_for_user(user, plan_level)
 
             if success:
-                logger.info(f"[ThinkHuge] ✅ Retry succeeded for {user.email}")
+                logger.info(f"[ThinkHuge] Retry succeeded for {user.email}")
             elif user.vps_status == 'provisioning':
-                logger.info(f"[ThinkHuge] Retry created server for {user.email}, now provisioning (will poll for IP)")
+                logger.info(f"[ThinkHuge] Retry created server for {user.email}, now provisioning")
             else:
                 logger.warning(f"[ThinkHuge] Retry still failing for {user.email}: {user.vps_last_error}")
 
@@ -1189,10 +1542,11 @@ def retry_pending_vps_provisioning():
 
 
 # ============================================================================
-# AUTO-CLEANUP (includes VPS cleanup)
+# AUTO-CLEANUP FUNCTIONS
 # ============================================================================
 
 def cleanup_expired_vps():
+    """Terminate VPS for users with expired memberships."""
     try:
         expired_users = User.query.filter(
             User.membership_end < datetime.utcnow(),
@@ -1202,7 +1556,7 @@ def cleanup_expired_vps():
         ).all()
 
         for user in expired_users:
-            logger.info(f"[ThinkHuge] Terminating VPS for expired membership: {user.email} (ended {user.membership_end})")
+            logger.info(f"[ThinkHuge] Terminating VPS for expired membership: {user.email}")
 
             result = forexvps_client.terminate_vps(user.vps_id)
 
@@ -1210,10 +1564,9 @@ def cleanup_expired_vps():
                 user.vps_status = 'terminated'
                 user.vps_terminated_at = datetime.utcnow()
                 db.session.commit()
-
-                logger.info(f"[ThinkHuge] ✅ VPS terminated for {user.email}")
+                logger.info(f"[ThinkHuge] VPS terminated for {user.email}")
             else:
-                logger.error(f"[ThinkHuge] ❌ Failed to terminate VPS for {user.email}: {result.get('error')}")
+                logger.error(f"[ThinkHuge] Failed to terminate VPS for {user.email}: {result.get('error')}")
 
     except Exception as e:
         logger.error(f"[ThinkHuge] Error in cleanup_expired_vps: {e}")
@@ -1221,6 +1574,7 @@ def cleanup_expired_vps():
 
 
 def cleanup_stale_sessions():
+    """Remove stale EA sessions that haven't sent a heartbeat."""
     try:
         threshold = datetime.utcnow() - timedelta(minutes=Config.HEARTBEAT_TIMEOUT_MINUTES)
 
@@ -1236,50 +1590,54 @@ def cleanup_stale_sessions():
             acct_num = account.account_number if account else "unknown"
             inactive_mins = (datetime.utcnow() - ea_session.last_seen).total_seconds() / 60
 
-            logger.info(f"🧹 Auto-clean: session={ea_session.session_id[:8]}... account={acct_num} inactive={inactive_mins:.0f}min")
+            logger.info(f"Auto-clean: session={ea_session.session_id[:8]}... account={acct_num} inactive={inactive_mins:.0f}min")
 
             db.session.delete(ea_session)
             cleaned += 1
 
             if account and account.sessions.count() <= 1:
-                logger.info(f"🔓 Slot freed: MT5 account={acct_num}")
+                logger.info(f"Slot freed: MT5 account={acct_num}")
                 db.session.delete(account)
                 freed += 1
 
         if cleaned > 0:
             db.session.commit()
-            logger.info(f"✅ Auto-cleanup: {cleaned} sessions removed, {freed} slots freed")
+            logger.info(f"Auto-cleanup: {cleaned} sessions removed, {freed} slots freed")
 
     except Exception as e:
         logger.error(f"Auto-cleanup error: {e}")
         db.session.rollback()
 
+    # Also run VPS cleanup
     cleanup_expired_vps()
     poll_pending_vps_servers()
     retry_pending_vps_provisioning()
 
 
 def start_auto_cleanup():
+    """Start the background auto-cleanup thread."""
     def job():
         while True:
-            time.sleep(300)
+            time.sleep(300)  # Run every 5 minutes
             with app.app_context():
                 cleanup_stale_sessions()
 
     threading.Thread(target=job, daemon=True).start()
-    logger.info(f"🔄 Auto-cleanup started (timeout: {Config.HEARTBEAT_TIMEOUT_MINUTES}min)")
+    logger.info(f"Auto-cleanup started (timeout: {Config.HEARTBEAT_TIMEOUT_MINUTES}min)")
 
 
 # ============================================================================
-# DATABASE MIGRATION
+# DATABASE MIGRATIONS
 # ============================================================================
 
 def run_migrations():
+    """Run database migrations to ensure all tables and columns exist."""
     try:
         with app.app_context():
             inspector = db.inspect(db.engine)
             existing_tables = inspector.get_table_names()
 
+            # Create ea_sessions table if missing
             if 'ea_sessions' not in existing_tables:
                 logger.info("Creating ea_sessions table...")
                 db.session.execute(db.text("""
@@ -1301,8 +1659,9 @@ def run_migrations():
                     CREATE INDEX IF NOT EXISTS idx_ea_sessions_license_account_id ON ea_sessions(license_account_id)
                 """))
                 db.session.commit()
-                logger.info("✅ ea_sessions table created")
+                logger.info("ea_sessions table created")
 
+            # Create journal_accounts table if missing
             if 'journal_accounts' not in existing_tables:
                 logger.info("Creating journal_accounts table...")
                 db.session.execute(db.text("""
@@ -1329,8 +1688,9 @@ def run_migrations():
                     )
                 """))
                 db.session.commit()
-                logger.info("✅ journal_accounts table created")
+                logger.info("journal_accounts table created")
 
+            # Create journal_trades table if missing
             if 'journal_trades' not in existing_tables:
                 logger.info("Creating journal_trades table...")
                 db.session.execute(db.text("""
@@ -1356,17 +1716,19 @@ def run_migrations():
                     )
                 """))
                 db.session.commit()
-                logger.info("✅ journal_trades table created")
+                logger.info("journal_trades table created")
 
+            # Add missing columns to users table
             columns = [col['name'] for col in inspector.get_columns('users')]
+            
             if 'language_preference' not in columns:
-                logger.info("Adding language_preference column to users table...")
                 db.session.execute(db.text("""
                     ALTER TABLE users ADD COLUMN language_preference VARCHAR(5) DEFAULT 'en'
                 """))
                 db.session.commit()
-                logger.info("✅ language_preference column added")
+                logger.info("language_preference column added")
 
+            # VPS columns
             vps_columns = [
                 'vps_id', 'vps_status', 'vps_ip', 'vps_port', 'vps_username', 'vps_password',
                 'vps_plan', 'vps_created_at', 'vps_terminated_at',
@@ -1387,8 +1749,9 @@ def run_migrations():
                         ALTER TABLE users ADD COLUMN {col_name} {col_type}
                     """))
                     db.session.commit()
-                    logger.info(f"✅ {col_name} column added")
+                    logger.info(f"{col_name} column added")
 
+            # Stripe columns
             stripe_columns = ['stripe_subscription_id', 'stripe_customer_id']
             for col_name in stripe_columns:
                 if col_name not in columns:
@@ -1397,8 +1760,9 @@ def run_migrations():
                         ALTER TABLE users ADD COLUMN {col_name} VARCHAR(100)
                     """))
                     db.session.commit()
-                    logger.info(f"✅ {col_name} column added")
+                    logger.info(f"{col_name} column added")
 
+            # Fix bad licenses (max_accounts null or <= 0)
             bad_licenses = License.query.filter(
                 (License.max_accounts == None) | (License.max_accounts <= 0)
             ).all()
@@ -1408,13 +1772,14 @@ def run_migrations():
                 if user:
                     user_level = user.get_plan_level()
                     correct_max = get_max_accounts_for_level(user_level)
-                    logger.warning(f"FIXING license {lic.mask_license_key()}: max_accounts {lic.max_accounts} → {correct_max}")
+                    logger.warning(f"FIXING license {lic.mask_license_key()}: max_accounts {lic.max_accounts} -> {correct_max}")
                     lic.max_accounts = correct_max
 
             if bad_licenses:
                 db.session.commit()
-                logger.info(f"✅ Fixed {len(bad_licenses)} licenses")
+                logger.info(f"Fixed {len(bad_licenses)} licenses")
 
+            # Remove validation limits
             capped_licenses = License.query.filter(
                 License.max_validations != None
             ).all()
@@ -1424,7 +1789,7 @@ def run_migrations():
                     lic.max_validations = None
                     lic.validation_count = 0
                 db.session.commit()
-                logger.info(f"✅ Removed validation limits from {len(capped_licenses)} existing licenses")
+                logger.info(f"Removed validation limits from {len(capped_licenses)} existing licenses")
 
     except Exception as e:
         logger.error(f"Migration failed: {e}")
@@ -1436,6 +1801,7 @@ def run_migrations():
 # ============================================================================
 
 def admin_required(f):
+    """Decorator to require admin access for a route."""
     @wraps(f)
     @login_required
     def decorated(*args, **kwargs):
@@ -1445,18 +1811,28 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+
 @login_manager.user_loader
 def load_user(user_id):
+    """Load a user by ID for Flask-Login."""
     return db.session.get(User, int(user_id))
+
+
+# ============================================================================
+# ERROR HANDLERS
+# ============================================================================
 
 @app.errorhandler(404)
 def not_found(e):
+    """Handle 404 errors."""
     if request.path.startswith("/api/"):
         return jsonify({"error": "Niet gevonden"}), 404
     return render_template("errors/404.html"), 404
 
+
 @app.errorhandler(500)
 def internal_error(e):
+    """Handle 500 errors."""
     db.session.rollback()
     logger.error(f"500 Error: {e}", exc_info=True)
     if request.path.startswith("/api/"):
@@ -1465,17 +1841,20 @@ def internal_error(e):
 
 
 # ============================================================================
-# ROUTES - MAIN
+# MAIN ROUTES
 # ============================================================================
 
 @app.route("/")
 def index():
+    """Redirect to appropriate dashboard based on auth status."""
     if current_user.is_authenticated:
         return redirect(url_for("admin_dashboard") if current_user.is_admin else url_for("user_dashboard"))
     return redirect(url_for("user_login"))
 
+
 @app.route("/health")
 def health():
+    """Health check endpoint with key metrics."""
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
@@ -1494,6 +1873,7 @@ def health():
 
 @app.route("/set-language/<lang>")
 def set_language(lang):
+    """Set the user's language preference via URL."""
     if lang in Config.LANGUAGES:
         session['language'] = lang
         if current_user.is_authenticated:
@@ -1505,6 +1885,7 @@ def set_language(lang):
 
 @app.route("/api/set-language", methods=["POST"])
 def api_set_language():
+    """Set the user's language preference via API."""
     try:
         data = request.get_json()
         if not data:
@@ -1534,6 +1915,7 @@ def api_set_language():
 @app.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def user_login():
+    """User login with email OTP authentication."""
     if current_user.is_authenticated:
         return redirect(url_for("admin_dashboard") if current_user.is_admin else url_for("user_dashboard"))
 
@@ -1546,11 +1928,13 @@ def user_login():
             flash("Ongeldig e-mailadres.", "error")
             return render_template("user/login.html")
 
+        # Check if this is the admin email
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
         if email == admin_email:
             session["admin_email"] = email
             return redirect(url_for("admin_password"))
 
+        # Find user
         user = User.query.filter_by(email=email).first()
         if not user:
             flash("Geen account gevonden. Schaf eerst een abonnement aan.", "error")
@@ -1564,11 +1948,13 @@ def user_login():
             flash("Account vergrendeld. Probeer later opnieuw.", "error")
             return render_template("user/login.html")
 
+        # Generate and send OTP
         try:
             OTPToken.query.filter_by(user_id=user.id, used=False).update({"used": True})
             otp = generate_otp()
             otp_token = OTPToken(
-                user_id=user.id, token=otp,
+                user_id=user.id,
+                token=otp,
                 expires_at=datetime.utcnow() + timedelta(minutes=Config.OTP_EXPIRY_MINUTES),
                 purpose="login"
             )
@@ -1595,6 +1981,7 @@ def user_login():
 @app.route("/admin-password", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def admin_password():
+    """Admin password verification before OTP."""
     admin_email = session.get("admin_email") or os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
     admin_user = User.query.filter_by(email=admin_email).first()
 
@@ -1605,12 +1992,19 @@ def admin_password():
 
     if request.method == "POST":
         if request.form.get("password") == os.getenv("ADMIN_PASSWORD", "admin123").strip():
+            # Create or update admin user
             if not admin_user:
                 admin_user = User(
-                    email=admin_email, first_name="Admin", is_admin=True, email_verified=True,
-                    membership_status="active", membership_start=datetime.utcnow(),
+                    email=admin_email,
+                    first_name="Admin",
+                    is_admin=True,
+                    email_verified=True,
+                    membership_status="active",
+                    membership_start=datetime.utcnow(),
                     membership_end=datetime.utcnow() + timedelta(days=3650),
-                    plan_name="Admin", subscription_type="lifetime", subscription_duration_days=36500
+                    plan_name="Admin",
+                    subscription_type="lifetime",
+                    subscription_duration_days=36500
                 )
                 db.session.add(admin_user)
             else:
@@ -1619,10 +2013,12 @@ def admin_password():
                 admin_user.is_admin = True
             db.session.commit()
 
+            # Generate admin OTP
             OTPToken.query.filter_by(user_id=admin_user.id, used=False).update({"used": True})
             otp = generate_otp()
             otp_token = OTPToken(
-                user_id=admin_user.id, token=otp,
+                user_id=admin_user.id,
+                token=otp,
                 expires_at=datetime.utcnow() + timedelta(minutes=Config.ADMIN_OTP_EXPIRY_MINUTES),
                 purpose="admin"
             )
@@ -1653,6 +2049,7 @@ def admin_password():
 @app.route("/verify-otp", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def verify_otp():
+    """Verify OTP code and log the user in."""
     email = session.get("pending_email")
     if not email:
         return redirect(url_for("user_login"))
@@ -1670,7 +2067,10 @@ def verify_otp():
             flash("Gebruiker niet gevonden.", "error")
             return redirect(url_for("user_login"))
 
-        otp_token = OTPToken.query.filter_by(user_id=user.id, used=False).order_by(OTPToken.created_at.desc()).first()
+        otp_token = OTPToken.query.filter_by(
+            user_id=user.id, used=False
+        ).order_by(OTPToken.created_at.desc()).first()
+        
         if not otp_token:
             flash("Geen OTP code gevonden. Vraag een nieuwe aan.", "error")
             return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
@@ -1686,6 +2086,7 @@ def verify_otp():
                 flash("OTP code is verlopen.", "error")
                 return render_template("user/verify_otp.html", email=email, is_admin=is_admin)
 
+            # Successful verification
             otp_token.used = True
             user.email_verified = True
             user.login_attempts = 0
@@ -1698,7 +2099,6 @@ def verify_otp():
             session.pop("is_admin_login", None)
 
             log_audit(user.id, "login", f"{'Admin' if user.is_admin else 'Gebruiker'} login", request.remote_addr)
-
             flash(f"Welkom terug, {user.first_name or 'daar'}!", "success")
             return redirect(url_for("admin_dashboard") if user.is_admin else url_for("user_dashboard"))
         else:
@@ -1716,6 +2116,7 @@ def verify_otp():
 
 @app.route("/logout")
 def logout():
+    """Log out the current user."""
     if current_user.is_authenticated:
         log_audit(current_user.id, "logout", request.remote_addr)
     logout_user()
@@ -1728,12 +2129,13 @@ def logout():
 
 
 # ============================================================================
-# USER DASHBOARD (with Trading Journal integration)
+# USER DASHBOARD
 # ============================================================================
 
 @app.route("/dashboard")
 @login_required
 def user_dashboard():
+    """Main user dashboard with membership, license, EA, VPS, and Discord info."""
     if current_user.is_admin:
         return redirect(url_for("admin_dashboard"))
 
@@ -1741,6 +2143,7 @@ def user_dashboard():
     license = user.get_active_license()
     user_level = user.get_plan_level()
 
+    # Get available EA files for user's plan level
     ea_files = EAFile.query.filter(
         EAFile.is_active == True,
         EAFile.plan_level <= user_level
@@ -1748,8 +2151,8 @@ def user_dashboard():
 
     all_ea_count = EAFile.query.filter_by(is_active=True).count()
 
+    # License account tracking
     default_max = get_max_accounts_for_level(user_level)
-
     license_accounts = []
     account_count = 0
     max_accounts = default_max
@@ -1772,22 +2175,22 @@ def user_dashboard():
             db.session.commit()
             max_accounts = default_max
 
+    # Days remaining
     days_remaining = None
     if user.membership_end and user.membership_status in ["active", "cancelled"]:
         delta = user.membership_end - datetime.utcnow()
         days_remaining = max(0, delta.days)
 
+    # VPS password
     vps_password_decrypted = None
     if user.vps_id and user.vps_password:
         try:
             vps_password_decrypted = decrypt_data(user.vps_password)
-        except:
+        except Exception:
             vps_password_decrypted = None
 
     return render_template(
         "user/dashboard.html",
-        journal=journal_dashboard_data(),
-        journal_trades=journal_trades_data(),
         user=user,
         license=license,
         ea_files=ea_files,
@@ -1815,6 +2218,7 @@ def user_dashboard():
 @login_required
 @limiter.limit("3 per day")
 def generate_license():
+    """Generate a new license key for the user."""
     logger.info(f"[LICENSE GEN] User: {current_user.email}")
     lang = get_user_language()
 
@@ -1828,7 +2232,9 @@ def generate_license():
         }), 403
 
     if current_user.get_active_license():
-        return jsonify({"error": "Je hebt al een actieve licentie" if lang == 'nl' else "You already have an active license"}), 400
+        return jsonify({
+            "error": "Je hebt al een actieve licentie" if lang == 'nl' else "You already have an active license"
+        }), 400
 
     try:
         test_mode = Setting.query.filter_by(key="test_mode").first()
@@ -1854,29 +2260,35 @@ def generate_license():
         db.session.add(lic)
         db.session.commit()
 
-        logger.info(f"[LICENSE GEN] ✅ {lic.mask_license_key()} | max_acc={max_accounts} | level={user_level} | unlimited validations")
+        logger.info(
+            f"[LICENSE GEN] {lic.mask_license_key()} | max_acc={max_accounts} | "
+            f"level={user_level} | unlimited validations"
+        )
 
         log_audit(
-            current_user.id, "license_generated",
+            current_user.id,
+            "license_generated",
             f"{lic.mask_license_key()} | level={user_level} | max_acc={max_accounts}",
             request.remote_addr
         )
 
+        # Send license email
         if lang == 'nl':
             send_email_async(
                 "Jouw Licentiesleutel - Trading Engine",
                 [current_user.email],
-                f"Licentiesleutel: {key}\nVerloopt: {format_date_dutch(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}\n\nBewaar deze sleutel veilig.",
-                f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {format_date_dutch(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Bewaar deze sleutel veilig.</p>"
+                f"Licentiesleutel: {key}\nVerloopt: {format_date_dutch(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}",
+                f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {format_date_dutch(lic.expires_at)}</p>"
             )
         else:
             send_email_async(
                 "Your License Key - Trading Engine",
                 [current_user.email],
-                f"License Key: {key}\nExpires: {format_date_english(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}\n\nKeep this key safe.",
-                f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p><p>Keep this key safe.</p>"
+                f"License Key: {key}\nExpires: {format_date_english(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}",
+                f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p>"
             )
 
+        # Provision VPS if needed
         if not (current_user.vps_id and current_user.vps_status == 'active'):
             provision_vps_for_user(current_user, current_user.get_plan_level())
 
@@ -1891,7 +2303,9 @@ def generate_license():
     except Exception as e:
         logger.error(f"[LICENSE GEN] Error: {e}", exc_info=True)
         db.session.rollback()
-        return jsonify({"error": "Kon licentie niet genereren" if lang == 'nl' else "Failed to generate license"}), 500
+        return jsonify({
+            "error": "Kon licentie niet genereren" if lang == 'nl' else "Failed to generate license"
+        }), 500
 
 
 # ============================================================================
@@ -1902,6 +2316,7 @@ def generate_license():
 @login_required
 @limiter.limit("5 per day")
 def cancel_membership():
+    """Cancel membership auto-renewal at Stripe while preserving access until period end."""
     if current_user.is_admin:
         return jsonify({"error": "Admin accounts cannot be cancelled this way"}), 400
 
@@ -1922,129 +2337,53 @@ def cancel_membership():
         if not membership_end_date:
             membership_end_date = datetime.utcnow()
 
+        # Cancel at Stripe
         if user.stripe_subscription_id:
             if stripe is None:
-                logger.error("[CANCEL] Stripe library not installed, cannot cancel subscription")
-                error_msg = (
-                    "Kon abonnement niet annuleren (configuratiefout). Neem contact op met support."
-                    if lang == 'nl' else
-                    "Failed to cancel subscription (configuration error). Please contact support."
-                )
-                return jsonify({"error": error_msg}), 500
+                logger.error("[CANCEL] Stripe library not installed")
+                return jsonify({"error": "Configuration error"}), 500
             try:
                 stripe.Subscription.modify(
                     user.stripe_subscription_id,
                     cancel_at_period_end=True,
                 )
-                logger.info(
-                    f"[CANCEL] Stripe subscription {user.stripe_subscription_id} "
-                    f"set to cancel_at_period_end for {user.email}"
-                )
+                logger.info(f"[CANCEL] Stripe subscription {user.stripe_subscription_id} set to cancel_at_period_end for {user.email}")
             except stripe.error.InvalidRequestError as e:
-                logger.warning(
-                    f"[CANCEL] Stripe subscription {user.stripe_subscription_id} "
-                    f"could not be modified for {user.email}: {e}"
-                )
+                logger.warning(f"[CANCEL] Stripe subscription could not be modified: {e}")
             except Exception as e:
-                logger.error(f"[CANCEL] Stripe API error cancelling subscription for {user.email}: {e}")
+                logger.error(f"[CANCEL] Stripe API error: {e}")
                 db.session.rollback()
-                error_msg = (
-                    "Kon abonnement niet annuleren bij de betalingsprovider. Probeer opnieuw."
-                    if lang == 'nl' else
-                    "Failed to cancel subscription with payment provider. Please try again."
-                )
-                return jsonify({"error": error_msg}), 502
-        else:
-            logger.warning(
-                f"[CANCEL] No stripe_subscription_id on file for {user.email} - "
-                f"cannot stop auto-renewal at Stripe. Manual cancellation in the "
-                f"Stripe dashboard may be required to fully stop billing."
-            )
+                return jsonify({"error": "Failed to cancel with payment provider"}), 502
 
         user.membership_status = "cancelled"
         db.session.commit()
 
+        # Send confirmation email
         formatted_date_nl = format_date_dutch(membership_end_date) if membership_end_date else "de eerstvolgende verlengdatum"
         formatted_date_en = format_date_english(membership_end_date) if membership_end_date else "the next renewal date"
 
-        active_license_count = License.query.filter_by(
-            user_id=user.id,
-            status="active"
-        ).count()
-
-        email_subject = "Bevestiging van je opzegging"
-        email_body_plain = (
-            f"Hi {user.first_name or 'handelaar'},\n\n"
-            f"Je opzegging is succesvol verwerkt.\n\n"
-            f"Je membership blijft actief tot en met {formatted_date_nl}. Na deze datum vervalt je toegang tot:\n\n"
-            f"- Je VPS\n"
-            f"- Je Expert Advisor(s) en licenties\n"
-            f"- Discord community\n"
-            f"- De Academy\n\n"
-            f"Wil je later opnieuw instappen? Dat kan altijd. Houd er rekening mee dat je dan een nieuwe VPS "
-            f"en nieuwe licenties ontvangt en de setup opnieuw moet doorlopen.\n\n"
-            f"Heb je je bedacht en wil je jouw membership toch behouden? Neem dan vóór {formatted_date_nl} "
-            f"contact met ons op via hello@tradingengine.nl.\n\n"
-            f"Hartelijke groet,\n"
-            f"Team Trading Engine"
-        )
-        email_body_html = f"""
-        <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #0b121a;">Bevestiging van je opzegging</h2>
-            <p>Hi <strong>{user.first_name or 'handelaar'}</strong>,</p>
-            
-            <p>Je opzegging is succesvol verwerkt.</p>
-            
-            <p>Je membership blijft actief tot en met <strong>{formatted_date_nl}</strong>. Na deze datum vervalt je toegang tot:</p>
-            
-            <ul style="color: #5b6f7e; padding-left: 20px;">
-                <li>Je VPS</li>
-                <li>Je Expert Advisor(s) en licenties</li>
-                <li>Discord community</li>
-                <li>De Academy</li>
-            </ul>
-            
-            <p style="color: #5b6f7e;">Wil je later opnieuw instappen? Dat kan altijd. Houd er rekening mee dat je dan een nieuwe VPS en nieuwe licenties ontvangt en de setup opnieuw moet doorlopen.</p>
-            
-            <p style="color: #5b6f7e;">Heb je je bedacht en wil je jouw membership toch behouden? Neem dan vóór {formatted_date_nl} contact met ons op via <a href="mailto:hello@tradingengine.nl" style="color: #0b121a;">hello@tradingengine.nl</a>.</p>
-            
-            <p style="color: #5b6f7e; margin-top: 30px;">
-                Hartelijke groet,<br>
-                <strong style="color: #0b121a;">Team Trading Engine</strong>
-            </p>
-        </div>
-        """
-
-        send_email_async(email_subject, [user.email], email_body_plain, email_body_html)
-
-        log_audit(
-            user.id,
-            "membership_cancelled",
-            f"User cancelled auto-renewal | Access until: {formatted_date_en} | {active_license_count} active licenses retained | VPS retained until expiry",
-            request.remote_addr
+        send_email_async(
+            "Bevestiging van je opzegging",
+            [user.email],
+            f"Je opzegging is succesvol verwerkt. Je membership blijft actief tot {formatted_date_nl}.",
+            f"<h3>Bevestiging van je opzegging</h3><p>Je membership blijft actief tot <strong>{formatted_date_nl}</strong>.</p>"
         )
 
+        log_audit(user.id, "membership_cancelled", f"Access until: {formatted_date_en}", request.remote_addr)
         logger.info(f"[CANCEL] User {user.email} cancelled auto-renewal. Access until {formatted_date_en}")
 
         success_msg = (
-            f"Je abonnement is geannuleerd. Je behoudt volledige toegang tot {formatted_date_nl}." 
-            if lang == 'nl' else 
-            f"Membership cancelled. You retain full access until {formatted_date_en}."
+            f"Je abonnement is geannuleerd. Je behoudt volledige toegang tot {formatted_date_nl}."
+            if lang == 'nl'
+            else f"Membership cancelled. You retain full access until {formatted_date_en}."
         )
 
-        return jsonify({
-            "success": True,
-            "message": success_msg,
-            "end_date_nl": formatted_date_nl,
-            "end_date_en": formatted_date_en,
-            "licenses_retained": active_license_count
-        })
+        return jsonify({"success": True, "message": success_msg})
 
     except Exception as e:
-        logger.error(f"[CANCEL] Error cancelling membership: {e}", exc_info=True)
+        logger.error(f"[CANCEL] Error: {e}", exc_info=True)
         db.session.rollback()
-        error_msg = "Kon abonnement niet annuleren. Probeer opnieuw." if lang == 'nl' else "Failed to cancel membership. Please try again."
-        return jsonify({"error": error_msg}), 500
+        return jsonify({"error": "Failed to cancel membership"}), 500
 
 
 # ============================================================================
@@ -2054,6 +2393,7 @@ def cancel_membership():
 @app.route("/download-ea/<int:file_id>")
 @login_required
 def download_ea(file_id):
+    """Download an Expert Advisor file."""
     if not current_user.is_membership_active():
         flash("Actief abonnement vereist.", "error")
         return redirect(url_for("user_dashboard"))
@@ -2086,307 +2426,23 @@ def download_ea(file_id):
 # TRADING JOURNAL ROUTES
 # ============================================================================
 
-@app.route("/dashboard/journal-data")
-@login_required
-def journal_dashboard_data():
-    accounts = JournalAccount.query.filter_by(user_id=current_user.id, archived=False).order_by(JournalAccount.created_at).all()
-
-    requested_id = request.args.get("jaccount", type=int)
-    account = get_selected_journal_account(requested_id)
-
-    if not account:
-        return {"has_accounts": False, "accounts": []}
-
-    now = datetime.utcnow()
-    all_trades = account.trades.order_by(JournalTrade.close_time.asc()).all()
-
-    today_start = datetime(now.year, now.month, now.day)
-    week_start = today_start - timedelta(days=today_start.weekday())
-    month_start = datetime(now.year, now.month, 1)
-
-    week_trades = [t for t in all_trades if t.close_time >= week_start]
-    month_trades = [t for t in all_trades if t.close_time >= month_start]
-
-    overall = compute_journal_stats(all_trades)
-    week_stats = compute_journal_stats(week_trades)
-
-    starting_balance = account.starting_balance or 0.0
-    total_return_pct = (overall["net_profit"] / starting_balance * 100) if starting_balance else 0.0
-    max_dd, max_dd_pct = journal_max_drawdown(all_trades, starting_balance)
-    active_days = len({t.close_time.strftime("%Y-%m-%d") for t in all_trades})
-
-    month_param = request.args.get("jmonth")
-    if month_param:
-        try:
-            cal_year, cal_month = [int(x) for x in month_param.split("-")]
-        except Exception:
-            cal_year, cal_month = now.year, now.month
-    else:
-        cal_year, cal_month = now.year, now.month
-
-    cal_start = datetime(cal_year, cal_month, 1)
-    cal_end = datetime(cal_year + (1 if cal_month == 12 else 0), 1 if cal_month == 12 else cal_month + 1, 1)
-    cal_trades = [t for t in all_trades if cal_start <= t.close_time < cal_end]
-    cal_daily_pl = journal_daily_pl_map(cal_trades)
-
-    weekly_bars = []
-    week_pl = journal_daily_pl_map(week_trades)
-    for i in range(7):
-        d = week_start + timedelta(days=i)
-        key = d.strftime("%Y-%m-%d")
-        weekly_bars.append({"label": d.strftime("%a"), "date": key, "pl": round(week_pl.get(key, 0.0), 2)})
-
-    return {
-        "has_accounts": True,
-        "accounts": accounts,
-        "account": account,
-        "overall": overall,
-        "week_stats": week_stats,
-        "total_return_pct": round(total_return_pct, 2),
-        "max_dd": max_dd, "max_dd_pct": max_dd_pct,
-        "active_days": active_days,
-        "cal_year": cal_year, "cal_month": cal_month,
-        "cal_daily_pl": cal_daily_pl,
-        "cal_first_weekday": cal_start.weekday(),
-        "cal_days_in_month": (cal_end - cal_start).days,
-        "weekly_bars": weekly_bars,
-        "recent_trades": list(reversed(all_trades))[:8],
-        "current_balance": account.current_balance if account.current_balance is not None else starting_balance,
-        "current_equity": account.current_equity if account.current_equity is not None else starting_balance,
-    }
-
-
-@app.route("/dashboard/journal-trades")
-@login_required
-def journal_trades_data():
-    account = get_selected_journal_account(request.args.get("jaccount", type=int))
-    if not account:
-        return {"trades": [], "symbols": []}
-
-    query = account.trades
-    symbol = request.args.get("jsymbol", "").strip().upper()
-    trade_type = request.args.get("jtype", "").strip().lower()
-    start = request.args.get("jstart")
-    end = request.args.get("jend")
-    q = request.args.get("jq", "").strip()
-
-    if symbol:
-        query = query.filter(JournalTrade.symbol == symbol)
-    if trade_type in ("buy", "sell"):
-        query = query.filter(JournalTrade.trade_type == trade_type)
-    if start:
-        try:
-            query = query.filter(JournalTrade.close_time >= datetime.strptime(start, "%Y-%m-%d"))
-        except ValueError:
-            pass
-    if end:
-        try:
-            query = query.filter(JournalTrade.close_time < datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1))
-        except ValueError:
-            pass
-    if q:
-        query = query.filter(JournalTrade.symbol.ilike(f"%{q}%"))
-
-    sort = request.args.get("jsort", "close_time")
-    direction = request.args.get("jdir", "desc")
-    sort_col = getattr(JournalTrade, sort, JournalTrade.close_time)
-    query = query.order_by(sort_col.desc() if direction == "desc" else sort_col.asc())
-
-    trades = query.limit(500).all()
-    symbols = sorted({t.symbol for t in account.trades.all()})
-
-    return {
-        "account": account, "trades": trades, "symbols": symbols,
-        "jsort": sort, "jdir": direction,
-        "filters": {"symbol": symbol, "type": trade_type, "q": q, "start": start or "", "end": end or ""},
-    }
-
-
-@app.route("/journal/account/new", methods=["POST"])
-@login_required
-def journal_account_new():
-    name = request.form.get("name", "").strip()
-    mt5_login = request.form.get("mt5_login", "").strip()
-
-    if not name or not mt5_login:
-        flash("Account name and MT5 login number are required.", "error")
-        return redirect(url_for("user_dashboard", section="journal"))
-
-    if JournalAccount.query.filter_by(user_id=current_user.id, mt5_login=mt5_login).first():
-        flash("You already have an account linked to that MT5 login number.", "error")
-        return redirect(url_for("user_dashboard", section="journal"))
-
-    try:
-        starting_balance = float(request.form.get("starting_balance") or 0)
-    except ValueError:
-        starting_balance = 0.0
-
-    account = JournalAccount(
-        user_id=current_user.id, name=name,
-        broker=request.form.get("broker", "").strip() or None,
-        prop_firm=request.form.get("prop_firm", "").strip() or None,
-        mt5_login=mt5_login,
-        mt5_server=request.form.get("mt5_server", "").strip() or None,
-        currency=request.form.get("currency", "USD").strip() or "USD",
-        starting_balance=starting_balance,
-        current_balance=starting_balance, current_equity=starting_balance,
-        sync_token=secrets.token_hex(24),
-    )
-    db.session.add(account)
-    db.session.commit()
-
-    session["journal_account_id"] = account.id
-    flash(f"'{name}' added. Install the sync agent on that account's VPS to start importing trades.", "success")
-    return redirect(url_for("user_dashboard", section="journal", jaccount=account.id))
-
-
-@app.route("/journal/account/<int:account_id>/delete", methods=["POST"])
-@login_required
-def journal_account_delete(account_id):
-    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
-    name = account.name
-    db.session.delete(account)
-    db.session.commit()
-    if session.get("journal_account_id") == account_id:
-        session.pop("journal_account_id", None)
-    flash(f"'{name}' and all its trade history were deleted.", "success")
-    return redirect(url_for("user_dashboard", section="journal"))
-
-
-@app.route("/journal/account/<int:account_id>/regen-token", methods=["POST"])
-@login_required
-def journal_account_regen_token(account_id):
-    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
-    account.sync_token = secrets.token_hex(24)
-    db.session.commit()
-    flash("New sync token generated. Update the agent config on the VPS.", "success")
-    return redirect(url_for("user_dashboard", section="journal", jaccount=account_id))
-
-
-@app.route("/journal/account/<int:account_id>/sync-now", methods=["POST"])
-@login_required
-def journal_account_sync_now(account_id):
-    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
-    account.sync_requested_at = datetime.utcnow()
-    db.session.commit()
-    return jsonify({
-        "success": True,
-        "message": "Sync requested. The agent on your VPS will push new trades within a few seconds if it's running.",
-    })
-
-
-@app.route("/journal/api/day/<int:account_id>/<day>")
-@login_required
-def journal_api_day(account_id, day):
-    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
-    try:
-        d = datetime.strptime(day, "%Y-%m-%d")
-    except ValueError:
-        return jsonify({"error": "Invalid date"}), 400
-    next_d = d + timedelta(days=1)
-    trades = account.trades.filter(JournalTrade.close_time >= d, JournalTrade.close_time < next_d).order_by(JournalTrade.close_time).all()
-    stats = compute_journal_stats(trades)
-    return jsonify({
-        "date": day, "stats": stats,
-        "trades": [{
-            "symbol": t.symbol, "type": t.trade_type, "volume": t.volume,
-            "entry": t.entry_price, "sl": t.sl, "tp": t.tp, "exit": t.exit_price,
-            "profit": t.profit, "pips": t.pips,
-            "open_time": t.open_time.strftime("%H:%M") if t.open_time else None,
-            "close_time": t.close_time.strftime("%H:%M"),
-            "duration": t.duration_display(), "magic": t.magic_number,
-        } for t in trades]
-    })
-
-
-@app.route("/journal/api/ingest", methods=["POST"])
-def journal_api_ingest():
-    """
-    Called by mt5_sync_agent.py running on the user's Windows VPS.
-    Auth: header 'X-Sync-Token: <account.sync_token>'
-    """
-    token = request.headers.get("X-Sync-Token", "")
-    account = JournalAccount.query.filter_by(sync_token=token).first() if token else None
-    if not account:
-        return jsonify({"success": False, "error": "Invalid sync token"}), 401
-
-    data = request.get_json(silent=True) or {}
-    trades_payload = data.get("trades", [])
-
-    imported = skipped = 0
-    for tr in trades_payload:
-        try:
-            ticket = str(tr["ticket"])
-        except KeyError:
-            continue
-
-        if JournalTrade.query.filter_by(account_id=account.id, mt5_ticket=ticket).first():
-            skipped += 1
-            continue
-
-        try:
-            close_time = datetime.fromisoformat(tr["close_time"])
-        except Exception:
-            continue
-
-        open_time = None
-        if tr.get("open_time"):
-            try:
-                open_time = datetime.fromisoformat(tr["open_time"])
-            except Exception:
-                pass
-
-        db.session.add(JournalTrade(
-            account_id=account.id, mt5_ticket=ticket,
-            symbol=tr.get("symbol", "UNKNOWN"),
-            trade_type=(tr.get("type") or "buy").lower(),
-            volume=float(tr.get("volume") or 0),
-            entry_price=tr.get("entry_price"), sl=tr.get("sl"), tp=tr.get("tp"),
-            exit_price=tr.get("exit_price"), open_time=open_time, close_time=close_time,
-            profit=float(tr.get("profit") or 0), pips=tr.get("pips"),
-            magic_number=tr.get("magic_number"), comment=tr.get("comment"),
-        ))
-        imported += 1
-
-    if "balance" in data:
-        account.current_balance = data["balance"]
-    if "equity" in data:
-        account.current_equity = data["equity"]
-
-    account.last_synced_at = datetime.utcnow()
-    account.last_sync_error = None
-    account.sync_requested_at = None
-    db.session.commit()
-
-    return jsonify({
-        "success": True,
-        "imported": imported,
-        "skipped": skipped,
-    })
-
-
 @app.route("/journal")
 @login_required
 def journal_page():
     """
-    Single-page Trading Journal that contains everything:
-    Dashboard, Trades, Calendar, Statistics, and Account Management
-    all in one tabbed interface.
+    Single-page Trading Journal with tabs: Dashboard, Trades, Calendar, Accounts.
     """
     if not current_user.is_membership_active():
         flash("Actief abonnement vereist.", "error")
         return redirect(url_for("user_dashboard"))
     
-    # Get all user's journal accounts
     accounts = JournalAccount.query.filter_by(
         user_id=current_user.id, archived=False
     ).order_by(JournalAccount.created_at).all()
     
-    # Get selected account
     requested_id = request.args.get("account_id", type=int)
     account = get_selected_journal_account(requested_id)
     
-    # If no account exists, show the create form
     if not account:
         return render_template(
             "user/journal.html",
@@ -2398,15 +2454,11 @@ def journal_page():
             now=datetime.utcnow()
         )
     
-    # Load all the data for the selected account
     now = datetime.utcnow()
     all_trades = account.trades.order_by(JournalTrade.close_time.asc()).all()
     
-    # Calendar data
-    today_start = datetime(now.year, now.month, now.day)
-    week_start = today_start - timedelta(days=today_start.weekday())
-    month_start = datetime(now.year, now.month, 1)
-    
+    # Week calculations
+    week_start = datetime(now.year, now.month, now.day) - timedelta(days=now.weekday())
     week_trades = [t for t in all_trades if t.close_time >= week_start]
     
     overall = compute_journal_stats(all_trades)
@@ -2417,7 +2469,7 @@ def journal_page():
     max_dd, max_dd_pct = journal_max_drawdown(all_trades, starting_balance)
     active_days = len({t.close_time.strftime("%Y-%m-%d") for t in all_trades})
     
-    # Month for calendar
+    # Calendar month
     month_param = request.args.get("month")
     if month_param:
         try:
@@ -2428,11 +2480,13 @@ def journal_page():
         cal_year, cal_month = now.year, now.month
     
     cal_start = datetime(cal_year, cal_month, 1)
-    cal_end = datetime(cal_year + (1 if cal_month == 12 else 0), 1 if cal_month == 12 else cal_month + 1, 1)
+    cal_end = datetime(
+        cal_year + (1 if cal_month == 12 else 0),
+        1 if cal_month == 12 else cal_month + 1,
+        1
+    )
     cal_trades = [t for t in all_trades if cal_start <= t.close_time < cal_end]
     cal_daily_pl = journal_daily_pl_map(cal_trades)
-    cal_first_weekday = cal_start.weekday()
-    cal_days_in_month = (cal_end - cal_start).days
     
     # Weekly chart data
     weekly_bars = []
@@ -2441,8 +2495,8 @@ def journal_page():
         d = week_start + timedelta(days=i)
         key = d.strftime("%Y-%m-%d")
         weekly_bars.append({
-            "label": d.strftime("%a"), 
-            "date": key, 
+            "label": d.strftime("%a"),
+            "date": key,
             "pl": round(week_pl.get(key, 0.0), 2)
         })
     
@@ -2479,15 +2533,6 @@ def journal_page():
     trades = query.limit(500).all()
     symbols = sorted({t.symbol for t in account.trades.all()})
     
-    # Build base query string for sorting links
-    base_qs = ""
-    for key in ["jsymbol", "jtype", "jstart", "jend", "jq"]:
-        val = request.args.get(key, "")
-        if val:
-            base_qs += f"{key}={urllib.parse.quote(val)}&"
-    base_qs = base_qs.rstrip("&")
-    
-    # Active tab
     active_tab = request.args.get("tab", "dashboard")
     
     return render_template(
@@ -2496,7 +2541,6 @@ def journal_page():
         accounts=accounts,
         account=account,
         active_tab=active_tab,
-        # Dashboard data
         overall=overall,
         week_stats=week_stats,
         total_return_pct=round(total_return_pct, 2),
@@ -2505,29 +2549,446 @@ def journal_page():
         active_days=active_days,
         current_balance=account.current_balance if account.current_balance is not None else starting_balance,
         current_equity=account.current_equity if account.current_equity is not None else starting_balance,
-        # Calendar data
         cal_year=cal_year,
         cal_month=cal_month,
         cal_daily_pl=cal_daily_pl,
-        cal_first_weekday=cal_first_weekday,
-        cal_days_in_month=cal_days_in_month,
-        # Weekly chart
+        cal_first_weekday=cal_start.weekday(),
+        cal_days_in_month=(cal_end - cal_start).days,
         weekly_bars=weekly_bars,
-        # Recent trades
         recent_trades=list(reversed(all_trades))[:8],
-        # Trade list data
         trades=trades,
         symbols=symbols,
         sort=sort,
         direction=direction,
-        base_qs=base_qs,
         filters={"symbol": symbol, "type": trade_type, "q": q, "start": start or "", "end": end or ""},
-        # Month names for calendar
         month_names=['','January','February','March','April','May','June','July','August','September','October','November','December'],
-        # Language
         current_language=get_user_language(),
         now=now
     )
+
+
+@app.route("/journal/account/new", methods=["POST"])
+@login_required
+def journal_account_new():
+    """Create a new journal account - only requires name and MT5 login."""
+    name = request.form.get("name", "").strip()
+    mt5_login = request.form.get("mt5_login", "").strip()
+
+    if not name:
+        name = f"MT5-{mt5_login}" if mt5_login else "MT5 Account"
+
+    if not mt5_login:
+        flash("MT5 login number is required.", "error")
+        return redirect(url_for("journal_page", tab="accounts"))
+
+    if JournalAccount.query.filter_by(user_id=current_user.id, mt5_login=mt5_login).first():
+        flash("You already have an account linked to that MT5 login number.", "error")
+        return redirect(url_for("journal_page", tab="accounts"))
+
+    account = JournalAccount(
+        user_id=current_user.id,
+        name=name,
+        mt5_login=mt5_login,
+        sync_token=secrets.token_hex(24),
+    )
+    db.session.add(account)
+    db.session.commit()
+
+    session["journal_account_id"] = account.id
+    flash(f"'{name}' connected! Download the sync agent to start importing trades.", "success")
+    return redirect(url_for("journal_page", account_id=account.id, tab="accounts"))
+
+
+@app.route("/journal/account/<int:account_id>/delete", methods=["POST"])
+@login_required
+def journal_account_delete(account_id):
+    """Delete a journal account and all its trades."""
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    name = account.name
+    db.session.delete(account)
+    db.session.commit()
+    if session.get("journal_account_id") == account_id:
+        session.pop("journal_account_id", None)
+    flash(f"'{name}' and all its trade history were deleted.", "success")
+    return redirect(url_for("journal_page", tab="accounts"))
+
+
+@app.route("/journal/account/<int:account_id>/regen-token", methods=["POST"])
+@login_required
+def journal_account_regen_token(account_id):
+    """Regenerate the sync token for a journal account."""
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    account.sync_token = secrets.token_hex(24)
+    db.session.commit()
+    flash("New sync token generated. Update the agent config on the VPS.", "success")
+    return redirect(url_for("journal_page", account_id=account_id, tab="accounts"))
+
+
+@app.route("/journal/account/<int:account_id>/sync-now", methods=["POST"])
+@login_required
+def journal_account_sync_now(account_id):
+    """Request an immediate sync from the MT5 agent."""
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    account.sync_requested_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "message": "Sync requested. The agent on your VPS will push new trades within a few seconds if it's running.",
+    })
+
+
+@app.route("/journal/api/day/<int:account_id>/<day>")
+@login_required
+def journal_api_day(account_id, day):
+    """Get trades for a specific day."""
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    try:
+        d = datetime.strptime(day, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Invalid date"}), 400
+    
+    next_d = d + timedelta(days=1)
+    trades = account.trades.filter(
+        JournalTrade.close_time >= d,
+        JournalTrade.close_time < next_d
+    ).order_by(JournalTrade.close_time).all()
+    
+    stats = compute_journal_stats(trades)
+    return jsonify({
+        "date": day,
+        "stats": stats,
+        "trades": [{
+            "symbol": t.symbol,
+            "type": t.trade_type,
+            "volume": t.volume,
+            "entry": t.entry_price,
+            "sl": t.sl,
+            "tp": t.tp,
+            "exit": t.exit_price,
+            "profit": t.profit,
+            "pips": t.pips,
+            "open_time": t.open_time.strftime("%H:%M") if t.open_time else None,
+            "close_time": t.close_time.strftime("%H:%M"),
+            "duration": t.duration_display(),
+            "magic": t.magic_number,
+        } for t in trades]
+    })
+
+
+@app.route("/journal/api/ingest", methods=["POST"])
+def journal_api_ingest():
+    """
+    Called by mt5_sync_agent.py running on the user's Windows VPS.
+    Auth: header 'X-Sync-Token: <account.sync_token>'
+    
+    Accepts trades AND account metadata for auto-detection.
+    """
+    token = request.headers.get("X-Sync-Token", "")
+    account = JournalAccount.query.filter_by(sync_token=token).first() if token else None
+    if not account:
+        return jsonify({"success": False, "error": "Invalid sync token"}), 401
+
+    data = request.get_json(silent=True) or {}
+    
+    # Auto-detect account metadata
+    account_info = data.get("account_info", {})
+    if account_info:
+        updated_fields = []
+        
+        if account_info.get("broker") and not account.broker:
+            account.broker = account_info["broker"]
+            updated_fields.append(f"broker={account.broker}")
+        
+        if account_info.get("server") and not account.mt5_server:
+            account.mt5_server = account_info["server"]
+            updated_fields.append(f"server={account.mt5_server}")
+        
+        if account_info.get("currency"):
+            account.currency = account_info["currency"]
+            updated_fields.append(f"currency={account.currency}")
+        
+        if account_info.get("name") and not account.prop_firm:
+            account.prop_firm = account_info["name"]
+        
+        if account_info.get("balance") and (account.starting_balance is None or account.starting_balance == 0.0):
+            account.starting_balance = account_info["balance"]
+            updated_fields.append(f"starting_balance={account.starting_balance}")
+        
+        if updated_fields:
+            logger.info(f"[JOURNAL] Auto-detected for {account.mt5_login}: {', '.join(updated_fields)}")
+    
+    # Import trades
+    trades_payload = data.get("trades", [])
+    imported = 0
+    skipped = 0
+    
+    for tr in trades_payload:
+        try:
+            ticket = str(tr["ticket"])
+        except KeyError:
+            continue
+
+        if JournalTrade.query.filter_by(account_id=account.id, mt5_ticket=ticket).first():
+            skipped += 1
+            continue
+
+        try:
+            close_time = datetime.fromisoformat(tr["close_time"])
+        except Exception:
+            continue
+
+        open_time = None
+        if tr.get("open_time"):
+            try:
+                open_time = datetime.fromisoformat(tr["open_time"])
+            except Exception:
+                pass
+
+        db.session.add(JournalTrade(
+            account_id=account.id,
+            mt5_ticket=ticket,
+            symbol=tr.get("symbol", "UNKNOWN"),
+            trade_type=(tr.get("type") or "buy").lower(),
+            volume=float(tr.get("volume") or 0),
+            entry_price=tr.get("entry_price"),
+            sl=tr.get("sl"),
+            tp=tr.get("tp"),
+            exit_price=tr.get("exit_price"),
+            open_time=open_time,
+            close_time=close_time,
+            profit=float(tr.get("profit") or 0),
+            pips=tr.get("pips"),
+            magic_number=tr.get("magic_number"),
+            comment=tr.get("comment"),
+        ))
+        imported += 1
+
+    # Update balance/equity
+    if "balance" in data:
+        account.current_balance = data["balance"]
+    if "equity" in data:
+        account.current_equity = data["equity"]
+
+    account.last_synced_at = datetime.utcnow()
+    account.last_sync_error = None
+    account.sync_requested_at = None
+    db.session.commit()
+
+    logger.info(
+        f"[JOURNAL] Ingest for {account.mt5_login}: "
+        f"{imported} imported, {skipped} skipped, balance={account.current_balance}"
+    )
+
+    return jsonify({
+        "success": True,
+        "imported": imported,
+        "skipped": skipped,
+        "balance": account.current_balance,
+        "equity": account.current_equity
+    })
+
+
+@app.route("/journal/api/dashboard-data/<int:account_id>")
+@login_required
+def journal_api_dashboard_data(account_id):
+    """Returns live dashboard data for AJAX auto-refresh every 60 seconds."""
+    account = JournalAccount.query.filter_by(
+        id=account_id, user_id=current_user.id
+    ).first_or_404()
+    
+    now = datetime.utcnow()
+    all_trades = account.trades.order_by(JournalTrade.close_time.asc()).all()
+    
+    week_start = datetime(now.year, now.month, now.day) - timedelta(days=now.weekday())
+    week_trades = [t for t in all_trades if t.close_time >= week_start]
+    
+    overall = compute_journal_stats(all_trades)
+    week_stats = compute_journal_stats(week_trades)
+    
+    starting_balance = account.starting_balance or 0.0
+    
+    week_pl = journal_daily_pl_map(week_trades)
+    weekly_bars = []
+    for i in range(7):
+        d = week_start + timedelta(days=i)
+        key = d.strftime("%Y-%m-%d")
+        weekly_bars.append({
+            "label": d.strftime("%a"),
+            "date": key,
+            "pl": round(week_pl.get(key, 0.0), 2)
+        })
+    
+    recent_trades = list(reversed(all_trades))[:8]
+    
+    return jsonify({
+        "success": True,
+        "balance": account.current_balance if account.current_balance is not None else starting_balance,
+        "equity": account.current_equity if account.current_equity is not None else starting_balance,
+        "last_synced_at": account.last_synced_at.strftime('%d %b %H:%M') if account.last_synced_at else 'never',
+        "overall": overall,
+        "week_stats": week_stats,
+        "weekly_bars": weekly_bars,
+        "recent_trades": [{
+            "close_time": t.close_time.isoformat(),
+            "symbol": t.symbol,
+            "trade_type": t.trade_type,
+            "volume": t.volume,
+            "entry_price": t.entry_price,
+            "exit_price": t.exit_price,
+            "profit": t.profit,
+            "pips": t.pips,
+            "duration": t.duration_display()
+        } for t in recent_trades]
+    })
+
+
+@app.route("/download/sync-agent")
+@login_required
+def download_sync_agent():
+    """
+    Download the MT5 sync agent Python script.
+    The sync token is embedded so no manual configuration is needed.
+    """
+    token = request.args.get("token", "")
+    
+    if not token:
+        account = JournalAccount.query.filter_by(
+            user_id=current_user.id, archived=False
+        ).order_by(JournalAccount.created_at.desc()).first()
+        if account:
+            token = account.sync_token
+    
+    agent_code = f'''"""
+MT5 Sync Agent for Trading Engine Journal
+=========================================
+Run this on your VPS where MT5 is installed.
+Requirements: pip install MetaTrader5
+
+Your sync token is pre-configured below.
+Just run: python mt5_sync_agent.py
+"""
+
+import json, time, sys, urllib.request, urllib.error
+from datetime import datetime, timedelta
+
+try:
+    import MetaTrader5 as mt5
+except ImportError:
+    import subprocess
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "MetaTrader5"])
+    import MetaTrader5 as mt5
+
+SYNC_TOKEN = "{token}"
+API_URL = "{url_for('journal_api_ingest', _external=True)}"
+SYNC_INTERVAL = 300
+
+def connect_mt5():
+    if not mt5.initialize():
+        print(f"Could not connect: {{mt5.last_error()}}")
+        return False
+    print(f"Connected to MT5: {{mt5.terminal_info().path}}")
+    return True
+
+def get_account_details():
+    info = mt5.account_info()
+    if info is None:
+        return {{}}
+    return {{
+        "broker": info.broker or "",
+        "server": info.server or "",
+        "currency": info.currency or "USD",
+        "balance": info.balance or 0,
+        "equity": info.equity or 0,
+        "login": info.login,
+        "name": info.name or "",
+    }}
+
+def get_recent_trades(days=30):
+    to_date = datetime.now()
+    from_date = to_date - timedelta(days=days)
+    positions = mt5.history_positions_get(from_date, to_date)
+    if positions is None:
+        return []
+    trades = []
+    for pos in positions:
+        trades.append({{
+            "ticket": str(pos.ticket),
+            "symbol": pos.symbol,
+            "type": "buy" if pos.type == 0 else "sell",
+            "volume": pos.volume,
+            "entry_price": pos.price_open,
+            "sl": pos.sl,
+            "tp": pos.tp,
+            "exit_price": pos.price_current,
+            "open_time": datetime.fromtimestamp(pos.time_setup).isoformat() if pos.time_setup else None,
+            "close_time": datetime.fromtimestamp(pos.time_close).isoformat() if pos.time_close else datetime.now().isoformat(),
+            "profit": pos.profit if hasattr(pos,'profit') else 0.0,
+            "pips": None,
+            "magic_number": pos.magic,
+            "comment": pos.comment or "",
+        }})
+    return trades
+
+def push_data(data):
+    req = urllib.request.Request(
+        API_URL,
+        data=json.dumps(data).encode(),
+        headers={{
+            "Content-Type":"application/json",
+            "X-Sync-Token":SYNC_TOKEN,
+            "User-Agent":"TradingEngine-SyncAgent/1.0"
+        }},
+        method="POST"
+    )
+    return json.loads(urllib.request.urlopen(req, timeout=30).read())
+
+def main():
+    print("="*50)
+    print("  Trading Engine - MT5 Sync Agent")
+    print("="*50)
+    if not connect_mt5():
+        input("Press Enter to exit...")
+        return
+    acc_info = get_account_details()
+    print(f"Broker: {{acc_info.get('broker')}}")
+    print(f"Balance: ${{acc_info.get('balance',0):.2f}}")
+    trades = get_recent_trades(30)
+    print(f"Found {{len(trades)}} trades")
+    result = push_data({{
+        "account_info":acc_info,
+        "balance":acc_info.get("balance"),
+        "equity":acc_info.get("equity"),
+        "trades":trades
+    }})
+    print(f"Imported {{result.get('imported',0)}} trades")
+    print(f"Auto-syncing every {{SYNC_INTERVAL//60}} min...")
+    while True:
+        try:
+            time.sleep(SYNC_INTERVAL)
+            acc_info = get_account_details()
+            trades = get_recent_trades(1)
+            result = push_data({{
+                "account_info":acc_info,
+                "balance":acc_info.get("balance"),
+                "equity":acc_info.get("equity"),
+                "trades":trades
+            }})
+            if result.get("imported",0) > 0:
+                print(f"[{{datetime.now().strftime('%H:%M:%S')}}] {{result['imported']}} new trade(s)")
+        except KeyboardInterrupt:
+            print("\\nStopped.")
+            break
+        except Exception as e:
+            print(f"Error: {{e}}")
+
+if __name__ == "__main__":
+    main()
+'''
+    
+    return agent_code, 200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="mt5_sync_agent.py"'
+    }
 
 
 # ============================================================================
@@ -2537,6 +2998,7 @@ def journal_page():
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
+    """Admin dashboard with system statistics."""
     total_users = User.query.filter_by(is_admin=False).count()
     active_users = User.query.filter(
         User.membership_status.in_(["active", "cancelled"]),
@@ -2605,6 +3067,7 @@ def admin_dashboard():
 @app.route("/admin/fix-all-licenses", methods=["POST"])
 @admin_required
 def fix_all_licenses():
+    """Fix all licenses with invalid max_accounts values."""
     bad_licenses = License.query.filter(
         (License.max_accounts == None) | (License.max_accounts <= 0)
     ).all()
@@ -2615,7 +3078,7 @@ def fix_all_licenses():
         if user:
             user_level = user.get_plan_level()
             correct_max = get_max_accounts_for_level(user_level)
-            logger.info(f"[FIX] License {lic.mask_license_key()}: {lic.max_accounts} → {correct_max}")
+            logger.info(f"[FIX] License {lic.mask_license_key()}: {lic.max_accounts} -> {correct_max}")
             lic.max_accounts = correct_max
             fixed += 1
 
@@ -2627,6 +3090,7 @@ def fix_all_licenses():
 @app.route("/admin/retry-vps/<int:user_id>", methods=["POST"])
 @admin_required
 def admin_retry_vps(user_id):
+    """Retry VPS provisioning for a specific user."""
     user = db.session.get(User, user_id)
     if not user:
         flash("Gebruiker niet gevonden.", "error")
@@ -2636,7 +3100,7 @@ def admin_retry_vps(user_id):
     if success:
         flash(f"VPS succesvol aangemaakt voor {user.email}.", "success")
     elif user.vps_status == 'provisioning':
-        flash(f"VPS wordt aangemaakt voor {user.email} (ThinkHuge is nog bezig, IP volgt automatisch).", "success")
+        flash(f"VPS wordt aangemaakt voor {user.email} (ThinkHuge is nog bezig).", "success")
     else:
         flash(f"VPS aanmaken mislukt voor {user.email}: {user.vps_last_error}", "error")
 
@@ -2646,13 +3110,14 @@ def admin_retry_vps(user_id):
 @app.route("/admin/reset-vps-password/<int:user_id>", methods=["POST"])
 @admin_required
 def admin_reset_vps_password(user_id):
+    """Reset VPS password for a user."""
     user = db.session.get(User, user_id)
     if not user:
         flash("Gebruiker niet gevonden.", "error")
         return redirect(url_for("admin_dashboard"))
 
     if not user.vps_id:
-        flash(f"{user.email} heeft nog geen VPS server om een wachtwoord voor op te vragen.", "error")
+        flash(f"{user.email} heeft nog geen VPS server.", "error")
         return redirect(request.referrer or url_for("admin_dashboard"))
 
     try:
@@ -2661,11 +3126,6 @@ def admin_reset_vps_password(user_id):
         user.vps_last_error = None
         db.session.commit()
         flash(f"Nieuw VPS wachtwoord opgehaald voor {user.email}.", "success")
-    except urllib.error.HTTPError as e:
-        detail = forexvps_client._error_detail(e)
-        user.vps_last_error = f"{e.code} - {detail}"[:300]
-        db.session.commit()
-        flash(f"Wachtwoord ophalen mislukt voor {user.email}: {e.code} - {detail}", "error")
     except Exception as e:
         user.vps_last_error = str(e)[:300]
         db.session.commit()
@@ -2677,6 +3137,7 @@ def admin_reset_vps_password(user_id):
 @app.route("/admin/toggle-test-mode", methods=["POST"])
 @admin_required
 def toggle_test_mode():
+    """Toggle test mode on/off."""
     setting = Setting.query.filter_by(key="test_mode").first()
     if not setting:
         setting = Setting(key="test_mode", value="off")
@@ -2690,6 +3151,7 @@ def toggle_test_mode():
 @app.route("/admin/users")
 @admin_required
 def admin_users():
+    """List all non-admin users."""
     users = User.query.filter_by(is_admin=False).order_by(User.created_at.desc()).all()
     return render_template("admin/users.html", users=users, now=datetime.utcnow())
 
@@ -2697,6 +3159,7 @@ def admin_users():
 @app.route("/admin/user/<int:user_id>")
 @admin_required
 def admin_user_detail(user_id):
+    """View detailed information about a specific user."""
     user = db.session.get(User, user_id)
     if not user:
         flash("Gebruiker niet gevonden.", "error")
@@ -2710,7 +3173,9 @@ def admin_user_detail(user_id):
 
     return render_template(
         "admin/user_detail.html",
-        user=user, orders=orders, licenses=licenses,
+        user=user,
+        orders=orders,
+        licenses=licenses,
         journal_accounts=journal_accounts,
         vps_password=vps_password,
         now=datetime.utcnow()
@@ -2720,6 +3185,7 @@ def admin_user_detail(user_id):
 @app.route("/admin/orders")
 @admin_required
 def admin_orders():
+    """List all orders."""
     orders = Order.query.order_by(Order.created_at.desc()).all()
     total_revenue = db.session.query(db.func.sum(Order.total_amount)).scalar() or 0
     return render_template("admin/orders.html", orders=orders, total_revenue=total_revenue)
@@ -2728,6 +3194,7 @@ def admin_orders():
 @app.route("/admin/revoke-license/<int:license_id>", methods=["POST"])
 @admin_required
 def revoke_license(license_id):
+    """Revoke a specific license."""
     lic = db.session.get(License, license_id)
     if lic:
         lic.status = "revoked"
@@ -2740,6 +3207,7 @@ def revoke_license(license_id):
 @app.route("/admin/revoke-membership/<int:user_id>", methods=["POST"])
 @admin_required
 def revoke_membership(user_id):
+    """Revoke a user's membership and terminate their VPS."""
     user = db.session.get(User, user_id)
     if user:
         user.membership_status = "revoked"
@@ -2759,6 +3227,7 @@ def revoke_membership(user_id):
 @app.route("/admin/delete-user/<int:user_id>", methods=["POST"])
 @admin_required
 def admin_delete_user(user_id):
+    """Permanently delete a user and all associated data."""
     user = db.session.get(User, user_id)
     if not user:
         flash("Gebruiker niet gevonden.", "error")
@@ -2770,7 +3239,7 @@ def admin_delete_user(user_id):
 
     confirm_email = request.form.get("confirm_email", "").strip().lower()
     if confirm_email != user.email.lower():
-        flash("Bevestigingsemail komt niet overeen. Gebruiker is niet verwijderd.", "error")
+        flash("Bevestigingsemail komt niet overeen.", "error")
         return redirect(request.referrer or url_for("admin_users"))
 
     email_for_log = user.email
@@ -2778,35 +3247,21 @@ def admin_delete_user(user_id):
 
     try:
         if user.vps_id and user.vps_status not in ("terminated", None):
-            result = forexvps_client.terminate_vps(user.vps_id)
-            if not result.get("success"):
-                logger.warning(
-                    f"[DELETE USER] Could not terminate VPS {user.vps_id} for "
-                    f"{email_for_log}: {result.get('error')}"
-                )
+            forexvps_client.terminate_vps(user.vps_id)
 
         if user.stripe_subscription_id and stripe is not None:
             try:
                 stripe.Subscription.delete(user.stripe_subscription_id)
-                logger.info(
-                    f"[DELETE USER] Stripe subscription {user.stripe_subscription_id} "
-                    f"cancelled immediately for {email_for_log}"
-                )
-            except Exception as e:
-                logger.warning(
-                    f"[DELETE USER] Could not cancel Stripe subscription for "
-                    f"{email_for_log}: {e}"
-                )
+            except Exception:
+                pass
 
         EAFile.query.filter_by(uploaded_by=user.id).update({"uploaded_by": None})
         AuditLog.query.filter_by(user_id=user.id).delete()
-
         db.session.delete(user)
         db.session.commit()
 
-        logger.info(f"[DELETE USER] ✅ Permanently deleted {email_for_log} (id={id_for_log})")
+        logger.info(f"[DELETE USER] Permanently deleted {email_for_log} (id={id_for_log})")
         log_audit(None, "user_deleted", f"Permanently deleted: {email_for_log} (was id={id_for_log})", request.remote_addr)
-
         flash(f"{email_for_log} is permanent verwijderd.", "success")
 
     except Exception as e:
@@ -2820,6 +3275,11 @@ def admin_delete_user(user_id):
 @app.route("/admin/reactivate-membership/<int:user_id>", methods=["POST"])
 @admin_required
 def reactivate_membership(user_id):
+    """
+    Reactivate a cancelled or revoked membership.
+    For cancelled: resumes Stripe auto-renewal.
+    For revoked: grants a fresh paid period.
+    """
     user = db.session.get(User, user_id)
     if not user:
         flash("Gebruiker niet gevonden.", "error")
@@ -2830,67 +3290,31 @@ def reactivate_membership(user_id):
     if previous_status == "cancelled":
         if user.stripe_subscription_id and stripe is not None:
             try:
-                stripe.Subscription.modify(
-                    user.stripe_subscription_id,
-                    cancel_at_period_end=False,
-                )
-                logger.info(
-                    f"[REACTIVATE] Stripe subscription {user.stripe_subscription_id} "
-                    f"auto-renewal resumed for {user.email}"
-                )
+                stripe.Subscription.modify(user.stripe_subscription_id, cancel_at_period_end=False)
+                logger.info(f"[REACTIVATE] Stripe subscription {user.stripe_subscription_id} auto-renewal resumed for {user.email}")
             except Exception as e:
-                logger.error(
-                    f"[REACTIVATE] Stripe error resuming subscription for {user.email}: {e}"
-                )
-                flash(
-                    f"Kon Stripe abonnement niet hervatten voor {user.email}: {e}. "
-                    f"Lokale status is wel bijgewerkt, controleer Stripe handmatig.",
-                    "error"
-                )
-        elif user.stripe_subscription_id and stripe is None:
-            logger.error("[REACTIVATE] Stripe library not installed, cannot resume subscription")
-            flash(
-                f"Stripe library niet beschikbaar - kon auto-renewal niet hervatten voor "
-                f"{user.email}. Lokale status is wel bijgewerkt.",
-                "error"
-            )
-        else:
-            logger.warning(
-                f"[REACTIVATE] No stripe_subscription_id on file for {user.email} - "
-                f"nothing to resume at Stripe, only updating local status."
-            )
+                logger.error(f"[REACTIVATE] Stripe error: {e}")
 
         user.membership_status = "active"
         if not user.membership_end or user.membership_end < datetime.utcnow():
             user.membership_end = datetime.utcnow() + timedelta(days=user.subscription_duration_days or 30)
         db.session.commit()
-
-        log_audit(
-            current_user.id, "membership_reactivated",
-            f"Geannuleerd abonnement hervat: {user.email} | auto-renewal hersteld bij Stripe",
-            request.remote_addr
-        )
         flash(f"Abonnement van {user.email} is hervat (auto-renewal weer actief).", "success")
-
     else:
         user.membership_status = "active"
         user.membership_start = datetime.utcnow()
         user.membership_end = datetime.utcnow() + timedelta(days=user.subscription_duration_days or 30)
         db.session.commit()
-
-        log_audit(
-            current_user.id, "membership_reactivated",
-            f"Geactiveerd: {user.email} (was {previous_status})",
-            request.remote_addr
-        )
         flash(f"Abonnement opnieuw geactiveerd voor {user.email}.", "success")
 
+    log_audit(current_user.id, "membership_reactivated", f"Reactivated: {user.email} (was {previous_status})", request.remote_addr)
     return redirect(request.referrer or url_for("admin_users"))
 
 
 @app.route("/admin/extend-membership/<int:user_id>", methods=["POST"])
 @admin_required
 def extend_membership(user_id):
+    """Extend a user's membership by a number of days."""
     user = db.session.get(User, user_id)
     if user:
         days = int(request.form.get("days", 30))
@@ -2908,6 +3332,7 @@ def extend_membership(user_id):
 @app.route("/admin/upload-ea", methods=["POST"])
 @admin_required
 def upload_ea():
+    """Upload a new Expert Advisor file."""
     if "file" not in request.files:
         flash("Geen bestand.", "error")
         return redirect(url_for("admin_dashboard"))
@@ -2928,7 +3353,8 @@ def upload_ea():
             sha.update(block)
 
     ea = EAFile(
-        filename=filename, file_path=saved,
+        filename=filename,
+        file_path=saved,
         version=request.form.get("version", "1.0.0"),
         file_size=os.path.getsize(file_path),
         description=request.form.get("description", ""),
@@ -2947,6 +3373,7 @@ def upload_ea():
 @app.route("/admin/delete-ea/<int:ea_id>", methods=["POST"])
 @admin_required
 def delete_ea(ea_id):
+    """Delete an Expert Advisor file."""
     ea = db.session.get(EAFile, ea_id)
     if ea:
         file_path = os.path.join(Config.UPLOAD_FOLDER, ea.file_path)
@@ -2966,6 +3393,7 @@ def delete_ea(ea_id):
 @app.route("/api/validate-license", methods=["POST"])
 @limiter.limit("60 per minute")
 def api_validate_license():
+    """Validate a license key for EA activation."""
     try:
         data = request.get_json()
         if not data:
@@ -2986,22 +3414,15 @@ def api_validate_license():
             return jsonify({"valid": False, "error": "Licentiesleutel vereist"}), 400
 
         unique_account_id = account_number if account_number else machine_id
-
         if not unique_account_id:
             return jsonify({"valid": False, "error": "account_number of machine_id vereist"}), 400
-
         if not session_id:
             return jsonify({"valid": False, "error": "session_id vereist"}), 400
 
-        logger.info(f"[VALIDATE] License: {license_key[:10]}... | MT5 Account: {unique_account_id} | EA: {session_id[:8]}...")
-
         lic = License.query.filter_by(license_key=license_key).first()
         if not lic:
-            logger.warning(f"[VALIDATE] License not found")
             return jsonify({"valid": False, "error": "Licentie niet gevonden"}), 404
-
         if not lic.is_valid():
-            logger.warning(f"[VALIDATE] License invalid: {lic.mask_license_key()} status={lic.status}")
             return jsonify({"valid": False, "error": "Licentie niet actief of verlopen"}), 403
 
         account = LicenseAccount.query.filter_by(
@@ -3019,7 +3440,6 @@ def api_validate_license():
                 existing_session.last_seen = datetime.utcnow()
                 existing_session.symbol = symbol or existing_session.symbol
                 existing_session.magic_number = magic_number if magic_number is not None else existing_session.magic_number
-                logger.debug(f"[VALIDATE] 💓 Heartbeat: MT5={unique_account_id} EA={session_id[:8]}...")
             else:
                 db.session.add(EASession(
                     license_account_id=account.id,
@@ -3028,11 +3448,9 @@ def api_validate_license():
                     magic_number=magic_number,
                 ))
                 lic.validation_count += 1
-                logger.info(f"[VALIDATE] ➕ New EA on existing MT5={unique_account_id} | Total EAs: {account.sessions.count() + 1}")
 
             lic.last_validated = datetime.utcnow()
             db.session.commit()
-
             total_slots = lic.accounts.count()
 
             return jsonify({
@@ -3046,23 +3464,16 @@ def api_validate_license():
             })
 
         total_slots = lic.accounts.count()
-
-        logger.info(f"[VALIDATE] New MT5 account: {unique_account_id} | Slots: {total_slots}/{lic.max_accounts}")
-
         if total_slots >= lic.max_accounts:
-            logger.warning(f"[VALIDATE] 🚫 MAX SLOTS: {total_slots}/{lic.max_accounts}")
             return jsonify({
                 "valid": False,
-                "error": f"Maximum {lic.max_accounts} MT5 accounts bereikt. Momenteel {total_slots} in gebruik.",
+                "error": f"Maximum {lic.max_accounts} MT5 accounts bereikt.",
                 "accounts_used": total_slots,
                 "accounts_max": lic.max_accounts,
                 "accounts_remaining": 0,
             }), 403
 
-        new_account = LicenseAccount(
-            license_id=lic.id,
-            account_number=unique_account_id
-        )
+        new_account = LicenseAccount(license_id=lic.id, account_number=unique_account_id)
         db.session.add(new_account)
         db.session.flush()
 
@@ -3078,9 +3489,6 @@ def api_validate_license():
         db.session.commit()
 
         new_total = lic.accounts.count()
-
-        logger.info(f"[VALIDATE] ✅ NEW SLOT: MT5={unique_account_id} | Total: {new_total}/{lic.max_accounts}")
-
         return jsonify({
             "valid": True,
             "expires_at": lic.expires_at.isoformat(),
@@ -3092,7 +3500,7 @@ def api_validate_license():
         })
 
     except Exception as e:
-        logger.error(f"[VALIDATE] ❌ Error: {e}", exc_info=True)
+        logger.error(f"[VALIDATE] Error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"valid": False, "error": "Server fout"}), 500
 
@@ -3100,6 +3508,7 @@ def api_validate_license():
 @app.route("/api/release-license", methods=["POST"])
 @limiter.limit("30 per minute")
 def api_release_license():
+    """Release a license slot for an MT5 account."""
     try:
         data = request.get_json()
         if not data:
@@ -3113,10 +3522,7 @@ def api_release_license():
         unique_account_id = account_number if account_number else machine_id
 
         if not license_key or not unique_account_id or not session_id:
-            return jsonify({
-                "success": False,
-                "error": "license_key, account_number (of machine_id), en session_id vereist"
-            }), 400
+            return jsonify({"success": False, "error": "Vereiste velden ontbreken"}), 400
 
         lic = License.query.filter_by(license_key=license_key).first()
         if not lic:
@@ -3128,10 +3534,10 @@ def api_release_license():
         ).first()
 
         if not account:
-            logger.info(f"[RELEASE] No slot for: {unique_account_id}")
             return jsonify({
-                "success": True, "session_released": False, "slot_freed": False,
-                "message": "Geen actieve slot voor dit account",
+                "success": True,
+                "session_released": False,
+                "slot_freed": False,
                 "accounts_used": lic.accounts.count(),
                 "accounts_max": lic.max_accounts,
                 "accounts_remaining": lic.max_accounts - lic.accounts.count(),
@@ -3143,14 +3549,11 @@ def api_release_license():
         ).first()
 
         if not ea_session:
-            logger.info(f"[RELEASE] Session not found: {session_id[:8]}... on {unique_account_id}")
             return jsonify({
-                "success": True, "session_released": False, "slot_freed": False,
-                "message": "Sessie niet gevonden",
+                "success": True,
+                "session_released": False,
+                "slot_freed": False,
                 "sessions_remaining": account.sessions.count(),
-                "accounts_used": lic.accounts.count(),
-                "accounts_max": lic.max_accounts,
-                "accounts_remaining": lic.max_accounts - lic.accounts.count(),
             })
 
         db.session.delete(ea_session)
@@ -3162,17 +3565,8 @@ def api_release_license():
         if remaining_sessions == 0:
             db.session.delete(account)
             slot_freed = True
-            logger.info(f"[RELEASE] 🔓 SLOT FREED: MT5={unique_account_id}")
-        else:
-            logger.info(f"[RELEASE] 🗑️ EA removed: MT5={unique_account_id} | {remaining_sessions} EAs still running")
 
         db.session.commit()
-
-        log_audit(
-            lic.user_id, "ea_session_released",
-            f"{lic.mask_license_key()} | MT5={unique_account_id} | Session={session_id[:8]}... | Slot freed={slot_freed}",
-            request.remote_addr,
-        )
 
         return jsonify({
             "success": True,
@@ -3185,7 +3579,7 @@ def api_release_license():
         })
 
     except Exception as e:
-        logger.error(f"[RELEASE] ❌ Error: {e}", exc_info=True)
+        logger.error(f"[RELEASE] Error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"success": False, "error": "Server fout"}), 500
 
@@ -3193,6 +3587,7 @@ def api_release_license():
 @app.route("/api/user/info")
 @login_required
 def api_user_info():
+    """Get current user info as JSON."""
     return jsonify(current_user.to_dict())
 
 
@@ -3203,6 +3598,7 @@ def api_user_info():
 @app.route("/webhook/wix/payment", methods=["POST"])
 @limiter.limit("60 per minute")
 def wix_payment_webhook():
+    """Handle Wix payment webhooks for new plan orders."""
     try:
         if request.is_json:
             raw = request.get_json()
@@ -3229,11 +3625,10 @@ def wix_payment_webhook():
 
         try:
             plan_price = float(data.get("plan_price_amount", 0))
-        except:
+        except (ValueError, TypeError):
             plan_price = 0.0
 
         currency = data.get("plan_price_currency", "EUR")
-
         duration_days, subscription_type = parse_duration_to_days(plan_duration)
 
         if subscription_type == "one_time" and plan_name:
@@ -3253,12 +3648,21 @@ def wix_payment_webhook():
 
         if not user:
             user = User(
-                email=email, first_name=first_name, last_name=last_name,
-                wix_contact_id=contact_id, wix_order_id=order_id, wix_payment_id=order_id,
-                email_verified=True, membership_status="active",
-                membership_start=membership_start, membership_end=membership_end,
-                plan_name=plan_name, plan_price=plan_price, currency=currency,
-                subscription_type=subscription_type, subscription_duration_days=duration_days
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                wix_contact_id=contact_id,
+                wix_order_id=order_id,
+                wix_payment_id=order_id,
+                email_verified=True,
+                membership_status="active",
+                membership_start=membership_start,
+                membership_end=membership_end,
+                plan_name=plan_name,
+                plan_price=plan_price,
+                currency=currency,
+                subscription_type=subscription_type,
+                subscription_duration_days=duration_days
             )
             db.session.add(user)
             db.session.flush()
@@ -3282,11 +3686,18 @@ def wix_payment_webhook():
 
         if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
             order = Order(
-                user_id=user.id, wix_order_id=order_id, wix_payment_id=order_id,
-                plan_name=plan_name, plan_price=plan_price, currency=currency,
-                total_amount=plan_price, subscription_type=subscription_type,
-                subscription_duration_days=duration_days, status="completed",
-                payment_status="paid", ip_address=request.remote_addr,
+                user_id=user.id,
+                wix_order_id=order_id,
+                wix_payment_id=order_id,
+                plan_name=plan_name,
+                plan_price=plan_price,
+                currency=currency,
+                total_amount=plan_price,
+                subscription_type=subscription_type,
+                subscription_duration_days=duration_days,
+                status="completed",
+                payment_status="paid",
+                ip_address=request.remote_addr,
                 raw_data=json.dumps(data)
             )
             db.session.add(order)
@@ -3304,7 +3715,8 @@ def wix_payment_webhook():
         )
 
         log_audit(
-            user.id, "wix_plan_ordered",
+            user.id,
+            "wix_plan_ordered",
             f"{'Nieuw' if is_new else 'Bijgewerkt'} | {plan_name} | {subscription_type}",
             request.remote_addr
         )
@@ -3324,6 +3736,7 @@ def wix_payment_webhook():
 @app.route("/webhook/stripe/payment", methods=["POST"])
 @limiter.limit("60 per minute")
 def stripe_payment_webhook():
+    """Handle Stripe payment webhooks."""
     try:
         payload = request.get_data(as_text=True)
         sig_header = request.headers.get("Stripe-Signature")
@@ -3354,112 +3767,90 @@ def stripe_payment_webhook():
             email = customer_details.get("email", "").strip().lower()
             name = customer_details.get("name", "")
             first_name = name.split()[0] if name else ""
-            last_name = " ".join(name.split()[1:]) if name else ""
-            phone = customer_details.get("phone", "")
-            country = (customer_details.get("address") or {}).get("country", "")
 
             metadata = session_data.get("metadata") or {}
             plan_name = metadata.get("plan_name", "Onbekend Plan")
             plan_duration = metadata.get("plan_duration", "")
             amount_total = (session_data.get("amount_total") or 0) / 100
-            currency = (session_data.get("currency") or "eur").upper()
             order_id = session_data.get("id", "")
-
             stripe_subscription_id = session_data.get("subscription")
             stripe_customer_id = session_data.get("customer")
 
-            if not email:
-                return jsonify({"error": "Email vereist"}), 400
+            if email:
+                duration_days, subscription_type = parse_duration_to_days(plan_duration)
 
-            duration_days, subscription_type = parse_duration_to_days(plan_duration)
+                if subscription_type == "one_time" and plan_name:
+                    pl = plan_name.lower()
+                    if "monthly" in pl or "maand" in pl:
+                        duration_days, subscription_type = 30, "monthly"
+                    elif "yearly" in pl or "jaar" in pl:
+                        duration_days, subscription_type = 365, "yearly"
+                    elif "lifetime" in pl:
+                        duration_days, subscription_type = 36500, "lifetime"
 
-            if subscription_type == "one_time" and plan_name:
-                pl = plan_name.lower()
-                if "monthly" in pl or "maand" in pl:
-                    duration_days, subscription_type = 30, "monthly"
-                elif "yearly" in pl or "jaar" in pl:
-                    duration_days, subscription_type = 365, "yearly"
-                elif "lifetime" in pl:
-                    duration_days, subscription_type = 36500, "lifetime"
+                membership_start = datetime.utcnow()
+                membership_end = membership_start + timedelta(days=duration_days)
 
-            membership_start = datetime.utcnow()
-            membership_end = membership_start + timedelta(days=duration_days)
+                user = User.query.filter_by(email=email).first()
 
-            user = User.query.filter_by(email=email).first()
-            is_new = False
-
-            if not user:
-                user = User(
-                    email=email, first_name=first_name, last_name=last_name,
-                    phone=phone, country=country, wix_order_id=order_id,
-                    wix_payment_id=order_id, email_verified=True,
-                    membership_status="active", membership_start=membership_start,
-                    membership_end=membership_end, plan_name=plan_name,
-                    plan_price=amount_total, currency=currency,
-                    subscription_type=subscription_type,
-                    subscription_duration_days=duration_days,
-                    stripe_subscription_id=stripe_subscription_id,
-                    stripe_customer_id=stripe_customer_id,
-                )
-                db.session.add(user)
-                db.session.flush()
-                is_new = True
-            else:
-                already_processed = bool(order_id) and Order.query.filter_by(wix_order_id=order_id).first() is not None
-                if user.membership_status == "cancelled" and already_processed:
-                    logger.info(
-                        f"[STRIPE] Ignoring duplicate/replayed checkout.session.completed "
-                        f"for already-cancelled user {user.email} (order_id={order_id})"
+                if not user:
+                    user = User(
+                        email=email,
+                        first_name=first_name,
+                        email_verified=True,
+                        membership_status="active",
+                        membership_start=membership_start,
+                        membership_end=membership_end,
+                        plan_name=plan_name,
+                        plan_price=amount_total,
+                        currency=(session_data.get("currency") or "eur").upper(),
+                        subscription_type=subscription_type,
+                        subscription_duration_days=duration_days,
+                        stripe_subscription_id=stripe_subscription_id,
+                        stripe_customer_id=stripe_customer_id,
                     )
-                    return jsonify({"status": "ignored_duplicate"}), 200
+                    db.session.add(user)
+                else:
+                    user.membership_status = "active"
+                    user.membership_start = membership_start
+                    user.membership_end = membership_end
+                    user.stripe_subscription_id = stripe_subscription_id or user.stripe_subscription_id
+                    user.stripe_customer_id = stripe_customer_id or user.stripe_customer_id
 
-                user.first_name = first_name or user.first_name
-                user.last_name = last_name or user.last_name
-                user.phone = phone or user.phone
-                user.country = country or user.country
-                user.wix_order_id = order_id or user.wix_order_id
-                user.wix_payment_id = order_id or user.wix_payment_id
-                user.email_verified = True
-                user.membership_status = "active"
-                user.membership_start = membership_start
-                user.membership_end = membership_end
-                user.plan_name = plan_name or user.plan_name
-                user.plan_price = amount_total if amount_total > 0 else user.plan_price
-                user.currency = currency or user.currency
-                user.subscription_type = subscription_type
-                user.subscription_duration_days = duration_days
-                user.stripe_subscription_id = stripe_subscription_id or user.stripe_subscription_id
-                user.stripe_customer_id = stripe_customer_id or user.stripe_customer_id
-                db.session.flush()
+                if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
+                    order = Order(
+                        user_id=user.id,
+                        wix_order_id=order_id,
+                        plan_name=plan_name,
+                        plan_price=amount_total,
+                        total_amount=amount_total,
+                        subscription_type=subscription_type,
+                        subscription_duration_days=duration_days,
+                        status="completed",
+                        payment_status="paid",
+                        ip_address=request.remote_addr,
+                        raw_data=json.dumps(session_data)
+                    )
+                    db.session.add(order)
 
-            if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
-                order = Order(
-                    user_id=user.id, wix_order_id=order_id, wix_payment_id=order_id,
-                    plan_name=plan_name, plan_price=amount_total, currency=currency,
-                    total_amount=amount_total, subscription_type=subscription_type,
-                    subscription_duration_days=duration_days, status="completed",
-                    payment_status="paid", ip_address=request.remote_addr,
-                    raw_data=json.dumps(session_data)
+                db.session.commit()
+
+                plan_level = user.get_plan_level()
+                provision_vps_for_user(user, plan_level)
+
+                send_email_async(
+                    "Welkom bij Trading Engine! 🎉",
+                    [email],
+                    f"Je {plan_name} abonnement is nu actief.",
+                    f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p>"
                 )
-                db.session.add(order)
 
-            db.session.commit()
-
-            plan_level = user.get_plan_level()
-            provision_vps_for_user(user, plan_level)
-
-            send_email_async(
-                "Welkom bij Trading Engine! 🎉",
-                [email],
-                f"Je {plan_name} abonnement is nu actief. Log in op {Config.APP_URL}/login",
-                f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p><p>Log in op {Config.APP_URL}/login</p>"
-            )
-
-            log_audit(
-                user.id, "stripe_payment",
-                f"{'Nieuw' if is_new else 'Bijgewerkt'} | {plan_name} | {subscription_type} | sub_id={stripe_subscription_id}",
-                request.remote_addr
-            )
+                log_audit(
+                    user.id,
+                    "stripe_payment",
+                    f"{plan_name} | {subscription_type} | sub_id={stripe_subscription_id}",
+                    request.remote_addr
+                )
 
         elif event_type == "customer.subscription.deleted":
             sub = event["data"]["object"]._to_dict_recursive()
@@ -3489,10 +3880,11 @@ def stripe_payment_webhook():
 
 
 # ============================================================================
-# DISCORD
+# DISCORD INTEGRATION
 # ============================================================================
 
 def assign_discord_role(discord_id):
+    """Assign the configured Discord role to a user."""
     try:
         role_url = f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{discord_id}/roles/{Config.DISCORD_ROLE_ID}"
         role_req = urllib.request.Request(role_url, method="PUT")
@@ -3516,6 +3908,7 @@ def assign_discord_role(discord_id):
 @app.route("/connect-discord")
 @login_required
 def connect_discord():
+    """Initiate Discord OAuth connection."""
     if not current_user.is_membership_active():
         flash("Actief abonnement vereist.", "error")
         return redirect(url_for("user_dashboard"))
@@ -3537,6 +3930,7 @@ def connect_discord():
 @app.route("/discord/callback")
 @login_required
 def discord_callback():
+    """Handle Discord OAuth callback."""
     code = request.args.get("code")
     if not code:
         flash("Discord verbinding geannuleerd.", "error")
@@ -3567,6 +3961,7 @@ def discord_callback():
         discord_user = json.loads(urllib.request.urlopen(user_req).read())
         discord_id = discord_user["id"]
 
+        # Join guild
         join_data = json.dumps({"access_token": access_token}).encode()
         join_req = urllib.request.Request(
             f"https://discord.com/api/guilds/{Config.DISCORD_GUILD_ID}/members/{discord_id}",
@@ -3611,35 +4006,42 @@ def discord_callback():
 
 
 # ============================================================================
-# AUTO-INIT DB
+# AUTO-INIT DATABASE
 # ============================================================================
 
 @app.before_request
 def auto_init_db():
+    """Auto-initialize the database on first request."""
     try:
         db.session.execute(db.text("SELECT 1 FROM users LIMIT 1"))
     except Exception:
         try:
             db.create_all()
-            logger.info("✅ DB created!")
+            logger.info("Database created!")
 
             admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
             if not User.query.filter_by(email=admin_email).first():
                 admin = User(
-                    email=admin_email, first_name="Admin", is_admin=True,
-                    email_verified=True, membership_status="active",
+                    email=admin_email,
+                    first_name="Admin",
+                    is_admin=True,
+                    email_verified=True,
+                    membership_status="active",
                     membership_start=datetime.utcnow(),
                     membership_end=datetime.utcnow() + timedelta(days=3650),
-                    plan_name="Admin", subscription_type="lifetime",
+                    plan_name="Admin",
+                    subscription_type="lifetime",
                     subscription_duration_days=36500
                 )
                 db.session.add(admin)
                 db.session.commit()
+                logger.info("Admin user created")
         except Exception as e:
             logger.error(f"DB init failed: {e}")
 
+
 # ============================================================================
-# STARTUP
+# APPLICATION STARTUP
 # ============================================================================
 
 with app.app_context():
