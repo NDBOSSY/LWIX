@@ -2365,7 +2365,6 @@ def journal_api_ingest():
     })
 
 
-
 @app.route("/journal")
 @login_required
 def journal_page():
@@ -2390,10 +2389,13 @@ def journal_page():
     # If no account exists, show the create form
     if not account:
         return render_template(
-            "journal/index.html",
+            "user/journal.html",
+            user=current_user,
             accounts=accounts,
             account=None,
-            active_tab="accounts"
+            active_tab="accounts",
+            current_language=get_user_language(),
+            now=datetime.utcnow()
         )
     
     # Load all the data for the selected account
@@ -2489,7 +2491,8 @@ def journal_page():
     active_tab = request.args.get("tab", "dashboard")
     
     return render_template(
-        "journal/index.html",
+        "user/journal.html",
+        user=current_user,
         accounts=accounts,
         account=account,
         active_tab=active_tab,
@@ -2520,7 +2523,10 @@ def journal_page():
         base_qs=base_qs,
         filters={"symbol": symbol, "type": trade_type, "q": q, "start": start or "", "end": end or ""},
         # Month names for calendar
-        month_names=['','January','February','March','April','May','June','July','August','September','October','November','December']
+        month_names=['','January','February','March','April','May','June','July','August','September','October','November','December'],
+        # Language
+        current_language=get_user_language(),
+        now=now
     )
 
 
