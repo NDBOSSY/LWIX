@@ -210,6 +210,7 @@
     .panel-head .t i { color: var(--j-soft); width: 16px; text-align: center; }
     .panel-body { padding: 1rem 1.1rem; }
 
+    /* Calendar */
     .cal-nav { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; font-weight: 600; }
     .cal-nav button {
         border: 1px solid var(--j-border);
@@ -250,13 +251,28 @@
         font-size: 0.62rem;
         text-align: right;
     }
-    .cal-day.pos { background: var(--j-green-bg); border-color: #c9edd9; }
-    .cal-day.pos .p { color: var(--j-green); }
-    .cal-day.neg { background: var(--j-red-bg); border-color: #f5c6cb; }
-    .cal-day.neg .p { color: var(--j-red); }
+    .cal-day.neutral {
+        background: var(--j-sunken);
+        border-color: var(--j-border);
+    }
+    .cal-day.neutral .n { color: var(--j-muted); }
+    .cal-day.neutral .p { color: var(--j-soft); }
+    .cal-day.pos {
+        background: var(--j-green);
+        border-color: var(--j-green);
+    }
+    .cal-day.pos .n { color: #ffffff; }
+    .cal-day.pos .p { color: #ffffff; font-weight: 700; }
+    .cal-day.neg {
+        background: var(--j-red);
+        border-color: var(--j-red);
+    }
+    .cal-day.neg .n { color: #ffffff; }
+    .cal-day.neg .p { color: #ffffff; font-weight: 700; }
     .cal-day:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .cal-day.today { border-color: var(--j-accent); border-width: 2px; }
 
+    /* Stats */
     .stat-row {
         display: flex;
         justify-content: space-between;
@@ -270,6 +286,7 @@
     .stat-row .v.pos { color: var(--j-green); }
     .stat-row .v.neg { color: var(--j-red); }
 
+    /* Tables */
     .jr-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
     .jr-table thead th {
         text-align: left;
@@ -299,6 +316,7 @@
     .badge.sell { background: var(--j-red-bg); color: var(--j-red); }
     .badge.neutral { background: var(--j-accent-bg); color: var(--j-accent); }
 
+    /* Filters */
     .filter-bar {
         display: flex;
         gap: 0.6rem;
@@ -342,6 +360,7 @@
         text-decoration: none;
     }
 
+    /* Account Cards */
     .acc-card {
         border: 1px solid var(--j-border);
         border-radius: 14px;
@@ -701,61 +720,158 @@
             <div class="panel-head"><div class="t"><i class="fas fa-clock-rotate-left"></i> Recent Trades</div><a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" style="font-size:0.78rem; font-weight:600; color:var(--j-accent); text-decoration:none;">View all →</a></div>
             {% if recent_trades %}
             <div style="overflow-x: auto;">
-            <table class="jr-table"><thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Vol</th><th>Entry</th><th>Exit</th><th>Profit</th><th>Pips</th><th>Duration</th></tr></thead><tbody>
-            {% for t in recent_trades %}<tr><td>{{ t.close_time.strftime('%d %b, %H:%M') }}</td><td style="font-weight:600;">{{ t.symbol }}</td><td><span class="badge {{ t.trade_type }}">{{ t.trade_type|upper }}</span></td><td>{{ t.volume }}</td><td>{{ t.entry_price or '—' }}</td><td>{{ t.exit_price or '—' }}</td><td class="{{ 'pos' if t.profit >= 0 else 'neg' }}">{{ '+' if t.profit >= 0 else '' }}${{ '%.2f'|format(t.profit) }}</td><td>{{ t.pips|round(1) if t.pips else '—' }}</td><td>{{ t.duration_display() }}</td></tr>{% endfor %}</tbody></table></div>
-            {% else %}<div class="empty-state"><div class="icon-wrap"><i class="fas fa-inbox"></i></div><h3>No trades yet</h3><p>They'll appear here when your EA syncs.</p></div>{% endif %}
+            <table class="jr-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Symbol</th>
+                        <th>Type</th>
+                        <th>Vol</th>
+                        <th>Entry</th>
+                        <th>Exit</th>
+                        <th>Profit</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for t in recent_trades %}
+                <tr>
+                    <td>{{ t.close_time.strftime('%d %b, %H:%M') }}</td>
+                    <td style="font-weight:600;">{{ t.symbol }}</td>
+                    <td><span class="badge {{ t.trade_type }}">{{ t.trade_type|upper }}</span></td>
+                    <td>{{ t.volume }}</td>
+                    <td>{{ t.entry_price or '—' }}</td>
+                    <td>{{ t.exit_price or '—' }}</td>
+                    <td class="{{ 'pos' if t.profit >= 0 else 'neg' }}">{{ '+' if t.profit >= 0 else '' }}${{ '%.2f'|format(t.profit) }}</td>
+                    <td>{{ t.duration_display() }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><div class="icon-wrap"><i class="fas fa-inbox"></i></div><h3>No trades yet</h3><p>They'll appear here when your EA syncs.</p></div>
+            {% endif %}
         </div>
 
     {% elif active_tab == 'trades' %}
-    <div class="panel"><div class="panel-head"><div class="t"><i class="fas fa-list"></i> Trade History — {{ trades|length }} trades</div></div><div class="panel-body">
-        <form class="filter-bar" method="GET"><input type="hidden" name="account_id" value="{{ account.id }}"><input type="hidden" name="tab" value="trades">
-            <div class="f-group"><label>Symbol</label><select name="jsymbol"><option value="">All</option>{% for s in symbols %}<option value="{{ s }}" {{ 'selected' if filters.symbol == s else '' }}>{{ s }}</option>{% endfor %}</select></div>
-            <div class="f-group"><label>Type</label><select name="jtype"><option value="">All</option><option value="buy" {{ 'selected' if filters.type == 'buy' else '' }}>Buy</option><option value="sell" {{ 'selected' if filters.type == 'sell' else '' }}>Sell</option></select></div>
-            <div class="f-group"><label>From</label><input type="date" name="jstart" value="{{ filters.start }}"></div>
-            <div class="f-group"><label>To</label><input type="date" name="jend" value="{{ filters.end }}"></div>
-            <div class="f-group"><label>Search</label><input type="text" name="jq" placeholder="Symbol..." value="{{ filters.q }}"></div>
-            <button type="submit" class="btn-filter">Apply</button><a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="btn-clear">Clear</a>
-        </form>
-        {% if trades %}<div style="overflow-x: auto;"><table class="jr-table"><thead><tr>
-            {% for col, label in [('close_time','Date'),('symbol','Symbol'),('trade_type','Type'),('volume','Vol'),('entry_price','Entry'),('sl','SL'),('tp','TP'),('exit_price','Exit'),('profit','Profit'),('pips','Pips'),('magic_number','Magic')] %}
-            <th><a href="{{ url_for('journal_page', account_id=account.id, tab='trades', jsort=col, jdir='asc' if sort==col and direction=='desc' else 'desc', jsymbol=filters.symbol, jtype=filters.type, jstart=filters.start, jend=filters.end, jq=filters.q) }}">{{ label }} {% if sort == col %}{{ '↓' if direction=='desc' else '↑' }}{% endif %}</a></th>{% endfor %}<th>Duration</th></tr></thead><tbody>
-            {% for t in trades %}<tr><td>{{ t.close_time.strftime('%d %b %Y %H:%M') }}</td><td style="font-weight:600;">{{ t.symbol }}</td><td><span class="badge {{ t.trade_type }}">{{ t.trade_type|upper }}</span></td><td>{{ t.volume }}</td><td>{{ t.entry_price or '—' }}</td><td>{{ t.sl or '—' }}</td><td>{{ t.tp or '—' }}</td><td>{{ t.exit_price or '—' }}</td><td class="{{ 'pos' if t.profit >= 0 else 'neg' }}">{{ '+' if t.profit >= 0 else '' }}${{ '%.2f'|format(t.profit) }}</td><td>{{ t.pips|round(1) if t.pips else '—' }}</td><td>{{ t.magic_number or '—' }}</td><td>{{ t.duration_display() }}</td></tr>{% endfor %}</tbody></table></div>
-        {% else %}<div class="empty-state"><div class="icon-wrap"><i class="fas fa-search"></i></div><h3>No trades found</h3><p>No trades match these filters.</p></div>{% endif %}
-    </div></div>
+    <div class="panel">
+        <div class="panel-head"><div class="t"><i class="fas fa-list"></i> Trade History — {{ trades|length }} trades</div></div>
+        <div class="panel-body">
+            <form class="filter-bar" method="GET">
+                <input type="hidden" name="account_id" value="{{ account.id }}">
+                <input type="hidden" name="tab" value="trades">
+                <div class="f-group"><label>Symbol</label><select name="jsymbol"><option value="">All</option>{% for s in symbols %}<option value="{{ s }}" {{ 'selected' if filters.symbol == s else '' }}>{{ s }}</option>{% endfor %}</select></div>
+                <div class="f-group"><label>Type</label><select name="jtype"><option value="">All</option><option value="buy" {{ 'selected' if filters.type == 'buy' else '' }}>Buy</option><option value="sell" {{ 'selected' if filters.type == 'sell' else '' }}>Sell</option></select></div>
+                <div class="f-group"><label>From</label><input type="date" name="jstart" value="{{ filters.start }}"></div>
+                <div class="f-group"><label>To</label><input type="date" name="jend" value="{{ filters.end }}"></div>
+                <div class="f-group"><label>Search</label><input type="text" name="jq" placeholder="Symbol..." value="{{ filters.q }}"></div>
+                <button type="submit" class="btn-filter">Apply</button>
+                <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="btn-clear">Clear</a>
+            </form>
+            {% if trades %}
+            <div style="overflow-x: auto;">
+            <table class="jr-table">
+                <thead>
+                    <tr>
+                        {% for col, label in [('close_time','Date'),('symbol','Symbol'),('trade_type','Type'),('volume','Vol'),('entry_price','Entry'),('sl','SL'),('tp','TP'),('exit_price','Exit'),('profit','Profit'),('magic_number','Magic')] %}
+                        <th><a href="{{ url_for('journal_page', account_id=account.id, tab='trades', jsort=col, jdir='asc' if sort==col and direction=='desc' else 'desc', jsymbol=filters.symbol, jtype=filters.type, jstart=filters.start, jend=filters.end, jq=filters.q) }}">{{ label }} {% if sort == col %}{{ '↓' if direction=='desc' else '↑' }}{% endif %}</a></th>
+                        {% endfor %}
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for t in trades %}
+                <tr>
+                    <td>{{ t.close_time.strftime('%d %b %Y %H:%M') }}</td>
+                    <td style="font-weight:600;">{{ t.symbol }}</td>
+                    <td><span class="badge {{ t.trade_type }}">{{ t.trade_type|upper }}</span></td>
+                    <td>{{ t.volume }}</td>
+                    <td>{{ t.entry_price or '—' }}</td>
+                    <td>{{ t.sl or '—' }}</td>
+                    <td>{{ t.tp or '—' }}</td>
+                    <td>{{ t.exit_price or '—' }}</td>
+                    <td class="{{ 'pos' if t.profit >= 0 else 'neg' }}">{{ '+' if t.profit >= 0 else '' }}${{ '%.2f'|format(t.profit) }}</td>
+                    <td>{{ t.magic_number or '—' }}</td>
+                    <td>{{ t.duration_display() }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><div class="icon-wrap"><i class="fas fa-search"></i></div><h3>No trades found</h3><p>No trades match these filters.</p></div>
+            {% endif %}
+        </div>
+    </div>
 
     {% elif active_tab == 'calendar' %}
     <div class="grid-2col">
-        <div class="panel"><div class="panel-head"><div class="t"><i class="fas fa-calendar"></i> {{ month_names[cal_month] }} {{ cal_year }}</div><div class="cal-nav">
-            <button onclick="window.location.href='{{ url_for('journal_page', account_id=account.id, tab='calendar', month=(cal_year-1|string+'-12') if cal_month==1 else (cal_year|string+'-%02d'|format(cal_month-1))) }}'">‹</button>
-            <span style="font-weight:600;">{{ month_names[cal_month] }} {{ cal_year }}</span>
-            <button onclick="window.location.href='{{ url_for('journal_page', account_id=account.id, tab='calendar', month=(cal_year+1|string+'-01') if cal_month==12 else (cal_year|string+'-%02d'|format(cal_month+1))) }}'">›</button>
-        </div></div><div class="panel-body"><div class="cal-grid">
-            {% for dow in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<div class="cal-dow">{{ dow }}</div>{% endfor %}
-            {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
-            {% for day_num in range(1, cal_days_in_month + 1) %}{% set key = '%04d-%02d-%02d'|format(cal_year, cal_month, day_num) %}{% set pl = cal_daily_pl.get(key) %}
-            <div class="cal-day {{ 'pos' if pl and pl > 0 else ('neg' if pl and pl < 0 else '') }} {{ 'today' if key == now.strftime('%Y-%m-%d') else '' }}" onclick="openDay('{{ key }}')"><span class="n">{{ day_num }}</span>{% if pl is not none %}<span class="p">{{ '+' if pl > 0 else '' }}{{ '%.0f'|format(pl) }}</span>{% endif %}</div>{% endfor %}
-        </div></div></div>
-        <div class="panel"><div class="panel-head"><div class="t"><i class="fas fa-chart-line"></i> Monthly Summary</div></div><div class="panel-body">
-            {% set month_net = cal_daily_pl.values()|sum %}{% set trading_days = cal_daily_pl|length %}{% set best_day = cal_daily_pl.values()|max if cal_daily_pl else 0 %}{% set worst_day = cal_daily_pl.values()|min if cal_daily_pl else 0 %}
-            <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_net >= 0 else 'neg' }}">${{ '%.2f'|format(month_net) }}</span></div>
-            <div class="stat-row"><span class="k">Trading Days</span><span class="v">{{ trading_days }}</span></div>
-            <div class="stat-row"><span class="k">Best Day</span><span class="v pos">${{ '%.2f'|format(best_day) }}</span></div>
-            <div class="stat-row"><span class="k">Worst Day</span><span class="v neg">${{ '%.2f'|format(worst_day) }}</span></div>
-        </div></div>
+        <div class="panel">
+            <div class="panel-head">
+                <div class="t"><i class="fas fa-calendar"></i> {{ month_names[cal_month] }} {{ cal_year }}</div>
+                <div class="cal-nav">
+                    <button onclick="window.location.href='{{ url_for('journal_page', account_id=account.id, tab='calendar', month=(cal_year-1|string+'-12') if cal_month==1 else (cal_year|string+'-%02d'|format(cal_month-1))) }}'">‹</button>
+                    <span style="font-weight:600;">{{ month_names[cal_month] }} {{ cal_year }}</span>
+                    <button onclick="window.location.href='{{ url_for('journal_page', account_id=account.id, tab='calendar', month=(cal_year+1|string+'-01') if cal_month==12 else (cal_year|string+'-%02d'|format(cal_month+1))) }}'">›</button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="cal-grid">
+                    {% for dow in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<div class="cal-dow">{{ dow }}</div>{% endfor %}
+                    {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
+                    {% for day_num in range(1, cal_days_in_month + 1) %}
+                        {% set key = '%04d-%02d-%02d'|format(cal_year, cal_month, day_num) %}
+                        {% set pl = cal_daily_pl.get(key) %}
+                        <div class="cal-day {{ 'pos' if pl and pl > 0 else ('neg' if pl and pl < 0 else 'neutral') }} {{ 'today' if key == now.strftime('%Y-%m-%d') else '' }}" onclick="openDay('{{ key }}')">
+                            <span class="n">{{ day_num }}</span>
+                            {% if pl is not none %}<span class="p">{{ '+' if pl > 0 else '' }}{{ '%.0f'|format(pl) }}</span>{% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-head"><div class="t"><i class="fas fa-chart-line"></i> Monthly Summary</div></div>
+            <div class="panel-body">
+                {% set month_net = cal_daily_pl.values()|sum %}
+                {% set trading_days = cal_daily_pl|length %}
+                {% set best_day = cal_daily_pl.values()|max if cal_daily_pl else 0 %}
+                {% set worst_day = cal_daily_pl.values()|min if cal_daily_pl else 0 %}
+                <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_net >= 0 else 'neg' }}">${{ '%.2f'|format(month_net) }}</span></div>
+                <div class="stat-row"><span class="k">Trading Days</span><span class="v">{{ trading_days }}</span></div>
+                <div class="stat-row"><span class="k">Best Day</span><span class="v pos">${{ '%.2f'|format(best_day) }}</span></div>
+                <div class="stat-row"><span class="k">Worst Day</span><span class="v neg">${{ '%.2f'|format(worst_day) }}</span></div>
+            </div>
+        </div>
     </div>
 
     {% elif active_tab == 'accounts' %}
     <div style="max-width: 700px;">
-        {% for a in accounts %}<div class="acc-card {{ 'selected' if a.id == account.id else '' }}"><div>
-            <h3>{{ a.name }}{% if a.id == account.id %} <span class="badge neutral" style="font-size:0.65rem;">CURRENT</span>{% endif %}</h3>
-            <div class="meta">MT5 Login: <strong>{{ a.mt5_login }}</strong>{% if a.broker %} · {{ a.broker }}{% endif %}{% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}</div>
-            <div class="meta">Balance: ${{ '%.2f'|format(a.current_balance or 0) }} · Trades: <strong>{{ a.trades.count() }}</strong> · Last sync: {{ a.last_synced_at.strftime('%d %b %H:%M') if a.last_synced_at else 'never' }}</div>
-        </div><div class="acc-actions">
-            <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}"><i class="fas fa-folder-open"></i> Open</a>
-            <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }}?');"><button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button></form>
-        </div></div>{% endfor %}
-        <div class="new-form"><h3><i class="fas fa-plus-circle"></i> Connect Another MT5 Account</h3>
-            <form method="POST" action="{{ url_for('journal_account_new') }}"><div class="form-grid"><div><label>Account Name (optional)</label><input name="name" placeholder="e.g. FTMO 100K"></div><div><label>MT5 Login Number *</label><input name="mt5_login" required></div></div><button class="btn btn-primary" type="submit" style="margin-top:1rem;"><i class="fas fa-plug"></i> Connect Account</button></form>
+        {% for a in accounts %}
+        <div class="acc-card {{ 'selected' if a.id == account.id else '' }}">
+            <div>
+                <h3>{{ a.name }}{% if a.id == account.id %} <span class="badge neutral" style="font-size:0.65rem;">CURRENT</span>{% endif %}</h3>
+                <div class="meta">MT5 Login: <strong>{{ a.mt5_login }}</strong>{% if a.broker %} · {{ a.broker }}{% endif %}{% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}</div>
+                <div class="meta">Balance: ${{ '%.2f'|format(a.current_balance or 0) }} · Trades: <strong>{{ a.trades.count() }}</strong> · Last sync: {{ a.last_synced_at.strftime('%d %b %H:%M') if a.last_synced_at else 'never' }}</div>
+            </div>
+            <div class="acc-actions">
+                <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}"><i class="fas fa-folder-open"></i> Open</a>
+                <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }}?');">
+                    <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+        <div class="new-form">
+            <h3><i class="fas fa-plus-circle"></i> Connect Another MT5 Account</h3>
+            <form method="POST" action="{{ url_for('journal_account_new') }}">
+                <div class="form-grid">
+                    <div><label>Account Name (optional)</label><input name="name" placeholder="e.g. FTMO 100K"></div>
+                    <div><label>MT5 Login Number *</label><input name="mt5_login" required></div>
+                </div>
+                <button class="btn btn-primary" type="submit" style="margin-top:1rem;"><i class="fas fa-plug"></i> Connect Account</button>
+            </form>
         </div>
         <div class="info-note"><strong><i class="fas fa-info-circle"></i> How It Works:</strong> Your EA automatically syncs trades and account details every 5 minutes.</div>
     </div>
@@ -763,7 +879,15 @@
     {% endif %}
 </div>
 
-<div class="modal-overlay" id="dayModal"><div class="modal-box"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;"><h3 id="dayModalTitle">Day Details</h3><span style="cursor:pointer; color:var(--j-soft); font-size:1.1rem;" onclick="closeDayModal()">&times;</span></div><div id="dayModalBody">Loading...</div></div></div>
+<div class="modal-overlay" id="dayModal">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 id="dayModalTitle">Day Details</h3>
+            <span style="cursor:pointer; color:var(--j-soft); font-size:1.1rem;" onclick="closeDayModal()">&times;</span>
+        </div>
+        <div id="dayModalBody">Loading...</div>
+    </div>
+</div>
 <div class="toast" id="jrToast"></div>
 
 <script>
@@ -782,13 +906,22 @@
                     data: weeklyData,
                     backgroundColor: weeklyData.map(function(v) { return v >= 0 ? 'rgba(12, 139, 81, 0.8)' : 'rgba(200, 49, 30, 0.8)'; }),
                     borderColor: weeklyData.map(function(v) { return v >= 0 ? '#0c8b51' : '#c8311e'; }),
-                    borderWidth: 1, borderRadius: 6, barThickness: 32
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barThickness: 32
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { return '$' + ctx.raw.toFixed(2); } } } },
-                scales: { y: { grid: { color: '#eef0f3' }, ticks: { callback: function(v) { return '$' + v; } } }, x: { grid: { display: false } } }
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(ctx) { return '$' + ctx.raw.toFixed(2); } } }
+                },
+                scales: {
+                    y: { grid: { color: '#eef0f3' }, ticks: { callback: function(v) { return '$' + v; } } },
+                    x: { grid: { display: false } }
+                }
             }
         });
     })();
@@ -809,12 +942,19 @@
                     data: [wins || 0, losses || 0, breakeven || 0],
                     backgroundColor: ['rgba(12, 139, 81, 0.85)', 'rgba(200, 49, 30, 0.85)', 'rgba(150, 166, 181, 0.85)'],
                     borderColor: ['#0c8b51', '#c8311e', '#96a6b5'],
-                    borderWidth: 2, hoverOffset: 8
+                    borderWidth: 2,
+                    hoverOffset: 8
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } } } }
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } }
+                    }
+                }
             }
         });
     })();
@@ -841,12 +981,19 @@
                     data: [buys || 1, sells || 1],
                     backgroundColor: ['rgba(12, 139, 81, 0.85)', 'rgba(200, 49, 30, 0.85)'],
                     borderColor: ['#0c8b51', '#c8311e'],
-                    borderWidth: 2, hoverOffset: 8
+                    borderWidth: 2,
+                    hoverOffset: 8
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } } } }
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } }
+                    }
+                }
             }
         });
     })();
@@ -876,12 +1023,20 @@
                 datasets: [{
                     data: data,
                     backgroundColor: labels.map(function(_, i) { return colors[i % colors.length]; }),
-                    borderWidth: 2, borderColor: '#ffffff', hoverOffset: 8
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 8
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } } } }
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } }
+                    }
+                }
             }
         });
     })();
@@ -920,7 +1075,8 @@
     function showToast(msg, type) {
         var t = document.getElementById('jrToast');
         if (!t) return;
-        t.textContent = msg; t.className = 'toast';
+        t.textContent = msg;
+        t.className = 'toast';
         if (type === 'error') t.classList.add('error');
         if (type === 'success') t.classList.add('success');
         t.classList.add('show');
@@ -928,7 +1084,7 @@
         t._hideTimeout = setTimeout(function() { t.classList.remove('show'); }, 3500);
     }
 
-    // ===== AUTO-REFRESH =====
+    // ===== AUTO-REFRESH DASHBOARD =====
     var autoRefreshInterval;
     function startAutoRefresh() {
         if ('{{ active_tab }}' === 'dashboard' && accountId) {
@@ -962,7 +1118,7 @@
                             var d = new Date(t.close_time);
                             var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
                             var dateStr = ('0'+d.getDate()).slice(-2) + ' ' + months[d.getMonth()] + ', ' + ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
-                            return '<tr><td>' + dateStr + '</td><td style="font-weight:600;">' + t.symbol + '</td><td><span class="badge ' + t.trade_type + '">' + t.trade_type.toUpperCase() + '</span></td><td>' + t.volume + '</td><td>' + (t.entry_price || '—') + '</td><td>' + (t.exit_price || '—') + '</td><td class="' + (t.profit >= 0 ? 'pos' : 'neg') + '">' + (t.profit >= 0 ? '+' : '') + '$' + t.profit.toFixed(2) + '</td><td>' + (t.pips ? t.pips.toFixed(1) : '—') + '</td><td>' + t.duration + '</td></tr>';
+                            return '<tr><td>' + dateStr + '</td><td style="font-weight:600;">' + t.symbol + '</td><td><span class="badge ' + t.trade_type + '">' + t.trade_type.toUpperCase() + '</span></td><td>' + t.volume + '</td><td>' + (t.entry_price || '—') + '</td><td>' + (t.exit_price || '—') + '</td><td class="' + (t.profit >= 0 ? 'pos' : 'neg') + '">' + (t.profit >= 0 ? '+' : '') + '$' + t.profit.toFixed(2) + '</td><td>' + t.duration + '</td></tr>';
                         }).join('');
                     }
                 }
