@@ -2731,53 +2731,6 @@ def journal_api_ingest():
 @app.route("/journal/api/dashboard-data/<int:account_id>")
 @login_required
 def journal_api_dashboard_data(account_id):
-    """Live dashboard data for auto-refresh every 60 seconds."""
-    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
-    
-    now = datetime.utcnow()
-    all_trades = account.trades.order_by(JournalTrade.close_time.asc()).all()
-    
-    week_start = datetime(now.year, now.month, now.day) - timedelta(days=now.weekday())
-    week_trades = [t for t in all_trades if t.close_time >= week_start]
-    
-    overall = compute_journal_stats(all_trades)
-    week_stats = compute_journal_stats(week_trades)
-    
-    starting_balance = account.starting_balance or 0.0
-    
-    week_pl = journal_daily_pl_map(week_trades)
-    weekly_bars = []
-    for i in range(7):
-        d = week_start + timedelta(days=i)
-        key = d.strftime("%Y-%m-%d")
-        weekly_bars.append({"label": d.strftime("%a"), "date": key, "pl": round(week_pl.get(key, 0.0), 2)})
-    
-    recent_trades = list(reversed(all_trades))[:8]
-    
-    return jsonify({
-        "success": True,
-        "balance": account.current_balance if account.current_balance is not None else starting_balance,
-        "equity": account.current_equity if account.current_equity is not None else starting_balance,
-        "last_synced_at": account.last_synced_at.strftime('%d %b %H:%M') if account.last_synced_at else 'never',
-        "overall": overall,
-        "week_stats": week_stats,
-        "weekly_bars": weekly_bars,
-        "recent_trades": [{
-            "close_time": t.close_time.isoformat(),
-            "symbol": t.symbol,
-            "trade_type": t.trade_type,
-            "volume": t.volume,
-            "entry_price": t.entry_price,
-            "exit_price": t.exit_price,
-            "profit": t.profit,
-            "pips": t.pips,
-            "duration": t.duration_display()
-        } for t in recent_trades]
-    })
-
-@app.route("/journal/api/dashboard-data/<int:account_id>")
-@login_required
-def journal_api_dashboard_data(account_id):
     """Returns live dashboard data for AJAX auto-refresh every 60 seconds."""
     account = JournalAccount.query.filter_by(
         id=account_id, user_id=current_user.id
