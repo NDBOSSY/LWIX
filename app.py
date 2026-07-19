@@ -2426,12 +2426,14 @@ def download_ea(file_id):
 # TRADING JOURNAL ROUTES
 # ============================================================================
 
+# ============================================================================
+# TRADING JOURNAL ROUTES (SIMPLIFIED - EA handles everything)
+# ============================================================================
+
 @app.route("/journal")
 @login_required
 def journal_page():
-    """
-    Single-page Trading Journal with tabs: Dashboard, Trades, Calendar, Accounts.
-    """
+    """Single-page Trading Journal with tabs: Dashboard, Trades, Calendar, Accounts."""
     if not current_user.is_membership_active():
         flash("Actief abonnement vereist.", "error")
         return redirect(url_for("user_dashboard"))
@@ -2446,59 +2448,47 @@ def journal_page():
     if not account:
         return render_template(
             "user/journal.html",
-            user=current_user,
-            accounts=accounts,
-            account=None,
-            active_tab="accounts",
-            current_language=get_user_language(),
+            user=current_user, accounts=accounts, account=None,
+            active_tab="accounts", current_language=get_user_language(),
             now=datetime.utcnow()
         )
     
     now = datetime.utcnow()
     all_trades = account.trades.order_by(JournalTrade.close_time.asc()).all()
     
-    # Week calculations
     week_start = datetime(now.year, now.month, now.day) - timedelta(days=now.weekday())
     week_trades = [t for t in all_trades if t.close_time >= week_start]
+    month_start = datetime(now.year, now.month, 1)
+    month_trades = [t for t in all_trades if t.close_time >= month_start]
     
     overall = compute_journal_stats(all_trades)
     week_stats = compute_journal_stats(week_trades)
+    month_stats = compute_journal_stats(month_trades)
     
     starting_balance = account.starting_balance or 0.0
     total_return_pct = (overall["net_profit"] / starting_balance * 100) if starting_balance else 0.0
     max_dd, max_dd_pct = journal_max_drawdown(all_trades, starting_balance)
     active_days = len({t.close_time.strftime("%Y-%m-%d") for t in all_trades})
     
-    # Calendar month
+    # Calendar
     month_param = request.args.get("month")
     if month_param:
-        try:
-            cal_year, cal_month = [int(x) for x in month_param.split("-")]
-        except Exception:
-            cal_year, cal_month = now.year, now.month
+        try: cal_year, cal_month = [int(x) for x in month_param.split("-")]
+        except: cal_year, cal_month = now.year, now.month
     else:
         cal_year, cal_month = now.year, now.month
     
     cal_start = datetime(cal_year, cal_month, 1)
-    cal_end = datetime(
-        cal_year + (1 if cal_month == 12 else 0),
-        1 if cal_month == 12 else cal_month + 1,
-        1
-    )
+    cal_end = datetime(cal_year + (1 if cal_month == 12 else 0), 1 if cal_month == 12 else cal_month + 1, 1)
     cal_trades = [t for t in all_trades if cal_start <= t.close_time < cal_end]
     cal_daily_pl = journal_daily_pl_map(cal_trades)
     
-    # Weekly chart data
     weekly_bars = []
     week_pl = journal_daily_pl_map(week_trades)
     for i in range(7):
         d = week_start + timedelta(days=i)
         key = d.strftime("%Y-%m-%d")
-        weekly_bars.append({
-            "label": d.strftime("%a"),
-            "date": key,
-            "pl": round(week_pl.get(key, 0.0), 2)
-        })
+        weekly_bars.append({"label": d.strftime("%a"), "date": key, "pl": round(week_pl.get(key, 0.0), 2)})
     
     # Trade filters
     symbol = request.args.get("jsymbol", "").strip().upper()
@@ -2508,22 +2498,15 @@ def journal_page():
     q = request.args.get("jq", "").strip()
     
     query = account.trades
-    if symbol:
-        query = query.filter(JournalTrade.symbol == symbol)
-    if trade_type in ("buy", "sell"):
-        query = query.filter(JournalTrade.trade_type == trade_type)
+    if symbol: query = query.filter(JournalTrade.symbol == symbol)
+    if trade_type in ("buy", "sell"): query = query.filter(JournalTrade.trade_type == trade_type)
     if start:
-        try:
-            query = query.filter(JournalTrade.close_time >= datetime.strptime(start, "%Y-%m-%d"))
-        except ValueError:
-            pass
+        try: query = query.filter(JournalTrade.close_time >= datetime.strptime(start, "%Y-%m-%d"))
+        except: pass
     if end:
-        try:
-            query = query.filter(JournalTrade.close_time < datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1))
-        except ValueError:
-            pass
-    if q:
-        query = query.filter(JournalTrade.symbol.ilike(f"%{q}%"))
+        try: query = query.filter(JournalTrade.close_time < datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1))
+        except: pass
+    if q: query = query.filter(JournalTrade.symbol.ilike(f"%{q}%"))
     
     sort = request.args.get("jsort", "close_time")
     direction = request.args.get("jdir", "desc")
@@ -2532,70 +2515,54 @@ def journal_page():
     
     trades = query.limit(500).all()
     symbols = sorted({t.symbol for t in account.trades.all()})
-    
     active_tab = request.args.get("tab", "dashboard")
     
     return render_template(
         "user/journal.html",
-        user=current_user,
-        accounts=accounts,
-        account=account,
-        active_tab=active_tab,
-        overall=overall,
-        week_stats=week_stats,
-        total_return_pct=round(total_return_pct, 2),
-        max_dd=max_dd,
-        max_dd_pct=max_dd_pct,
-        active_days=active_days,
+        user=current_user, accounts=accounts, account=account,
+        active_tab=active_tab, overall=overall, week_stats=week_stats,
+        month_stats=month_stats, total_return_pct=round(total_return_pct, 2),
+        max_dd=max_dd, max_dd_pct=max_dd_pct, active_days=active_days,
         current_balance=account.current_balance if account.current_balance is not None else starting_balance,
         current_equity=account.current_equity if account.current_equity is not None else starting_balance,
-        cal_year=cal_year,
-        cal_month=cal_month,
-        cal_daily_pl=cal_daily_pl,
-        cal_first_weekday=cal_start.weekday(),
-        cal_days_in_month=(cal_end - cal_start).days,
-        weekly_bars=weekly_bars,
-        recent_trades=list(reversed(all_trades))[:8],
-        trades=trades,
-        symbols=symbols,
-        sort=sort,
-        direction=direction,
+        cal_year=cal_year, cal_month=cal_month, cal_daily_pl=cal_daily_pl,
+        cal_first_weekday=cal_start.weekday(), cal_days_in_month=(cal_end - cal_start).days,
+        weekly_bars=weekly_bars, recent_trades=list(reversed(all_trades))[:8],
+        trades=trades, symbols=symbols, sort=sort, direction=direction,
         filters={"symbol": symbol, "type": trade_type, "q": q, "start": start or "", "end": end or ""},
         month_names=['','January','February','March','April','May','June','July','August','September','October','November','December'],
-        current_language=get_user_language(),
-        now=now
+        current_language=get_user_language(), now=now
     )
 
 
 @app.route("/journal/account/new", methods=["POST"])
 @login_required
 def journal_account_new():
-    """Create a new journal account - only requires name and MT5 login."""
+    """Create a new journal account. EA auto-fills broker/server/currency/balance."""
     name = request.form.get("name", "").strip()
     mt5_login = request.form.get("mt5_login", "").strip()
-
+    
     if not name:
         name = f"MT5-{mt5_login}" if mt5_login else "MT5 Account"
-
+    
     if not mt5_login:
         flash("MT5 login number is required.", "error")
         return redirect(url_for("journal_page", tab="accounts"))
-
+    
     if JournalAccount.query.filter_by(user_id=current_user.id, mt5_login=mt5_login).first():
         flash("You already have an account linked to that MT5 login number.", "error")
         return redirect(url_for("journal_page", tab="accounts"))
-
+    
     account = JournalAccount(
         user_id=current_user.id,
         name=name,
         mt5_login=mt5_login,
-        sync_token=secrets.token_hex(24),
     )
     db.session.add(account)
     db.session.commit()
-
+    
     session["journal_account_id"] = account.id
-    flash(f"'{name}' connected! Download the sync agent to start importing trades.", "success")
+    flash(f"'{name}' connected! Your EA will auto-sync trades and account details.", "success")
     return redirect(url_for("journal_page", account_id=account.id, tab="accounts"))
 
 
@@ -2609,43 +2576,33 @@ def journal_account_delete(account_id):
     db.session.commit()
     if session.get("journal_account_id") == account_id:
         session.pop("journal_account_id", None)
-    flash(f"'{name}' and all its trade history were deleted.", "success")
+    flash(f"'{name}' and all its trade history deleted.", "success")
     return redirect(url_for("journal_page", tab="accounts"))
+
 
 @app.route("/journal/api/day/<int:account_id>/<day>")
 @login_required
 def journal_api_day(account_id, day):
-    """Get trades for a specific day."""
+    """Get trades for a specific day (for calendar click)."""
     account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
-    try:
-        d = datetime.strptime(day, "%Y-%m-%d")
-    except ValueError:
-        return jsonify({"error": "Invalid date"}), 400
+    try: d = datetime.strptime(day, "%Y-%m-%d")
+    except: return jsonify({"error": "Invalid date"}), 400
     
     next_d = d + timedelta(days=1)
     trades = account.trades.filter(
-        JournalTrade.close_time >= d,
-        JournalTrade.close_time < next_d
+        JournalTrade.close_time >= d, JournalTrade.close_time < next_d
     ).order_by(JournalTrade.close_time).all()
     
     stats = compute_journal_stats(trades)
     return jsonify({
-        "date": day,
-        "stats": stats,
+        "date": day, "stats": stats,
         "trades": [{
-            "symbol": t.symbol,
-            "type": t.trade_type,
-            "volume": t.volume,
-            "entry": t.entry_price,
-            "sl": t.sl,
-            "tp": t.tp,
-            "exit": t.exit_price,
-            "profit": t.profit,
-            "pips": t.pips,
+            "symbol": t.symbol, "type": t.trade_type, "volume": t.volume,
+            "entry": t.entry_price, "sl": t.sl, "tp": t.tp, "exit": t.exit_price,
+            "profit": t.profit, "pips": t.pips,
             "open_time": t.open_time.strftime("%H:%M") if t.open_time else None,
             "close_time": t.close_time.strftime("%H:%M"),
-            "duration": t.duration_display(),
-            "magic": t.magic_number,
+            "duration": t.duration_display(), "magic": t.magic_number,
         } for t in trades]
     })
 
@@ -2653,44 +2610,47 @@ def journal_api_day(account_id, day):
 @app.route("/journal/api/ingest", methods=["POST"])
 def journal_api_ingest():
     """
-    Called by mt5_sync_agent.py running on the user's Windows VPS.
-    Auth: header 'X-Sync-Token: <account.sync_token>'
-    
-    Accepts trades AND account metadata for auto-detection.
+    Called by the EA via WebRequest.
+    Auth: X-License-Key header (same as license validation).
+    Auto-matches trades to journal account by MT5 login number.
     """
-    token = request.headers.get("X-Sync-Token", "")
-    account = JournalAccount.query.filter_by(sync_token=token).first() if token else None
+    license_key = request.headers.get("X-License-Key", "")
+    mt5_login = request.headers.get("X-MT5-Login", "").strip()
+    
+    if not license_key or not mt5_login:
+        return jsonify({"success": False, "error": "Missing license key or MT5 login"}), 400
+    
+    # Find the user by license key
+    lic = License.query.filter_by(license_key=license_key).first()
+    if not lic:
+        return jsonify({"success": False, "error": "Invalid license key"}), 401
+    
+    # Find or create journal account matching this MT5 login
+    account = JournalAccount.query.filter_by(
+        user_id=lic.user_id, mt5_login=mt5_login
+    ).first()
+    
     if not account:
-        return jsonify({"success": False, "error": "Invalid sync token"}), 401
-
+        # Auto-create journal account on first EA sync
+        account = JournalAccount(
+            user_id=lic.user_id,
+            name=f"MT5-{mt5_login}",
+            mt5_login=mt5_login,
+        )
+        db.session.add(account)
+        db.session.flush()
+        logger.info(f"[JOURNAL] Auto-created account for MT5 login {mt5_login}")
+    
     data = request.get_json(silent=True) or {}
     
-    # Auto-detect account metadata
+    # Auto-detect account metadata from EA
     account_info = data.get("account_info", {})
     if account_info:
-        updated_fields = []
-        
-        if account_info.get("broker") and not account.broker:
-            account.broker = account_info["broker"]
-            updated_fields.append(f"broker={account.broker}")
-        
-        if account_info.get("server") and not account.mt5_server:
-            account.mt5_server = account_info["server"]
-            updated_fields.append(f"server={account.mt5_server}")
-        
-        if account_info.get("currency"):
-            account.currency = account_info["currency"]
-            updated_fields.append(f"currency={account.currency}")
-        
-        if account_info.get("name") and not account.prop_firm:
-            account.prop_firm = account_info["name"]
-        
+        if account_info.get("broker"): account.broker = account_info["broker"]
+        if account_info.get("server"): account.mt5_server = account_info["server"]
+        if account_info.get("currency"): account.currency = account_info["currency"]
         if account_info.get("balance") and (account.starting_balance is None or account.starting_balance == 0.0):
             account.starting_balance = account_info["balance"]
-            updated_fields.append(f"starting_balance={account.starting_balance}")
-        
-        if updated_fields:
-            logger.info(f"[JOURNAL] Auto-detected for {account.mt5_login}: {', '.join(updated_fields)}")
     
     # Import trades
     trades_payload = data.get("trades", [])
@@ -2702,23 +2662,32 @@ def journal_api_ingest():
             ticket = str(tr["ticket"])
         except KeyError:
             continue
-
+        
         if JournalTrade.query.filter_by(account_id=account.id, mt5_ticket=ticket).first():
             skipped += 1
             continue
-
-        try:
-            close_time = datetime.fromisoformat(tr["close_time"])
-        except Exception:
+        
+        # Parse close_time (handle both ISO and MT5 formats)
+        close_time = None
+        for fmt in ["%Y-%m-%dT%H:%M:%S", "%Y.%m.%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"]:
+            try:
+                close_time = datetime.strptime(tr["close_time"].replace("T", " ")[:19], fmt)
+                break
+            except:
+                continue
+        if not close_time:
             continue
-
+        
+        # Parse open_time
         open_time = None
         if tr.get("open_time"):
-            try:
-                open_time = datetime.fromisoformat(tr["open_time"])
-            except Exception:
-                pass
-
+            for fmt in ["%Y-%m-%dT%H:%M:%S", "%Y.%m.%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"]:
+                try:
+                    open_time = datetime.strptime(tr["open_time"].replace("T", " ")[:19], fmt)
+                    break
+                except:
+                    continue
+        
         db.session.add(JournalTrade(
             account_id=account.id,
             mt5_ticket=ticket,
@@ -2737,23 +2706,19 @@ def journal_api_ingest():
             comment=tr.get("comment"),
         ))
         imported += 1
-
+    
     # Update balance/equity
     if "balance" in data:
         account.current_balance = data["balance"]
     if "equity" in data:
         account.current_equity = data["equity"]
-
+    
     account.last_synced_at = datetime.utcnow()
     account.last_sync_error = None
-    account.sync_requested_at = None
     db.session.commit()
-
-    logger.info(
-        f"[JOURNAL] Ingest for {account.mt5_login}: "
-        f"{imported} imported, {skipped} skipped, balance={account.current_balance}"
-    )
-
+    
+    logger.info(f"[JOURNAL] Sync: {account.mt5_login} - {imported} new, {skipped} skipped")
+    
     return jsonify({
         "success": True,
         "imported": imported,
@@ -2762,6 +2727,53 @@ def journal_api_ingest():
         "equity": account.current_equity
     })
 
+
+@app.route("/journal/api/dashboard-data/<int:account_id>")
+@login_required
+def journal_api_dashboard_data(account_id):
+    """Live dashboard data for auto-refresh every 60 seconds."""
+    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    
+    now = datetime.utcnow()
+    all_trades = account.trades.order_by(JournalTrade.close_time.asc()).all()
+    
+    week_start = datetime(now.year, now.month, now.day) - timedelta(days=now.weekday())
+    week_trades = [t for t in all_trades if t.close_time >= week_start]
+    
+    overall = compute_journal_stats(all_trades)
+    week_stats = compute_journal_stats(week_trades)
+    
+    starting_balance = account.starting_balance or 0.0
+    
+    week_pl = journal_daily_pl_map(week_trades)
+    weekly_bars = []
+    for i in range(7):
+        d = week_start + timedelta(days=i)
+        key = d.strftime("%Y-%m-%d")
+        weekly_bars.append({"label": d.strftime("%a"), "date": key, "pl": round(week_pl.get(key, 0.0), 2)})
+    
+    recent_trades = list(reversed(all_trades))[:8]
+    
+    return jsonify({
+        "success": True,
+        "balance": account.current_balance if account.current_balance is not None else starting_balance,
+        "equity": account.current_equity if account.current_equity is not None else starting_balance,
+        "last_synced_at": account.last_synced_at.strftime('%d %b %H:%M') if account.last_synced_at else 'never',
+        "overall": overall,
+        "week_stats": week_stats,
+        "weekly_bars": weekly_bars,
+        "recent_trades": [{
+            "close_time": t.close_time.isoformat(),
+            "symbol": t.symbol,
+            "trade_type": t.trade_type,
+            "volume": t.volume,
+            "entry_price": t.entry_price,
+            "exit_price": t.exit_price,
+            "profit": t.profit,
+            "pips": t.pips,
+            "duration": t.duration_display()
+        } for t in recent_trades]
+    })
 
 @app.route("/journal/api/dashboard-data/<int:account_id>")
 @login_required
@@ -2815,155 +2827,6 @@ def journal_api_dashboard_data(account_id):
             "duration": t.duration_display()
         } for t in recent_trades]
     })
-
-
-@app.route("/download/sync-agent")
-@login_required
-def download_sync_agent():
-    """
-    Download the MT5 sync agent Python script.
-    The sync token is embedded so no manual configuration is needed.
-    """
-    token = request.args.get("token", "")
-    
-    if not token:
-        account = JournalAccount.query.filter_by(
-            user_id=current_user.id, archived=False
-        ).order_by(JournalAccount.created_at.desc()).first()
-        if account:
-            token = account.sync_token
-    
-    agent_code = f'''"""
-MT5 Sync Agent for Trading Engine Journal
-=========================================
-Run this on your VPS where MT5 is installed.
-Requirements: pip install MetaTrader5
-
-Your sync token is pre-configured below.
-Just run: python mt5_sync_agent.py
-"""
-
-import json, time, sys, urllib.request, urllib.error
-from datetime import datetime, timedelta
-
-try:
-    import MetaTrader5 as mt5
-except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "MetaTrader5"])
-    import MetaTrader5 as mt5
-
-SYNC_TOKEN = "{token}"
-API_URL = "{url_for('journal_api_ingest', _external=True)}"
-SYNC_INTERVAL = 300
-
-def connect_mt5():
-    if not mt5.initialize():
-        print(f"Could not connect: {{mt5.last_error()}}")
-        return False
-    print(f"Connected to MT5: {{mt5.terminal_info().path}}")
-    return True
-
-def get_account_details():
-    info = mt5.account_info()
-    if info is None:
-        return {{}}
-    return {{
-        "broker": info.broker or "",
-        "server": info.server or "",
-        "currency": info.currency or "USD",
-        "balance": info.balance or 0,
-        "equity": info.equity or 0,
-        "login": info.login,
-        "name": info.name or "",
-    }}
-
-def get_recent_trades(days=30):
-    to_date = datetime.now()
-    from_date = to_date - timedelta(days=days)
-    positions = mt5.history_positions_get(from_date, to_date)
-    if positions is None:
-        return []
-    trades = []
-    for pos in positions:
-        trades.append({{
-            "ticket": str(pos.ticket),
-            "symbol": pos.symbol,
-            "type": "buy" if pos.type == 0 else "sell",
-            "volume": pos.volume,
-            "entry_price": pos.price_open,
-            "sl": pos.sl,
-            "tp": pos.tp,
-            "exit_price": pos.price_current,
-            "open_time": datetime.fromtimestamp(pos.time_setup).isoformat() if pos.time_setup else None,
-            "close_time": datetime.fromtimestamp(pos.time_close).isoformat() if pos.time_close else datetime.now().isoformat(),
-            "profit": pos.profit if hasattr(pos,'profit') else 0.0,
-            "pips": None,
-            "magic_number": pos.magic,
-            "comment": pos.comment or "",
-        }})
-    return trades
-
-def push_data(data):
-    req = urllib.request.Request(
-        API_URL,
-        data=json.dumps(data).encode(),
-        headers={{
-            "Content-Type":"application/json",
-            "X-Sync-Token":SYNC_TOKEN,
-            "User-Agent":"TradingEngine-SyncAgent/1.0"
-        }},
-        method="POST"
-    )
-    return json.loads(urllib.request.urlopen(req, timeout=30).read())
-
-def main():
-    print("="*50)
-    print("  Trading Engine - MT5 Sync Agent")
-    print("="*50)
-    if not connect_mt5():
-        input("Press Enter to exit...")
-        return
-    acc_info = get_account_details()
-    print(f"Broker: {{acc_info.get('broker')}}")
-    print(f"Balance: ${{acc_info.get('balance',0):.2f}}")
-    trades = get_recent_trades(30)
-    print(f"Found {{len(trades)}} trades")
-    result = push_data({{
-        "account_info":acc_info,
-        "balance":acc_info.get("balance"),
-        "equity":acc_info.get("equity"),
-        "trades":trades
-    }})
-    print(f"Imported {{result.get('imported',0)}} trades")
-    print(f"Auto-syncing every {{SYNC_INTERVAL//60}} min...")
-    while True:
-        try:
-            time.sleep(SYNC_INTERVAL)
-            acc_info = get_account_details()
-            trades = get_recent_trades(1)
-            result = push_data({{
-                "account_info":acc_info,
-                "balance":acc_info.get("balance"),
-                "equity":acc_info.get("equity"),
-                "trades":trades
-            }})
-            if result.get("imported",0) > 0:
-                print(f"[{{datetime.now().strftime('%H:%M:%S')}}] {{result['imported']}} new trade(s)")
-        except KeyboardInterrupt:
-            print("\\nStopped.")
-            break
-        except Exception as e:
-            print(f"Error: {{e}}")
-
-if __name__ == "__main__":
-    main()
-'''
-    
-    return agent_code, 200, {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Content-Disposition': 'attachment; filename="mt5_sync_agent.py"'
-    }
 
 
 # ============================================================================
