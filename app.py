@@ -2612,31 +2612,6 @@ def journal_account_delete(account_id):
     flash(f"'{name}' and all its trade history were deleted.", "success")
     return redirect(url_for("journal_page", tab="accounts"))
 
-
-@app.route("/journal/account/<int:account_id>/regen-token", methods=["POST"])
-@login_required
-def journal_account_regen_token(account_id):
-    """Regenerate the sync token for a journal account."""
-    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
-    account.sync_token = secrets.token_hex(24)
-    db.session.commit()
-    flash("New sync token generated. Update the agent config on the VPS.", "success")
-    return redirect(url_for("journal_page", account_id=account_id, tab="accounts"))
-
-
-@app.route("/journal/account/<int:account_id>/sync-now", methods=["POST"])
-@login_required
-def journal_account_sync_now(account_id):
-    """Request an immediate sync from the MT5 agent."""
-    account = JournalAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
-    account.sync_requested_at = datetime.utcnow()
-    db.session.commit()
-    return jsonify({
-        "success": True,
-        "message": "Sync requested. The agent on your VPS will push new trades within a few seconds if it's running.",
-    })
-
-
 @app.route("/journal/api/day/<int:account_id>/<day>")
 @login_required
 def journal_api_day(account_id, day):
