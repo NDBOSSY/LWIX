@@ -3837,6 +3837,35 @@ def auto_init_db():
         except Exception as e:
             logger.error(f"DB init failed: {e}")
 
+@app.route("/journal/cleanup-bad-trades-once/<int:account_id>")
+@login_required
+def journal_cleanup_bad_trades_once(account_id):
+    """
+    TEMPORARY: One-off cleanup of corrupted trade rows (empty symbol or
+    zero volume) left over from before the EA's DEAL_TYPE filter fix.
+    Visit this URL once, confirm the count, then remove this route and redeploy.
+    """
+    account = JournalAccount.query.filter_by(
+        id=account_id, user_id=current_user.id
+    ).first_or_404()
+
+    deleted = JournalTrade.query.filter(
+        JournalTrade.account_id == account.id,
+        db.or_(
+            JournalTrade.symbol == "",
+            JournalTrade.symbol.is_(None),
+            JournalTrade.volume == 0,
+        ),
+    ).delete(synchronize_session=False)
+
+    db.session.commit()
+
+    return jsonify({
+        "account_id": account.id,
+        "account_name": account.name,
+        "deleted": deleted
+    })
+
 
 # ============================================================================
 # APPLICATION STARTUP
