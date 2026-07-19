@@ -782,24 +782,6 @@
                         <span class="detail-label">Currency</span>
                         <span class="detail-value">{{ account.currency or '—' }}</span>
                     </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Starting Balance</span>
-                        <span class="detail-value mono">${{ '%.2f'|format(account.starting_balance or 0) }}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Current Balance</span>
-                        <span class="detail-value mono {{ 'pos' if (account.current_balance or 0) >= (account.starting_balance or 0) else 'neg' }}">
-                            ${{ '%.2f'|format(account.current_balance or 0) }}
-                        </span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Current Equity</span>
-                        <span class="detail-value mono">${{ '%.2f'|format(account.current_equity or 0) }}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Total Trades</span>
-                        <span class="detail-value mono">{{ account.trades.count() }}</span>
-                    </div>
                 </div>
             </div>
         </div>
