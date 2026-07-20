@@ -2484,28 +2484,6 @@ def download_connector():
         as_attachment=True,
         download_name=connector.filename
     )
-       
-# ============================================================================
-# MT5 CONNECTOR INDICATOR DOWNLOAD
-# ============================================================================
-
-@app.route("/download-connector")
-def download_connector():
-    """Download MT5 Connector Indicator (increment counter)."""
-    connector = MT5ConnectorIndicator.query.first()
-    if not connector:
-        flash('Geen connector indicator beschikbaar.', 'error')
-        return redirect(url_for('user_dashboard'))
-    
-    connector.download_count = (connector.download_count or 0) + 1
-    db.session.commit()
-    
-    return send_from_directory(
-        os.path.join(app.root_path, 'static', 'downloads'),
-        connector.filename,
-        as_attachment=True
-    )
-
 
 # ============================================================================
 # TRADING JOURNAL ROUTES
