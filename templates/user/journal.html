@@ -1508,7 +1508,7 @@
                         Follow these steps to install the service that auto-syncs your trades.
                     </p>
                 </div>
-                <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSyncService.ex5') }}" download>
+                <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSync.ex5') }}" download>
                     <i class="fas fa-download"></i> Download Service
                     <span class="ver">{{ indicator_version or 'v1.0' }}</span>
                 </a>
@@ -1521,7 +1521,7 @@
                 <li>In Navigator (Ctrl+N), right-click <strong>Services</strong> → <strong>Refresh</strong>.</li>
                 <li>Go to <strong>Tools → Options → Expert Advisors</strong>, enable <strong>WebRequest</strong>, add:<br>
                     <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code></li>
-                <li>In Navigator, <strong>double-click</strong> <strong>MT5JournalSyncService</strong> → <strong>OK</strong>.</li>
+                <li>In Navigator, <strong>double-click</strong> <strong>MT5JournalSync</strong> → <strong>OK</strong>.</li>
                 <li>Verify in Experts tab (Ctrl+T): look for the green success message.</li>
                 <li>Right-click service → <strong>Add to Favorites</strong> for auto-start with MT5.</li>
             </ol>
