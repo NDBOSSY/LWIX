@@ -3,6 +3,7 @@ Subscription & Licensing Platform
 Complete Flask Application with Wix Integration, Stripe Integration, OTP Auth, 
 License Management, Discord Integration & ThinkHuge VPS Auto-Provisioning
 + Trading Journal with MT5 Sync Agent Integration
++ MT5 Connector Indicator Management
 
 ACCOUNT SLOT LOGIC:
 - Each UNIQUE MT5 account number = 1 slot
@@ -62,6 +63,8 @@ ADDED: Calendar view with daily P/L
 ADDED: Trade filtering, sorting, and search
 ADDED: Weekly P/L chart
 ADDED: Comprehensive trade statistics (win rate, profit factor, drawdown, etc.)
+ADDED: MT5 Connector Indicator management for admin dashboard
+ADDED: MT5 Connector Indicator download on journal page for manual traders
 """
 
 import os
@@ -281,7 +284,7 @@ except Exception:
 Path(Config.UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
 
 logger.info("=" * 80)
-logger.info("APPLICATION STARTING - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS + TRADING JOURNAL")
+logger.info("APPLICATION STARTING - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS + TRADING JOURNAL + CONNECTOR INDICATOR")
 logger.info("=" * 80)
 
 
@@ -625,6 +628,20 @@ class EAFile(db.Model):
     download_count = db.Column(db.Integer, default=0)
     checksum = db.Column(db.String(64), nullable=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+
+class MT5ConnectorIndicator(db.Model):
+    """Store the MT5 Connector Indicator file for journal download."""
+    __tablename__ = 'mt5_connector_indicator'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(500), nullable=False)
+    version = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+    download_count = db.Column(db.Integer, default=0)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
 
 class Setting(db.Model):
@@ -1718,6 +1735,24 @@ def run_migrations():
                 db.session.commit()
                 logger.info("journal_trades table created")
 
+            # Create mt5_connector_indicator table if missing
+            if 'mt5_connector_indicator' not in existing_tables:
+                logger.info("Creating mt5_connector_indicator table...")
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS mt5_connector_indicator (
+                        id SERIAL PRIMARY KEY,
+                        filename VARCHAR(255) NOT NULL,
+                        file_path VARCHAR(500) NOT NULL,
+                        version VARCHAR(50) NOT NULL,
+                        description TEXT,
+                        download_count INTEGER DEFAULT 0,
+                        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        uploaded_by INTEGER REFERENCES users(id)
+                    )
+                """))
+                db.session.commit()
+                logger.info("mt5_connector_indicator table created")
+
             # Add missing columns to users table
             columns = [col['name'] for col in inspector.get_columns('users')]
             
@@ -2149,7 +2184,7 @@ def user_dashboard():
         EAFile.plan_level <= user_level
     ).order_by(EAFile.upload_date.desc()).all()
 
-    all_ea_count = EAFile.query.filter_by(is_active=True).count()
+    all_ea_count = EAFile.query.filter_by(is_active=True).all()
 
     # License account tracking
     default_max = get_max_accounts_for_level(user_level)
@@ -2423,11 +2458,29 @@ def download_ea(file_id):
 
 
 # ============================================================================
-# TRADING JOURNAL ROUTES
+# MT5 CONNECTOR INDICATOR DOWNLOAD
 # ============================================================================
 
+@app.route("/download-connector")
+def download_connector():
+    """Download MT5 Connector Indicator (increment counter)."""
+    connector = MT5ConnectorIndicator.query.first()
+    if not connector:
+        flash('Geen connector indicator beschikbaar.', 'error')
+        return redirect(url_for('user_dashboard'))
+    
+    connector.download_count = (connector.download_count or 0) + 1
+    db.session.commit()
+    
+    return send_from_directory(
+        os.path.join(app.root_path, 'static', 'downloads'),
+        connector.filename,
+        as_attachment=True
+    )
+
+
 # ============================================================================
-# TRADING JOURNAL ROUTES (SIMPLIFIED - EA handles everything)
+# TRADING JOURNAL ROUTES
 # ============================================================================
 
 @app.route("/journal")
@@ -2445,12 +2498,18 @@ def journal_page():
     requested_id = request.args.get("account_id", type=int)
     account = get_selected_journal_account(requested_id)
     
+    # Get connector indicator info for download link
+    connector = MT5ConnectorIndicator.query.first()
+    
     if not account:
         return render_template(
             "user/journal.html",
             user=current_user, accounts=accounts, account=None,
             active_tab="accounts", current_language=get_user_language(),
-            now=datetime.utcnow()
+            now=datetime.utcnow(),
+            indicator_download_url=url_for('download_connector') if connector else None,
+            indicator_version=connector.version if connector else '1.0',
+            webrequest_url=Config.APP_URL
         )
     
     now = datetime.utcnow()
@@ -2531,7 +2590,10 @@ def journal_page():
         trades=trades, symbols=symbols, sort=sort, direction=direction,
         filters={"symbol": symbol, "type": trade_type, "q": q, "start": start or "", "end": end or ""},
         month_names=['','January','February','March','April','May','June','July','August','September','October','November','December'],
-        current_language=get_user_language(), now=now
+        current_language=get_user_language(), now=now,
+        indicator_download_url=url_for('download_connector') if connector else None,
+        indicator_version=connector.version if connector else '1.0',
+        webrequest_url=Config.APP_URL
     )
 
 
@@ -2565,7 +2627,7 @@ def journal_account_new():
     session["journal_account_id"] = account.id
     flash(f"'{name}' connected! Your EA will auto-sync trades and account details.", "success")
     return redirect(url_for("journal_page", account_id=account.id, tab="accounts"))
-       
+
 
 @app.route("/journal/account/<int:account_id>/delete", methods=["POST"])
 @login_required
@@ -2735,6 +2797,7 @@ def journal_api_ingest():
         "equity": account.current_equity
     })
 
+
 @app.route("/journal/api/dashboard-data/<int:account_id>")
 @login_required
 def journal_api_dashboard_data(account_id):
@@ -2789,6 +2852,35 @@ def journal_api_dashboard_data(account_id):
     })
 
 
+@app.route("/journal/cleanup-bad-trades-once/<int:account_id>")
+@login_required
+def journal_cleanup_bad_trades_once(account_id):
+    """
+    TEMPORARY: One-off cleanup of corrupted trade rows (empty symbol or
+    zero volume) left over from before the EA's DEAL_TYPE filter fix.
+    """
+    account = JournalAccount.query.filter_by(
+        id=account_id, user_id=current_user.id
+    ).first_or_404()
+
+    deleted = JournalTrade.query.filter(
+        JournalTrade.account_id == account.id,
+        db.or_(
+            JournalTrade.symbol == "",
+            JournalTrade.symbol.is_(None),
+            JournalTrade.volume == 0,
+        ),
+    ).delete(synchronize_session=False)
+
+    db.session.commit()
+
+    return jsonify({
+        "account_id": account.id,
+        "account_name": account.name,
+        "deleted": deleted
+    })
+
+
 # ============================================================================
 # ADMIN ROUTES
 # ============================================================================
@@ -2816,6 +2908,7 @@ def admin_dashboard():
     recent_licenses = License.query.order_by(License.created_at.desc()).limit(10).all()
     recent_logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(20).all()
     ea_files = EAFile.query.order_by(EAFile.upload_date.desc()).all()
+    connector_indicator = MT5ConnectorIndicator.query.first()
 
     subscription_stats = db.session.query(
         User.subscription_type,
@@ -2854,6 +2947,7 @@ def admin_dashboard():
         recent_licenses=recent_licenses,
         recent_logs=recent_logs,
         ea_files=ea_files,
+        connector_indicator=connector_indicator,
         subscription_stats=subscription_stats,
         now=datetime.utcnow(),
         is_test_mode=is_test_mode,
@@ -3182,6 +3276,127 @@ def delete_ea(ea_id):
         db.session.commit()
         flash(f"'{name}' verwijderd.", "success")
     return redirect(url_for("admin_dashboard"))
+
+
+# ============================================================================
+# MT5 CONNECTOR INDICATOR MANAGEMENT
+# ============================================================================
+
+@app.route("/admin/upload-connector", methods=["POST"])
+@admin_required
+def admin_upload_connector():
+    """Upload or update MT5 Connector Indicator."""
+    if 'file' not in request.files:
+        flash('Geen bestand geselecteerd.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    file = request.files['file']
+    version = request.form.get('version', '').strip()
+    description = request.form.get('description', '').strip()
+    
+    if not file.filename:
+        flash('Geen bestand geselecteerd.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    if not version:
+        flash('Versie is verplicht.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Validate file extension
+    allowed_extensions = {'.ex5', '.ex4'}
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in allowed_extensions:
+        flash('Alleen .ex5 en .ex4 bestanden zijn toegestaan.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    try:
+        # Create downloads directory if it doesn't exist
+        downloads_dir = os.path.join(app.root_path, 'static', 'downloads')
+        os.makedirs(downloads_dir, exist_ok=True)
+        
+        # Delete old file if exists
+        existing = MT5ConnectorIndicator.query.first()
+        if existing:
+            old_file_path = os.path.join(app.root_path, existing.file_path)
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
+        
+        # Save new file
+        safe_filename = f"MT5ConnectorIndicator_v{version}{file_ext}"
+        file_path = os.path.join('static', 'downloads', safe_filename)
+        full_path = os.path.join(app.root_path, file_path)
+        file.save(full_path)
+        
+        # Update or create database record
+        if existing:
+            existing.filename = safe_filename
+            existing.file_path = file_path
+            existing.version = version
+            existing.description = description or existing.description
+            existing.uploaded_at = datetime.utcnow()
+            existing.uploaded_by = current_user.id
+        else:
+            connector = MT5ConnectorIndicator(
+                filename=safe_filename,
+                file_path=file_path,
+                version=version,
+                description=description,
+                uploaded_by=current_user.id
+            )
+            db.session.add(connector)
+        
+        # Log activity
+        log_audit(
+            current_user.id,
+            'upload_connector',
+            f'MT5 Connector Indicator v{version} geüpload',
+            request.remote_addr
+        )
+        db.session.commit()
+        
+        flash('MT5 Connector Indicator succesvol geüpload!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error uploading connector indicator: {str(e)}')
+        flash(f'Fout bij uploaden: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route("/admin/delete-connector", methods=["POST"])
+@admin_required
+def admin_delete_connector():
+    """Delete MT5 Connector Indicator."""
+    connector = MT5ConnectorIndicator.query.first()
+    if not connector:
+        flash('Geen connector indicator gevonden.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    try:
+        # Delete physical file
+        full_path = os.path.join(app.root_path, connector.file_path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+        
+        # Log activity
+        log_audit(
+            current_user.id,
+            'delete_connector',
+            f'MT5 Connector Indicator v{connector.version} verwijderd',
+            request.remote_addr
+        )
+        
+        # Delete database record
+        db.session.delete(connector)
+        db.session.commit()
+        
+        flash('MT5 Connector Indicator verwijderd.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error deleting connector indicator: {str(e)}')
+        flash(f'Fout bij verwijderen: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_dashboard'))
 
 
 # ============================================================================
@@ -3837,35 +4052,6 @@ def auto_init_db():
         except Exception as e:
             logger.error(f"DB init failed: {e}")
 
-@app.route("/journal/cleanup-bad-trades-once/<int:account_id>")
-@login_required
-def journal_cleanup_bad_trades_once(account_id):
-    """
-    TEMPORARY: One-off cleanup of corrupted trade rows (empty symbol or
-    zero volume) left over from before the EA's DEAL_TYPE filter fix.
-    Visit this URL once, confirm the count, then remove this route and redeploy.
-    """
-    account = JournalAccount.query.filter_by(
-        id=account_id, user_id=current_user.id
-    ).first_or_404()
-
-    deleted = JournalTrade.query.filter(
-        JournalTrade.account_id == account.id,
-        db.or_(
-            JournalTrade.symbol == "",
-            JournalTrade.symbol.is_(None),
-            JournalTrade.volume == 0,
-        ),
-    ).delete(synchronize_session=False)
-
-    db.session.commit()
-
-    return jsonify({
-        "account_id": account.id,
-        "account_name": account.name,
-        "deleted": deleted
-    })
-
 
 # ============================================================================
 # APPLICATION STARTUP
@@ -3877,7 +4063,7 @@ with app.app_context():
 start_auto_cleanup()
 
 logger.info("=" * 80)
-logger.info("APPLICATION STARTUP COMPLETE - MT5 ACCOUNT SLOT TRACKING + THINKHUGE VPS + TRADING JOURNAL READY")
+logger.info("APPLICATION STARTUP COMPLETE - ALL SYSTEMS READY")
 logger.info("=" * 80)
 
 if __name__ == "__main__":
