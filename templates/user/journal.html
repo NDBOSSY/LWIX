@@ -565,6 +565,98 @@
         line-height: 1.5;
     }
 
+    .indicator-card {
+        border: 1px solid var(--j-border);
+        border-radius: 14px;
+        padding: 1.3rem;
+        margin-top: 1.5rem;
+        background: var(--j-surface);
+        box-shadow: var(--j-shadow);
+    }
+    .indicator-card .ind-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.6rem;
+    }
+    .indicator-card .ind-head-text h3 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin: 0 0 0.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .indicator-card .ind-head-text h3 i { color: var(--j-violet); }
+    .indicator-card .ind-head-text p {
+        color: var(--j-muted);
+        font-size: 0.82rem;
+        margin: 0;
+        max-width: 480px;
+    }
+    .btn-download {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.6rem 1.2rem;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.82rem;
+        background: var(--j-violet);
+        color: #fff;
+        border: 1px solid var(--j-violet);
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: filter 0.15s;
+    }
+    .btn-download:hover { filter: brightness(1.08); }
+    .btn-download .ver { opacity: 0.75; font-weight: 500; font-size: 0.7rem; }
+
+    .steps-list {
+        list-style: none;
+        margin: 1rem 0 0;
+        padding: 0;
+        counter-reset: step;
+    }
+    .steps-list li {
+        counter-increment: step;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--j-border);
+        font-size: 0.82rem;
+        color: var(--j-ink-secondary);
+    }
+    .steps-list li:last-child { border-bottom: none; }
+    .steps-list li::before {
+        content: counter(step);
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--j-violet-bg);
+        color: var(--j-violet);
+        font-size: 0.7rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 0.05rem;
+    }
+    .steps-list code {
+        background: var(--j-sunken);
+        border: 1px solid var(--j-border);
+        border-radius: 5px;
+        padding: 0.05rem 0.4rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.76rem;
+        color: var(--j-ink);
+    }
+
     .waiting-ea {
         background: var(--j-sunken);
         border: 1px solid var(--j-border);
@@ -748,6 +840,9 @@
         .acc-btn { flex: 1 1 auto; justify-content: center; }
 
         .new-form { padding: 1rem; }
+        .indicator-card { padding: 1rem; }
+        .indicator-card .ind-head { flex-direction: column; align-items: stretch; }
+        .btn-download { justify-content: center; }
         .form-grid { gap: 0.6rem; }
 
         .modal-box { padding: 1.1rem; width: 94%; }
@@ -867,6 +962,32 @@
             Your Trading Engine EA automatically syncs trades and account details 
             to your journal every 5 minutes. No extra setup required — just make sure 
             your EA is running on MT5 with the correct account number.
+        </div>
+
+        {# ==================================================== #}
+        {# MANUAL TRADER — INDICATOR DOWNLOAD                    #}
+        {# ==================================================== #}
+        <div class="indicator-card">
+            <div class="ind-head">
+                <div class="ind-head-text">
+                    <h3><i class="fas fa-chart-simple"></i> Trade Manually? Use the MT5 Connector Indicator</h3>
+                    <p>
+                        No EA required. Attach the MT5 Connector indicator to any chart
+                        and it will sync your account and trade history in the background —
+                        even if you place trades by hand.
+                    </p>
+                </div>
+                <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5ConnectorIndicator.ex5') }}" download>
+                    <i class="fas fa-download"></i> Download Indicator
+                    <span class="ver">{{ indicator_version or 'v1.0' }}</span>
+                </a>
+            </div>
+            <ol class="steps-list">
+                <li>Download the file above and copy it into your MT5 <code>MQL5/Indicators</code> folder (in MT5: File → Open Data Folder → <code>MQL5/Indicators</code>).</li>
+                <li>Restart MT5, or right-click <strong>Indicators</strong> in the Navigator panel and choose <strong>Refresh</strong>.</li>
+                <li>In MT5 go to <strong>Tools → Options → Expert Advisors</strong>, tick <strong>Allow WebRequest for listed URL</strong>, and add <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>.</li>
+                <li>Drag <strong>MT5 Connector Indicator</strong> from the Navigator onto any chart, enter your MT5 login when prompted, and click OK. Your journal will start syncing automatically.</li>
+            </ol>
         </div>
     </div>
 
@@ -1294,6 +1415,32 @@
             <strong><i class="fas fa-info-circle"></i> How It Works:</strong> 
             Your Trading Engine EA automatically syncs trades and account details 
             to your journal every 5 minutes. No extra setup required.
+        </div>
+
+        {# ==================================================== #}
+        {# MANUAL TRADER — INDICATOR DOWNLOAD                    #}
+        {# ==================================================== #}
+        <div class="indicator-card">
+            <div class="ind-head">
+                <div class="ind-head-text">
+                    <h3><i class="fas fa-chart-simple"></i> Trade Manually? Use the MT5 Connector Indicator</h3>
+                    <p>
+                        No EA required. Attach the MT5 Connector indicator to any chart
+                        and it will sync your account and trade history in the background —
+                        even if you place trades by hand.
+                    </p>
+                </div>
+                <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5ConnectorIndicator.ex5') }}" download>
+                    <i class="fas fa-download"></i> Download Indicator
+                    <span class="ver">{{ indicator_version or 'v1.0' }}</span>
+                </a>
+            </div>
+            <ol class="steps-list">
+                <li>Download the file above and copy it into your MT5 <code>MQL5/Indicators</code> folder (in MT5: File → Open Data Folder → <code>MQL5/Indicators</code>).</li>
+                <li>Restart MT5, or right-click <strong>Indicators</strong> in the Navigator panel and choose <strong>Refresh</strong>.</li>
+                <li>In MT5 go to <strong>Tools → Options → Expert Advisors</strong>, tick <strong>Allow WebRequest for listed URL</strong>, and add <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>.</li>
+                <li>Drag <strong>MT5 Connector Indicator</strong> from the Navigator onto any chart, enter your MT5 login when prompted, and click OK. Your journal will start syncing automatically.</li>
+            </ol>
         </div>
     </div>
     {% endif %}
