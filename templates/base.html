@@ -1,1748 +1,577 @@
-{% extends "base.html" %}
-{% block title %}Trading Journal - Trading Engine{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block extra_css %}
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<style>
-    :root {
-        --j-bg: #ffffff;
-        --j-surface: #ffffff;
-        --j-sunken: #f7f9fc;
-        --j-border: #e6eaef;
-        --j-border-strong: #cdd5de;
-        --j-ink: #0b121a;
-        --j-ink-secondary: #1e2a36;
-        --j-muted: #5b6f7e;
-        --j-soft: #96a6b5;
-        --j-green: #0c8b51;
-        --j-green-bg: #e7f4ed;
-        --j-red: #c8311e;
-        --j-red-bg: #fcebe8;
-        --j-accent: #1e54e5;
-        --j-accent-bg: #eaf0fd;
-        --j-amber: #a86200;
-        --j-amber-bg: #fcf3e5;
-        --j-violet: #6d3ce0;
-        --j-violet-bg: #f2edfe;
-        --j-shadow: 0 2px 6px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04);
-        --j-cal-pos-bg: rgb(63,191,179);
-        --j-cal-neg-bg: rgb(255,148,180);
-        --j-cal-pos-text: #ffffff;
-        --j-cal-neg-text: #ffffff;
-    }
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FFFFFF">
+    <title>{% block title %}EALicense Platform{% endblock %}</title>
 
-    /* ================================================================ */
-    /* DARK THEME OVERRIDES — scoped to .journal-wrapper                */
-    /* ================================================================ */
-    .journal-wrapper.theme-dark {
-        --j-bg: #0e1318;
-        --j-surface: #151b22;
-        --j-sunken: #10151b;
-        --j-border: #232b34;
-        --j-border-strong: #303a45;
-        --j-ink: #eef2f6;
-        --j-ink-secondary: #d6dde4;
-        --j-muted: #8a97a3;
-        --j-soft: #5e6b76;
-        --j-green: #35c281;
-        --j-green-bg: rgba(53,194,129,0.12);
-        --j-red: #ef5b48;
-        --j-red-bg: rgba(239,91,72,0.12);
-        --j-accent: #5b84f2;
-        --j-accent-bg: rgba(91,132,242,0.14);
-        --j-amber: #e0a437;
-        --j-amber-bg: rgba(224,164,55,0.12);
-        --j-violet: #a488f5;
-        --j-violet-bg: rgba(164,136,245,0.14);
-        --j-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.3);
-        background: var(--j-bg);
-    }
-    .journal-wrapper.theme-dark .account-bar select,
-    .journal-wrapper.theme-dark .filter-bar input,
-    .journal-wrapper.theme-dark .filter-bar select,
-    .journal-wrapper.theme-dark .form-grid input,
-    .journal-wrapper.theme-dark .cal-day,
-    .journal-wrapper.theme-dark .acc-card,
-    .journal-wrapper.theme-dark .new-form,
-    .journal-wrapper.theme-dark .acc-btn,
-    .journal-wrapper.theme-dark .btn-clear,
-    .journal-wrapper.theme-dark .cal-nav button {
-        background: var(--j-surface);
-        color: var(--j-ink);
-    }
-    .journal-wrapper.theme-dark .badge.buy { background: var(--j-green-bg); color: var(--j-green); }
-    .journal-wrapper.theme-dark .badge.sell { background: var(--j-red-bg); color: var(--j-red); }
-    .journal-wrapper.theme-dark .badge.neutral { background: var(--j-accent-bg); color: var(--j-accent); }
-    .journal-wrapper.theme-dark .toast { background: #f3f5f7; color: #10151b; }
-    .journal-wrapper.theme-dark .modal-box { background: var(--j-surface); color: var(--j-ink); }
-    .journal-wrapper.theme-dark .info-note { background: var(--j-accent-bg); border-color: #2a3a63; color: #b9c6ee; }
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: League Spartan (headings) + Poppins (body/UI) -->
+    <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
 
-    .journal-wrapper {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 1.5rem 1.75rem 4rem;
-        font-family: 'Inter', sans-serif;
-        color: var(--j-ink);
-        transition: background 0.2s ease;
-    }
+    <style>
+        :root {
+            --primary: #4B7BE5;
+            --primary-dark: #3A6BD4;
+            --secondary: #5534A5;
+            --accent: #A85CF9;
+            --teal: #6FDFDF;
+            --success: #3FBFB3;
+            --gray: #807F80;
+            --dark: #2D2D2D;
+            --light-gray: #F5F5F5;
+            --gradient-primary: linear-gradient(135deg, #4B7BE5 0%, #5534A5 100%);
+            --gradient-success: linear-gradient(135deg, #3FBFB3 0%, #6FDFDF 100%);
+            --gradient-accent: linear-gradient(135deg, #A85CF9 0%, #4B7BE5 100%);
+            --font-heading: 'League Spartan', sans-serif;
+            --font-body: 'Poppins', sans-serif;
+        }
 
-    .journal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    .journal-header h1 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    .journal-header h1 i { color: var(--j-accent); }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    .header-right {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .back-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        color: var(--j-muted);
-        text-decoration: none;
-        font-size: 0.85rem;
-        font-weight: 500;
-        transition: color 0.15s;
-    }
-    .back-link:hover { color: var(--j-ink); }
-
-    /* ================================================================ */
-    /* THEME TOGGLE — subtle switch                                     */
-    /* ================================================================ */
-    .theme-toggle {
-        position: relative;
-        width: 40px;
-        height: 22px;
-        border-radius: 20px;
-        border: 1px solid var(--j-border-strong);
-        background: var(--j-sunken);
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        padding: 2px;
-        transition: background 0.2s ease, border-color 0.2s ease;
-        flex-shrink: 0;
-    }
-    .theme-toggle .knob {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: var(--j-surface);
-        border: 1px solid var(--j-border-strong);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.55rem;
-        color: var(--j-soft);
-        transition: transform 0.2s ease;
-        transform: translateX(0);
-    }
-    .journal-wrapper.theme-dark .theme-toggle .knob {
-        transform: translateX(18px);
-    }
-    .theme-toggle:hover { border-color: var(--j-soft); }
-
-    .account-bar {
-        background: var(--j-sunken);
-        border: 1px solid var(--j-border);
-        border-radius: 14px;
-        padding: 1rem 1.25rem;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    .account-bar select {
-        border: 1px solid var(--j-border-strong);
-        border-radius: 9px;
-        padding: 0.5rem 0.9rem;
-        font-weight: 600;
-        font-size: 0.85rem;
-        background: #fff;
-        color: var(--j-ink);
-        min-width: 220px;
-    }
-    .sync-info {
-        font-size: 0.8rem;
-        color: var(--j-muted);
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-    .sync-info .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 10px;
-        display: inline-block;
-    }
-
-    .journal-tabs {
-        display: flex;
-        gap: 0.25rem;
-        border-bottom: 2px solid var(--j-border);
-        margin-bottom: 1.5rem;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    .journal-tabs a {
-        padding: 0.7rem 1.2rem;
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: var(--j-muted);
-        text-decoration: none;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -2px;
-        transition: all 0.15s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-    .journal-tabs a:hover { color: var(--j-ink); }
-    .journal-tabs a.active { color: var(--j-accent); border-bottom-color: var(--j-accent); }
-    .journal-tabs a i { width: 16px; text-align: center; }
-
-    .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-        gap: 0.8rem;
-        margin-bottom: 1.5rem;
-    }
-    .kpi-card {
-        border-radius: 14px;
-        padding: 0.85rem 1rem;
-        border: 1px solid var(--j-border);
-        transition: box-shadow 0.2s;
-    }
-    .kpi-card:hover { box-shadow: var(--j-shadow); }
-    .kpi-card.color-1 { background: linear-gradient(135deg, #eef2ff, #e0e7ff); border-color: #c7d2fe; }
-    .kpi-card.color-2 { background: linear-gradient(135deg, #ecfdf5, #d1fae5); border-color: #a7f3d0; }
-    .kpi-card.color-3 { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #fcd34d; }
-    .kpi-card.color-4 { background: linear-gradient(135deg, #fce7f3, #fbcfe8); border-color: #f9a8d4; }
-    .kpi-card.color-5 { background: linear-gradient(135deg, #e8f0fe, #d2e3fc); border-color: #a8c8f8; }
-    .kpi-card.color-6 { background: linear-gradient(135deg, #f2edfe, #e0d6fc); border-color: #c4b5fd; }
-    .journal-wrapper.theme-dark .kpi-card.color-1 { background: linear-gradient(135deg, #1a2140, #171d38); border-color: #2c3564; }
-    .journal-wrapper.theme-dark .kpi-card.color-2 { background: linear-gradient(135deg, #0f2b23, #0c241d); border-color: #1c4536; }
-    .journal-wrapper.theme-dark .kpi-card.color-3 { background: linear-gradient(135deg, #3a2c10, #33260d); border-color: #5c4416; }
-    .journal-wrapper.theme-dark .kpi-card.color-4 { background: linear-gradient(135deg, #3a1a2a, #331624); border-color: #5c2a45; }
-    .journal-wrapper.theme-dark .kpi-card.color-5 { background: linear-gradient(135deg, #142238, #101c30); border-color: #23385c; }
-    .journal-wrapper.theme-dark .kpi-card.color-6 { background: linear-gradient(135deg, #241a3a, #1e1633); border-color: #392a5c; }
-    .kpi-card .lbl {
-        font-size: 0.64rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--j-soft);
-    }
-    .kpi-card .val {
-        font-family: 'JetBrains Mono', monospace;
-        font-weight: 700;
-        font-size: 1.2rem;
-        margin-top: 0.2rem;
-    }
-    .kpi-card .sub { font-size: 0.68rem; color: var(--j-muted); margin-top: 0.1rem; }
-    .kpi-card.pos .val { color: var(--j-green); }
-    .kpi-card.neg .val { color: var(--j-red); }
-    .kpi-card.accent .val { color: var(--j-accent); }
-
-    .charts-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
-        gap: 0.9rem;
-        margin-bottom: 1.5rem;
-    }
-    @media (max-width: 1150px) { .charts-row { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 700px) { .charts-row { grid-template-columns: 1fr; } }
-
-    .chart-card {
-        background: var(--j-surface);
-        border: 1px solid var(--j-border);
-        border-radius: 14px;
-        overflow: hidden;
-        box-shadow: var(--j-shadow);
-    }
-    .chart-card .chart-head {
-        padding: 0.6rem 0.9rem;
-        border-bottom: 1px solid var(--j-border);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: var(--j-sunken);
-        font-weight: 700;
-        font-size: 0.75rem;
-    }
-    .chart-card .chart-head i { color: var(--j-soft); width: 14px; text-align: center; font-size: 0.7rem; }
-    .chart-card .chart-body {
-        padding: 0.6rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .grid-3col {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-        align-items: start;
-    }
-    .grid-2col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    @media (max-width: 1150px) { .grid-3col, .grid-2col { grid-template-columns: 1fr; } }
-
-    .panel {
-        background: var(--j-surface);
-        border: 1px solid var(--j-border);
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: var(--j-shadow);
-        margin-bottom: 1.25rem;
-    }
-    .panel-head {
-        padding: 0.85rem 1.1rem;
-        border-bottom: 1px solid var(--j-border);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: var(--j-sunken);
-        font-weight: 700;
-        font-size: 0.82rem;
-    }
-    .panel-head .t { display: flex; align-items: center; gap: 0.5rem; }
-    .panel-head .t i { color: var(--j-soft); width: 16px; text-align: center; }
-    .panel-body { padding: 1rem 1.1rem; }
-
-    .cal-nav { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; font-weight: 600; }
-    .cal-nav button {
-        border: 1px solid var(--j-border);
-        background: #fff;
-        width: 26px;
-        height: 26px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.9rem;
-    }
-    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-    .cal-dow {
-        font-size: 0.63rem;
-        font-weight: 700;
-        color: var(--j-soft);
-        text-align: center;
-        padding-bottom: 0.3rem;
-        text-transform: uppercase;
-    }
-    .cal-day {
-        aspect-ratio: 1;
-        border-radius: 8px;
-        border: 1px solid var(--j-border);
-        font-size: 0.68rem;
-        padding: 0.25rem 0.3rem;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        background: #fff;
-        transition: box-shadow 0.15s;
-    }
-    .cal-day.empty { visibility: hidden; }
-    .cal-day .n { font-weight: 600; }
-    .cal-day .p {
-        font-family: 'JetBrains Mono', monospace;
-        font-weight: 700;
-        font-size: 0.62rem;
-        text-align: right;
-    }
-    .cal-day.neutral {
-        background: var(--j-sunken);
-        border-color: var(--j-border);
-    }
-    .cal-day.neutral .n { color: var(--j-muted); }
-    .cal-day.neutral .p { color: var(--j-soft); }
-    /* Profit days */
-    .cal-day.pos {
-        background: var(--j-cal-pos-bg);
-        border-color: var(--j-cal-pos-bg);
-    }
-    .cal-day.pos .n { color: var(--j-cal-pos-text); }
-    .cal-day.pos .p { color: var(--j-cal-pos-text); font-weight: 700; }
-    /* Loss days */
-    .cal-day.neg {
-        background: var(--j-cal-neg-bg);
-        border-color: var(--j-cal-neg-bg);
-    }
-    .cal-day.neg .n { color: var(--j-cal-neg-text); }
-    .cal-day.neg .p { color: var(--j-cal-neg-text); font-weight: 700; }
-    .cal-day:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .cal-day.today { border-color: var(--j-accent); border-width: 2px; }
-
-    .stat-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.45rem 0;
-        border-bottom: 1px solid var(--j-border);
-        font-size: 0.8rem;
-    }
-    .stat-row:last-child { border-bottom: none; }
-    .stat-row .k { color: var(--j-muted); }
-    .stat-row .v { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-    .stat-row .v.pos { color: var(--j-green); }
-    .stat-row .v.neg { color: var(--j-red); }
-
-    .jr-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    .jr-table thead th {
-        text-align: left;
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--j-soft);
-        padding: 0.6rem 0.8rem;
-        border-bottom: 1px solid var(--j-border);
-        background: var(--j-sunken);
-        white-space: nowrap;
-    }
-    .jr-table thead th a { color: inherit; text-decoration: none; }
-    .jr-table thead th a:hover { color: var(--j-accent); }
-    .jr-table tbody td {
-        padding: 0.6rem 0.8rem;
-        border-bottom: 1px solid var(--j-border);
-        white-space: nowrap;
-    }
-    .jr-table tbody tr:last-child td { border-bottom: none; }
-    .jr-table tbody tr:hover { background: var(--j-sunken); }
-    .jr-table td.pos { color: var(--j-green); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-    .jr-table td.neg { color: var(--j-red); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-
-    .badge { font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 20px; }
-    .badge.buy { background: var(--j-green-bg); color: var(--j-green); }
-    .badge.sell { background: var(--j-red-bg); color: var(--j-red); }
-    .badge.neutral { background: var(--j-accent-bg); color: var(--j-accent); }
-
-    .filter-bar {
-        display: flex;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-        align-items: end;
-    }
-    .filter-bar .f-group { display: flex; flex-direction: column; gap: 0.25rem; }
-    .filter-bar label {
-        font-size: 0.68rem;
-        font-weight: 700;
-        color: var(--j-soft);
-        text-transform: uppercase;
-    }
-    .filter-bar input, .filter-bar select {
-        padding: 0.45rem 0.65rem;
-        border: 1px solid var(--j-border);
-        border-radius: 8px;
-        font-size: 0.8rem;
-        background: #fff;
-    }
-    .btn-filter {
-        padding: 0.45rem 1rem;
-        border-radius: 8px;
-        border: 1px solid var(--j-accent);
-        background: var(--j-accent);
-        color: #fff;
-        font-weight: 600;
-        font-size: 0.8rem;
-        cursor: pointer;
-    }
-    .btn-clear {
-        padding: 0.45rem 0.9rem;
-        border-radius: 8px;
-        border: 1px solid var(--j-border-strong);
-        background: #fff;
-        color: var(--j-muted);
-        font-weight: 500;
-        font-size: 0.78rem;
-        cursor: pointer;
-        text-decoration: none;
-    }
-
-    .acc-card {
-        border: 1px solid var(--j-border);
-        border-radius: 14px;
-        padding: 1.1rem 1.3rem;
-        margin-bottom: 0.9rem;
-        background: #fff;
-        transition: box-shadow 0.15s;
-    }
-    .acc-card:hover { box-shadow: var(--j-shadow); }
-    .acc-card.selected { border-color: var(--j-accent); box-shadow: 0 0 0 3px var(--j-accent-bg); }
-    .acc-card h3 {
-        font-size: 0.95rem;
-        font-weight: 700;
-        margin: 0 0 0.3rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .acc-card .meta { font-size: 0.78rem; color: var(--j-muted); margin-top: 0.2rem; line-height: 1.5; }
-    .acc-card .acc-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
-
-    .acc-btn {
-        border: 1px solid var(--j-border-strong);
-        background: #fff;
-        padding: 0.4rem 0.8rem;
-        border-radius: 8px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-        color: var(--j-ink);
-        transition: all 0.15s;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-    }
-    .acc-btn:hover { border-color: var(--j-ink); }
-    .acc-btn.primary { background: var(--j-accent); border-color: var(--j-accent); color: #fff; }
-    .acc-btn.primary:hover { background: #1642c9; }
-    .acc-btn.danger:hover { background: var(--j-red-bg); border-color: var(--j-red); color: var(--j-red); }
-
-    .new-form {
-        border: 1px solid var(--j-border);
-        border-radius: 14px;
-        padding: 1.3rem;
-        margin-top: 1.5rem;
-        background: #fff;
-    }
-    .new-form h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.9rem; }
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
-    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
-    .form-grid label {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--j-muted);
-        display: block;
-        margin-bottom: 0.25rem;
-    }
-    .form-grid input {
-        width: 100%;
-        padding: 0.5rem 0.7rem;
-        border: 1px solid var(--j-border);
-        border-radius: 8px;
-        font-size: 0.85rem;
-    }
-
-    .info-note {
-        background: var(--j-accent-bg);
-        border: 1px solid #d7ddff;
-        border-radius: 10px;
-        padding: 0.8rem 1rem;
-        font-size: 0.78rem;
-        color: #2b3d8f;
-        margin-top: 1rem;
-        line-height: 1.5;
-    }
-
-    .waiting-ea {
-        background: var(--j-sunken);
-        border: 1px solid var(--j-border);
-        border-radius: 14px;
-        padding: 2rem 1.5rem;
-        margin-bottom: 1.5rem;
-        text-align: center;
-    }
-    .waiting-ea .icon-circle {
-        width: 52px;
-        height: 52px;
-        border-radius: 14px;
-        background: var(--j-accent-bg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1rem;
-        color: var(--j-accent);
-        font-size: 1.4rem;
-    }
-
-    .detail-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.5rem;
-    }
-    .detail-item {
-        background: var(--j-sunken);
-        border: 1px solid var(--j-border);
-        border-radius: 10px;
-        padding: 0.7rem 0.9rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-    }
-    .detail-label {
-        font-size: 0.63rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--j-soft);
-    }
-    .detail-value { font-size: 0.82rem; font-weight: 600; color: var(--j-ink-secondary); }
-    .detail-value.mono { font-family: 'JetBrains Mono', monospace; }
-    .detail-value.pos { color: var(--j-green); }
-    .detail-value.neg { color: var(--j-red); }
-
-    .modal-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(10,14,20,0.45);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-    }
-    .modal-overlay.show { display: flex; }
-    .modal-box {
-        background: #fff;
-        border-radius: 16px;
-        padding: 1.5rem;
-        width: 92%;
-        max-width: 520px;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-    }
-    .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
-
-    .toast {
-        position: fixed;
-        bottom: 1.5rem;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--j-ink);
-        color: #fff;
-        padding: 0.6rem 1.2rem;
-        border-radius: 30px;
-        font-size: 0.82rem;
-        font-weight: 600;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 2000;
-        pointer-events: none;
-    }
-    .toast.show { opacity: 1; }
-    .toast.error { background: var(--j-red); }
-    .toast.success { background: var(--j-green); }
-
-    .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--j-muted); }
-    .empty-state .icon-wrap {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        background: var(--j-sunken);
-        border: 1px solid var(--j-border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 0.8rem;
-        color: var(--j-soft);
-        font-size: 1.2rem;
-    }
-    .empty-state h3 { font-weight: 700; margin-bottom: 0.5rem; color: var(--j-ink); }
-    .empty-state p { font-size: 0.85rem; max-width: 500px; margin: 0 auto; }
-
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.5rem 1.1rem;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.82rem;
-        border: 1px solid transparent;
-        cursor: pointer;
-        transition: all 0.15s;
-        text-decoration: none;
-    }
-    .btn-primary { background: var(--j-ink); color: #fff; }
-    .btn-primary:hover { background: var(--j-accent); }
-    .btn-outline { background: #fff; border: 1px solid var(--j-border-strong); color: var(--j-ink); }
-    .btn-outline:hover { border-color: var(--j-ink); }
-
-    /* ================================================================ */
-    /* MOBILE RESPONSIVE — tablets and below                            */
-    /* ================================================================ */
-    @media (max-width: 780px) {
-        .journal-wrapper { padding: 1rem 0.9rem 3rem; }
-
-        .journal-header { margin-bottom: 1.1rem; }
-        .journal-header h1 { font-size: 1.35rem; gap: 0.5rem; }
-        .journal-header h1 i { font-size: 1.1rem; }
-        .header-right { gap: 0.7rem; }
-        .back-link { font-size: 0; gap: 0; }
-        .back-link i { font-size: 1rem; }
-
-        .account-bar {
+        body {
+            font-family: var(--font-body);
+            background: #FFFFFF;
+            color: #2D2D2D;
+            min-height: 100vh;
+            display: flex;
             flex-direction: column;
-            align-items: stretch;
-            padding: 0.85rem 0.9rem;
+        }
+
+        h1, h2, h3, h4, h5, h6,
+        .navbar-brand-text,
+        .card-header h5,
+        .display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
+            font-family: var(--font-heading);
+        }
+
+        /* Make sure form, button, menu, and code-like elements use Poppins,
+           overriding any typewriter/monospace styling used elsewhere */
+        button, input, select, textarea, label,
+        .btn, .form-control, .form-label, .form-select,
+        .nav-link, .dropdown-item, .dropdown-menu,
+        .badge-active, .badge-expired, .badge-pending,
+        code, pre, kbd, samp, .text-monospace, .font-monospace {
+            font-family: var(--font-body) !important;
+        }
+
+        main {
+            flex: 1;
+        }
+
+        /* Navigation - SUBTLE LIGHT GRADIENT BACKGROUND */
+        .navbar {
+            background: linear-gradient(135deg, #FFFFFF 0%, #EEF2FF 100%) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #E5E7EB;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+            padding: 0.6rem 0;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
             gap: 0.6rem;
+            text-decoration: none;
         }
-        .account-bar > div:first-child { display: flex; flex-direction: column; gap: 0.4rem; }
-        .account-bar select { width: 100%; min-width: 0; }
-        .account-bar span { margin-left: 0 !important; }
-        .sync-info { justify-content: flex-start; }
 
-        .journal-tabs { gap: 0; margin-bottom: 1.1rem; }
-        .journal-tabs a { padding: 0.6rem 0.85rem; font-size: 0.78rem; }
+        .navbar-logo {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
 
-        .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
-        .kpi-card { padding: 0.7rem 0.8rem; }
-        .kpi-card .val { font-size: 1.05rem; }
+        .navbar-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
 
-        .charts-row { gap: 0.7rem; }
-        .chart-card .chart-body { padding: 0.5rem; }
-        .chart-card .chart-body canvas { max-height: 200px; }
+        .navbar-brand-text {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: #2D2D2D;
+            letter-spacing: -0.5px;
+        }
 
-        .grid-3col, .grid-2col { gap: 0.8rem; margin-bottom: 1.1rem; }
-        .panel-head { padding: 0.7rem 0.9rem; font-size: 0.78rem; }
-        .panel-body { padding: 0.85rem 0.9rem; }
+        .navbar-toggler {
+            border-color: rgba(45, 45, 45, 0.3);
+        }
 
-        .detail-grid { grid-template-columns: repeat(2, 1fr); }
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3e%3cpath stroke='rgba(45, 45, 45, 0.8)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
 
-        .filter-bar { gap: 0.5rem; }
-        .filter-bar .f-group { flex: 1 1 45%; min-width: 130px; }
-        .filter-bar input, .filter-bar select { width: 100%; }
-        .btn-filter, .btn-clear { flex: 1 1 auto; text-align: center; }
+        /* Navigation Links */
+        .nav-link {
+            color: #5B6F7E !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem !important;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            margin: 0 0.2rem;
+        }
 
-        .jr-table { font-size: 0.74rem; }
-        .jr-table thead th, .jr-table tbody td { padding: 0.5rem 0.6rem; }
+        .nav-link:hover {
+            background: rgba(75, 123, 229, 0.08);
+            color: #4B7BE5 !important;
+            transform: translateY(-1px);
+        }
 
-        .cal-grid { gap: 2px; }
-        .cal-day { border-radius: 6px; padding: 0.15rem 0.2rem; font-size: 0.58rem; }
-        .cal-day .p { font-size: 0.52rem; }
-        .cal-dow { font-size: 0.55rem; }
+        .nav-link i {
+            margin-right: 0.4rem;
+        }
 
-        .acc-card { padding: 0.9rem 1rem; }
-        .acc-actions { width: 100%; }
-        .acc-btn { flex: 1 1 auto; justify-content: center; }
+        /* Dashboard Button */
+        .nav-btn-dashboard {
+            background: rgba(75, 123, 229, 0.1);
+            color: #4B7BE5;
+            border: 1px solid rgba(75, 123, 229, 0.2);
+            padding: 0.5rem 1.2rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
 
-        .new-form { padding: 1rem; }
-        .form-grid { gap: 0.6rem; }
+        .nav-btn-dashboard:hover {
+            background: rgba(75, 123, 229, 0.18);
+            color: #4B7BE5;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(75, 123, 229, 0.15);
+        }
 
-        .modal-box { padding: 1.1rem; width: 94%; }
+        /* Logout Button */
+        .nav-btn-logout {
+            background: rgba(239, 68, 68, 0.08);
+            color: #DC2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 0.5rem 1.2rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
 
-        .theme-toggle { width: 38px; height: 21px; }
-    }
+        .nav-btn-logout:hover {
+            background: rgba(239, 68, 68, 0.15);
+            color: #DC2626;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.15);
+        }
 
-    /* ================================================================ */
-    /* MOBILE RESPONSIVE — small phones                                 */
-    /* ================================================================ */
-    @media (max-width: 420px) {
-        .journal-header h1 { font-size: 1.15rem; }
-        .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
-        .kpi-card .lbl { font-size: 0.58rem; }
-        .kpi-card .val { font-size: 0.95rem; }
-        .detail-grid { grid-template-columns: 1fr 1fr; }
-        .cal-day .n { font-size: 0.6rem; }
-        .filter-bar .f-group { flex: 1 1 100%; }
-        .journal-tabs a { padding: 0.6rem 0.7rem; font-size: 0; gap: 0; }
-        .journal-tabs a i { width: auto; font-size: 1rem; }
-    }
-</style>
-{% endblock %}
+        /* User Dropdown */
+        .nav-user-dropdown {
+            background: #F5F5F5;
+            border: 1px solid #E5E7EB;
+            color: #2D2D2D;
+            padding: 0.5rem 1.2rem;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
 
-{% block content %}
-<div class="journal-wrapper" id="journalWrapper">
+        .nav-user-dropdown:hover {
+            background: #E5E7EB;
+        }
 
-    {# ================================================================ #}
-    {# HEADER #}
-    {# ================================================================ #}
-    <div class="journal-header">
-        <h1><i class="fas fa-chart-line"></i> Trading Journal</h1>
-        <div class="header-right">
-            <button type="button" class="theme-toggle" id="themeToggle" title="Toggle dark / light theme" aria-label="Toggle dark and light theme">
-                <span class="knob"><i class="fas fa-moon" id="themeIcon"></i></span>
-            </button>
-            <a href="{{ url_for('user_dashboard') }}" class="back-link">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
+        .dropdown-menu {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(75, 123, 229, 0.1);
+            color: #4B7BE5;
+        }
+
+        .dropdown-item.text-danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--gradient-primary);
+            border: none;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            border-radius: 12px;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(75, 123, 229, 0.3);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--gradient-success);
+            border: none;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            border-radius: 12px;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(63, 191, 179, 0.3);
+            color: white;
+        }
+
+        .btn-outline-primary {
+            border: 2px solid #4B7BE5;
+            color: #4B7BE5;
+            background: transparent;
+            border-radius: 12px;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-outline-primary:hover {
+            background: #4B7BE5;
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            border: none;
+            color: white;
+            border-radius: 12px;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+        }
+
+        /* Cards */
+        .card {
+            border: 1px solid #E5E7EB;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            background: #FFFFFF;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border-color: #6FDFDF;
+        }
+
+        .card-header {
+            background: #FFFFFF;
+            border-bottom: 2px solid #6FDFDF;
+            border-radius: 16px 16px 0 0 !important;
+        }
+
+        .card-header h5 {
+            color: #5534A5;
+        }
+
+        /* Badges */
+        .badge-active {
+            background: var(--gradient-success);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .badge-expired {
+            background: #807F80;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .badge-pending {
+            background: linear-gradient(135deg, #A85CF9 0%, #4B7BE5 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Alerts */
+        .alert {
+            border: none;
+            border-radius: 12px;
+            animation: slideDown 0.5s ease;
+        }
+
+        .alert-success {
+            background: #3FBFB3;
+            color: white;
+        }
+
+        .alert-error,
+        .alert-danger {
+            background: #EF4444;
+            color: white;
+        }
+
+        .alert-info {
+            background: #4B7BE5;
+            color: white;
+        }
+
+        .alert-warning {
+            background: #A85CF9;
+            color: white;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Form Controls */
+        .form-control {
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s;
+            color: #2D2D2D;
+        }
+
+        .form-control:focus {
+            border-color: #4B7BE5;
+            box-shadow: 0 0 0 3px rgba(75, 123, 229, 0.1);
+        }
+
+        .form-label {
+            color: #807F80;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        footer {
+            background: #2D2D2D;
+            color: #FFFFFF;
+            padding: 1.5rem 0;
+            margin-top: auto;
+            border-top: 3px solid #6FDFDF;
+        }
+
+        footer small {
+            color: #807F80;
+        }
+
+        /* Text Colors */
+        .text-primary {
+            color: #4B7BE5 !important;
+        }
+
+        .text-success {
+            color: #3FBFB3 !important;
+        }
+
+        .text-muted {
+            color: #807F80 !important;
+        }
+
+        .text-accent {
+            color: #A85CF9 !important;
+        }
+
+        .text-teal {
+            color: #6FDFDF !important;
+        }
+
+        .text-dark {
+            color: #2D2D2D !important;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0.4rem 0;
+            }
+
+            .navbar-brand-text {
+                font-size: 1.1rem;
+            }
+
+            .navbar-logo {
+                width: 35px;
+                height: 35px;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <!-- Navigation with Gradient Background -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand"
+                href="{% if current_user.is_authenticated %}{% if current_user.is_admin %}{{ url_for('admin_dashboard') }}{% else %}{{ url_for('user_dashboard') }}{% endif %}{% else %}{{ url_for('user_login') }}{% endif %}">
+                <div class="navbar-logo">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo">
+                </div>
+                <span class="navbar-brand-text">Trading Engine</span>
             </a>
-        </div>
-    </div>
 
-    {# ================================================================ #}
-    {# NO ACCOUNTS STATE #}
-    {# ================================================================ #}
-    {% if not account %}
-    <div style="max-width: 600px;">
-        <p style="color: var(--j-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
-            Connect your MT5 account to start tracking your trades automatically.
-            Your EA will sync trades and account details every 5 minutes.
-        </p>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
-        {% if accounts %}
-        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem;">
-            <i class="fas fa-list"></i> Your Accounts
-        </h2>
-        {% for a in accounts %}
-        <div class="acc-card">
-            <div>
-                <h3>
-                    {{ a.name }}
-                    {% if a.last_synced_at %}
-                    <span style="font-size:0.65rem; color:var(--j-green); font-weight:500;">
-                        <i class="fas fa-check-circle"></i> Synced
-                    </span>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center gap-2">
+                    {% if current_user.is_authenticated %}
+                    {% if current_user.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-btn-dashboard" href="{{ url_for('admin_dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_users') }}">
+                            <i class="fas fa-users"></i> Users
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-btn-dashboard" href="{{ url_for('user_dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
                     {% endif %}
-                </h3>
-                <div class="meta">
-                    MT5 Login: <strong>{{ a.mt5_login }}</strong>
-                    {% if a.broker %} · {{ a.broker }}{% endif %}
-                    {% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}
-                    {% if a.currency %} · {{ a.currency }}{% endif %}
-                </div>
-                <div class="meta">
-                    Balance: ${{ '%.2f'|format(a.current_balance or a.starting_balance or 0) }} ·
-                    Trades: <strong>{{ a.trades.count() }}</strong> ·
-                    Last sync: {{ a.last_synced_at.strftime('%d %b %H:%M') if a.last_synced_at else 'never' }}
-                </div>
+                    <li class="nav-item">
+                        <a class="nav-btn-logout" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
             </div>
-            <div class="acc-actions">
-                <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">
-                    <i class="fas fa-folder-open"></i> Open
-                </a>
-                <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history? This cannot be undone.');">
-                    <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
-                </form>
-            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'info' }} alert-dismissible fade show"
+            role="alert">
+            <i
+                class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' if category == 'error' else 'info-circle' }} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
         </div>
         {% endfor %}
         {% endif %}
-
-        <div class="new-form">
-            <h3><i class="fas fa-plug"></i> Connect MT5 Account</h3>
-            <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
-                Enter your account name and MT5 login number. Your EA will automatically 
-                detect broker, server, currency, balance, and sync all trades.
-            </p>
-            <form method="POST" action="{{ url_for('journal_account_new') }}">
-                <div class="form-grid">
-                    <div>
-                        <label>Account Name (optional)</label>
-                        <input name="name" placeholder="e.g. FTMO 100K">
-                    </div>
-                    <div>
-                        <label>MT5 Login Number *</label>
-                        <input name="mt5_login" placeholder="52601220" required>
-                    </div>
-                </div>
-                <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                    <i class="fas fa-plug"></i> Connect Account
-                </button>
-            </form>
-        </div>
-
-        <div class="info-note">
-            <strong><i class="fas fa-info-circle"></i> How It Works:</strong> 
-            Your Trading Engine EA automatically syncs trades and account details 
-            to your journal every 5 minutes. No extra setup required — just make sure 
-            your EA is running on MT5 with the correct account number.
-        </div>
+        {% endwith %}
     </div>
 
-    {% else %}
-    {# ================================================================ #}
-    {# HAS ACCOUNT - FULL JOURNAL UI #}
-    {# ================================================================ #}
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
 
-    {# Account Switcher Bar #}
-    <div class="account-bar">
-        <div>
-            <select onchange="if(this.value) window.location.href=this.value;">
-                {% for a in accounts %}
-                <option value="{{ url_for('journal_page', account_id=a.id, tab=active_tab) }}" {{ 'selected' if a.id == account.id else '' }}>
-                    {{ a.name }} ({{ a.mt5_login }})
-                </option>
-                {% endfor %}
-            </select>
-            <span style="font-size:0.8rem; color: var(--j-muted); margin-left:0.75rem;">
-                {{ account.broker or 'Waiting for EA...' }}
-                {% if account.mt5_server %} · {{ account.mt5_server }}{% endif %}
-                {% if account.currency %} · {{ account.currency }}{% endif %}
-            </span>
+    <!-- Footer -->
+    <footer>
+        <div class="container text-center">
+            <p class="mb-0">&copy; 2026 Trading Engine. All rights reserved.</p>
+            <small>Secured with enterprise-grade encryption</small>
         </div>
-        <div class="sync-info">
-            {% if account.last_synced_at and (now - account.last_synced_at).total_seconds() < 600 %}
-                <span class="dot" style="background: var(--j-green);"></span> EA Connected
-            {% elif account.last_synced_at %}
-                <span class="dot" style="background: var(--j-amber);"></span> 
-                Last seen: {{ account.last_synced_at.strftime('%d %b %H:%M') }}
-            {% else %}
-                <span class="dot" style="background: var(--j-red);"></span> Waiting for EA...
-            {% endif %}
-        </div>
-    </div>
+    </footer>
 
-    {# Tabs #}
-    <div class="journal-tabs">
-        <a href="{{ url_for('journal_page', account_id=account.id, tab='dashboard') }}" class="{{ 'active' if active_tab == 'dashboard' else '' }}">
-            <i class="fas fa-grip"></i> Dashboard
-        </a>
-        <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="{{ 'active' if active_tab == 'trades' else '' }}">
-            <i class="fas fa-list"></i> Trades
-        </a>
-        <a href="{{ url_for('journal_page', account_id=account.id, tab='calendar') }}" class="{{ 'active' if active_tab == 'calendar' else '' }}">
-            <i class="fas fa-calendar"></i> Calendar
-        </a>
-        <a href="{{ url_for('journal_page', account_id=account.id, tab='accounts') }}" class="{{ 'active' if active_tab == 'accounts' else '' }}">
-            <i class="fas fa-cog"></i> Accounts & Settings
-        </a>
-    </div>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    {# ================================================================ #}
-    {# DASHBOARD TAB #}
-    {# ================================================================ #}
-    {% if active_tab == 'dashboard' %}
-
-        {# Waiting for EA #}
-        {% if not account.last_synced_at %}
-        <div class="waiting-ea">
-            <div class="icon-circle"><i class="fas fa-robot"></i></div>
-            <h3 style="font-weight: 700; margin-bottom: 0.5rem;">Waiting for EA Connection</h3>
-            <p style="font-size: 0.85rem; color: var(--j-muted); max-width: 450px; margin: 0 auto;">
-                Your trades and account details will appear here automatically when your EA connects.
-                Make sure your EA is running on MT5 with account <strong>#{{ account.mt5_login }}</strong>.
-                The EA syncs every 5 minutes.
-            </p>
-        </div>
-        {% endif %}
-
-        {# Account Details Card #}
-        {% if account.last_synced_at %}
-        <div class="panel" style="margin-bottom: 1.5rem;">
-            <div class="panel-head">
-                <div class="t"><i class="fas fa-id-card"></i> Account Details — {{ account.name }}</div>
-                <span style="font-size:0.72rem; color: var(--j-soft);">
-                    Last sync: {{ account.last_synced_at.strftime('%d %b %Y %H:%M') }}
-                </span>
-            </div>
-            <div class="panel-body">
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <span class="detail-label">Account Name</span>
-                        <span class="detail-value">{{ account.name }}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Broker</span>
-                        <span class="detail-value">{{ account.broker or '—' }}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Prop Firm</span>
-                        <span class="detail-value">{{ account.prop_firm or '—' }}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">MT5 Login</span>
-                        <span class="detail-value mono">{{ account.mt5_login }}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">MT5 Server</span>
-                        <span class="detail-value mono">{{ account.mt5_server or '—' }}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Currency</span>
-                        <span class="detail-value">{{ account.currency or '—' }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        {# KPI Cards #}
-        <div class="kpi-grid">
-            <div class="kpi-card color-1">
-                <div class="lbl">Balance</div>
-                <div class="val">${{ '%.2f'|format(current_balance) }}</div>
-            </div>
-            <div class="kpi-card color-2">
-                <div class="lbl">Equity</div>
-                <div class="val">${{ '%.2f'|format(current_equity) }}</div>
-            </div>
-            <div class="kpi-card color-3 {{ 'pos' if overall.net_profit >= 0 else 'neg' }}">
-                <div class="lbl">Net Profit</div>
-                <div class="val">{{ '+' if overall.net_profit >= 0 else '' }}${{ '%.2f'|format(overall.net_profit) }}</div>
-                <div class="sub">{{ total_return_pct }}% return</div>
-            </div>
-            <div class="kpi-card color-4">
-                <div class="lbl">Total Trades</div>
-                <div class="val">{{ overall.total_trades }}</div>
-                <div class="sub">{{ active_days }} active days</div>
-            </div>
-            <div class="kpi-card color-5">
-                <div class="lbl">Win Rate</div>
-                <div class="val">{{ overall.win_rate }}%</div>
-                <div class="sub">{{ overall.wins }}W / {{ overall.losses }}L</div>
-            </div>
-            <div class="kpi-card color-6">
-                <div class="lbl">Profit Factor</div>
-                <div class="val">{{ overall.profit_factor }}</div>
-            </div>
-        </div>
-
-        {# 4 Charts in One Compact Row #}
-        <div class="charts-row">
-            <div class="chart-card">
-                <div class="chart-head"><i class="fas fa-chart-bar"></i> Weekly P/L</div>
-                <div class="chart-body"><canvas id="weeklyChart" height="160"></canvas></div>
-            </div>
-            <div class="chart-card">
-                <div class="chart-head"><i class="fas fa-chart-pie"></i> Win/Loss</div>
-                <div class="chart-body"><canvas id="winLossChart" height="160"></canvas></div>
-            </div>
-            <div class="chart-card">
-                <div class="chart-head"><i class="fas fa-chart-pie"></i> Buy/Sell</div>
-                <div class="chart-body"><canvas id="buySellChart" height="160"></canvas></div>
-            </div>
-            <div class="chart-card">
-                <div class="chart-head"><i class="fas fa-chart-pie"></i> Symbols</div>
-                <div class="chart-body"><canvas id="symbolChart" height="160"></canvas></div>
-            </div>
-        </div>
-
-        {# Stats Row: Weekly + Monthly + Overall #}
-        <div class="grid-3col">
-            <div class="panel">
-                <div class="panel-head"><div class="t"><i class="fas fa-list-check"></i> Weekly</div></div>
-                <div class="panel-body">
-                    <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if week_stats.net_profit >= 0 else 'neg' }}">{{ '+' if week_stats.net_profit >= 0 else '' }}${{ '%.2f'|format(week_stats.net_profit) }}</span></div>
-                    <div class="stat-row"><span class="k">Trades</span><span class="v">{{ week_stats.total_trades }}</span></div>
-                    <div class="stat-row"><span class="k">Win Rate</span><span class="v">{{ week_stats.win_rate }}%</span></div>
-                    <div class="stat-row"><span class="k">Profit Factor</span><span class="v">{{ week_stats.profit_factor }}</span></div>
-                    <div class="stat-row"><span class="k">Expectancy</span><span class="v">${{ week_stats.expectancy }}</span></div>
-                    <div class="stat-row"><span class="k">Avg Win/Loss</span><span class="v">${{ overall.avg_win }} / ${{ overall.avg_loss }}</span></div>
-                </div>
-            </div>
-            <div class="panel">
-                <div class="panel-head"><div class="t"><i class="fas fa-calendar-check"></i> Monthly</div></div>
-                <div class="panel-body">
-                    <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_stats.net_profit >= 0 else 'neg' }}">{{ '+' if month_stats.net_profit >= 0 else '' }}${{ '%.2f'|format(month_stats.net_profit) }}</span></div>
-                    <div class="stat-row"><span class="k">Trades</span><span class="v">{{ month_stats.total_trades }}</span></div>
-                    <div class="stat-row"><span class="k">Win Rate</span><span class="v">{{ month_stats.win_rate }}%</span></div>
-                    <div class="stat-row"><span class="k">Profit Factor</span><span class="v">{{ month_stats.profit_factor }}</span></div>
-                    <div class="stat-row"><span class="k">Wins</span><span class="v pos">{{ month_stats.wins }}</span></div>
-                    <div class="stat-row"><span class="k">Losses</span><span class="v neg">{{ month_stats.losses }}</span></div>
-                </div>
-            </div>
-            <div class="panel">
-                <div class="panel-head"><div class="t"><i class="fas fa-chart-pie"></i> Overall</div></div>
-                <div class="panel-body">
-                    <div class="stat-row"><span class="k">Largest Win</span><span class="v pos">${{ overall.largest_win }}</span></div>
-                    <div class="stat-row"><span class="k">Largest Loss</span><span class="v neg">${{ overall.largest_loss }}</span></div>
-                    <div class="stat-row"><span class="k">Max Drawdown</span><span class="v neg">${{ max_dd }} ({{ max_dd_pct }}%)</span></div>
-                    <div class="stat-row"><span class="k">Win Streak</span><span class="v">{{ overall.longest_win_streak }}</span></div>
-                    <div class="stat-row"><span class="k">Loss Streak</span><span class="v">{{ overall.longest_loss_streak }}</span></div>
-                    <div class="stat-row"><span class="k">Avg Duration</span><span class="v">{{ overall.avg_duration_seconds // 3600 }}h {{ (overall.avg_duration_seconds % 3600) // 60 }}m</span></div>
-                </div>
-            </div>
-        </div>
-
-        {# Recent Trades #}
-        <div class="panel">
-            <div class="panel-head">
-                <div class="t"><i class="fas fa-clock-rotate-left"></i> Recent Trades</div>
-                <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" style="font-size:0.78rem; font-weight:600; color:var(--j-accent); text-decoration:none;">View all →</a>
-            </div>
-            {% if recent_trades %}
-            <div style="overflow-x: auto;">
-            <table class="jr-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Symbol</th>
-                        <th>Type</th>
-                        <th>Vol</th>
-                        <th>Entry</th>
-                        <th>Exit</th>
-                        <th>Profit</th>
-                        <th>Duration</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for t in recent_trades %}
-                <tr>
-                    <td>{{ t.close_time.strftime('%d %b, %H:%M') }}</td>
-                    <td style="font-weight:600;">{{ t.symbol }}</td>
-                    <td><span class="badge {{ t.trade_type }}">{{ t.trade_type|upper }}</span></td>
-                    <td>{{ t.volume }}</td>
-                    <td>{{ t.entry_price or '—' }}</td>
-                    <td>{{ t.exit_price or '—' }}</td>
-                    <td class="{{ 'pos' if t.profit >= 0 else 'neg' }}">{{ '+' if t.profit >= 0 else '' }}${{ '%.2f'|format(t.profit) }}</td>
-                    <td>{{ t.duration_display() }}</td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <div class="icon-wrap"><i class="fas fa-inbox"></i></div>
-                <h3>No trades yet</h3>
-                <p>They'll appear here automatically when your EA syncs.</p>
-            </div>
-            {% endif %}
-        </div>
-
-    {# ================================================================ #}
-    {# TRADES TAB #}
-    {# ================================================================ #}
-    {% elif active_tab == 'trades' %}
-    <div class="panel">
-        <div class="panel-head">
-            <div class="t"><i class="fas fa-list"></i> Trade History — {{ trades|length }} trades</div>
-        </div>
-        <div class="panel-body">
-            <form class="filter-bar" method="GET">
-                <input type="hidden" name="account_id" value="{{ account.id }}">
-                <input type="hidden" name="tab" value="trades">
-                <div class="f-group">
-                    <label>Symbol</label>
-                    <select name="jsymbol">
-                        <option value="">All</option>
-                        {% for s in symbols %}
-                        <option value="{{ s }}" {{ 'selected' if filters.symbol == s else '' }}>{{ s }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="f-group">
-                    <label>Type</label>
-                    <select name="jtype">
-                        <option value="">All</option>
-                        <option value="buy" {{ 'selected' if filters.type == 'buy' else '' }}>Buy</option>
-                        <option value="sell" {{ 'selected' if filters.type == 'sell' else '' }}>Sell</option>
-                    </select>
-                </div>
-                <div class="f-group"><label>From</label><input type="date" name="jstart" value="{{ filters.start }}"></div>
-                <div class="f-group"><label>To</label><input type="date" name="jend" value="{{ filters.end }}"></div>
-                <div class="f-group"><label>Search</label><input type="text" name="jq" placeholder="Symbol contains..." value="{{ filters.q }}"></div>
-                <button type="submit" class="btn-filter">Apply</button>
-                <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="btn-clear">Clear</a>
-            </form>
-
-            {% if trades %}
-            <div style="overflow-x: auto;">
-            <table class="jr-table">
-                <thead>
-                    <tr>
-                        {% for col, label in [('close_time','Date'),('symbol','Symbol'),('trade_type','Type'),('volume','Vol'),('entry_price','Entry'),('sl','SL'),('tp','TP'),('exit_price','Exit'),('profit','Profit'),('magic_number','Magic')] %}
-                        <th>
-                            <a href="{{ url_for('journal_page', account_id=account.id, tab='trades', jsort=col, jdir='asc' if sort==col and direction=='desc' else 'desc', jsymbol=filters.symbol, jtype=filters.type, jstart=filters.start, jend=filters.end, jq=filters.q) }}">
-                                {{ label }} {% if sort == col %}{{ '↓' if direction=='desc' else '↑' }}{% endif %}
-                            </a>
-                        </th>
-                        {% endfor %}
-                        <th>Duration</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for t in trades %}
-                <tr>
-                    <td>{{ t.close_time.strftime('%d %b %Y %H:%M') }}</td>
-                    <td style="font-weight:600;">{{ t.symbol }}</td>
-                    <td><span class="badge {{ t.trade_type }}">{{ t.trade_type|upper }}</span></td>
-                    <td>{{ t.volume }}</td>
-                    <td>{{ t.entry_price or '—' }}</td>
-                    <td>{{ t.sl or '—' }}</td>
-                    <td>{{ t.tp or '—' }}</td>
-                    <td>{{ t.exit_price or '—' }}</td>
-                    <td class="{{ 'pos' if t.profit >= 0 else 'neg' }}">{{ '+' if t.profit >= 0 else '' }}${{ '%.2f'|format(t.profit) }}</td>
-                    <td>{{ t.magic_number or '—' }}</td>
-                    <td>{{ t.duration_display() }}</td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <div class="icon-wrap"><i class="fas fa-search"></i></div>
-                <h3>No trades found</h3>
-                <p>No trades match these filters. Try adjusting your search criteria.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-    {# ================================================================ #}
-    {# CALENDAR TAB #}
-    {# ================================================================ #}
-    {% elif active_tab == 'calendar' %}
-    <div class="grid-2col">
-        <div class="panel">
-            <div class="panel-head">
-                <div class="t"><i class="fas fa-calendar"></i> {{ month_names[cal_month] }} {{ cal_year }}</div>
-                <div class="cal-nav">
-                    <button onclick="window.location.href='{{ url_for('journal_page', account_id=account.id, tab='calendar', month=(cal_year-1|string+'-12') if cal_month==1 else (cal_year|string+'-%02d'|format(cal_month-1))) }}'">‹</button>
-                    <span style="font-weight:600;">{{ month_names[cal_month] }} {{ cal_year }}</span>
-                    <button onclick="window.location.href='{{ url_for('journal_page', account_id=account.id, tab='calendar', month=(cal_year+1|string+'-01') if cal_month==12 else (cal_year|string+'-%02d'|format(cal_month+1))) }}'">›</button>
-                </div>
-            </div>
-            <div class="panel-body">
-                <div class="cal-grid">
-                    {% for dow in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<div class="cal-dow">{{ dow }}</div>{% endfor %}
-                    {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
-                    {% for day_num in range(1, cal_days_in_month + 1) %}
-                        {% set key = '%04d-%02d-%02d'|format(cal_year, cal_month, day_num) %}
-                        {% set pl = cal_daily_pl.get(key) %}
-                        <div class="cal-day {{ 'pos' if pl and pl > 0 else ('neg' if pl and pl < 0 else 'neutral') }} {{ 'today' if key == now.strftime('%Y-%m-%d') else '' }}" onclick="openDay('{{ key }}')">
-                            <span class="n">{{ day_num }}</span>
-                            {% if pl is not none %}<span class="p">{{ '+' if pl > 0 else '' }}{{ '%.0f'|format(pl) }}</span>{% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        <div class="panel">
-            <div class="panel-head"><div class="t"><i class="fas fa-chart-line"></i> Monthly Summary</div></div>
-            <div class="panel-body">
-                {% set month_net = cal_daily_pl.values()|sum %}
-                {% set trading_days = cal_daily_pl|length %}
-                {% set best_day = cal_daily_pl.values()|max if cal_daily_pl else 0 %}
-                {% set worst_day = cal_daily_pl.values()|min if cal_daily_pl else 0 %}
-                <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_net >= 0 else 'neg' }}">${{ '%.2f'|format(month_net) }}</span></div>
-                <div class="stat-row"><span class="k">Trading Days</span><span class="v">{{ trading_days }}</span></div>
-                <div class="stat-row"><span class="k">Best Day</span><span class="v pos">${{ '%.2f'|format(best_day) }}</span></div>
-                <div class="stat-row"><span class="k">Worst Day</span><span class="v neg">${{ '%.2f'|format(worst_day) }}</span></div>
-            </div>
-        </div>
-    </div>
-
-    {# ================================================================ #}
-    {# ACCOUNTS TAB #}
-    {# ================================================================ #}
-    {% elif active_tab == 'accounts' %}
-    <div style="max-width: 700px;">
-        {% for a in accounts %}
-        <div class="acc-card {{ 'selected' if a.id == account.id else '' }}">
-            <div>
-                <h3>
-                    {{ a.name }}
-                    {% if a.id == account.id %}<span class="badge neutral" style="font-size:0.65rem;">CURRENT</span>{% endif %}
-                </h3>
-                <div class="meta">
-                    MT5 Login: <strong>{{ a.mt5_login }}</strong>
-                    {% if a.broker %} · {{ a.broker }}{% endif %}
-                    {% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}
-                    {% if a.currency %} · {{ a.currency }}{% endif %}
-                </div>
-                <div class="meta">
-                    Starting: ${{ '%.2f'|format(a.starting_balance or 0) }} ·
-                    Current: ${{ '%.2f'|format(a.current_balance or 0) }} ·
-                    Trades: <strong>{{ a.trades.count() }}</strong>
-                </div>
-                <div class="meta">
-                    Created: {{ a.created_at.strftime('%d %b %Y') }} ·
-                    Last sync: {{ a.last_synced_at.strftime('%d %b %Y %H:%M') if a.last_synced_at else 'never' }}
-                </div>
-            </div>
-            <div class="acc-actions">
-                <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">
-                    <i class="fas fa-folder-open"></i> Open
-                </a>
-                <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history? This cannot be undone.');">
-                    <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-
-        <div class="new-form">
-            <h3><i class="fas fa-plus-circle"></i> Connect Another MT5 Account</h3>
-            <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
-                Enter your MT5 login number. Your EA will auto-detect all other details.
-            </p>
-            <form method="POST" action="{{ url_for('journal_account_new') }}">
-                <div class="form-grid">
-                    <div><label>Account Name (optional)</label><input name="name" placeholder="e.g. FTMO 100K"></div>
-                    <div><label>MT5 Login Number *</label><input name="mt5_login" placeholder="52601220" required></div>
-                </div>
-                <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                    <i class="fas fa-plug"></i> Connect Account
-                </button>
-            </form>
-        </div>
-
-        <div class="info-note">
-            <strong><i class="fas fa-info-circle"></i> How It Works:</strong> 
-            Your Trading Engine EA automatically syncs trades and account details 
-            to your journal every 5 minutes. No extra setup required.
-        </div>
-    </div>
-    {% endif %}
-
-    {% endif %}
-</div>
-
-{# ================================================================ #}
-{# DAY DETAIL MODAL #}
-{# ================================================================ #}
-<div class="modal-overlay" id="dayModal">
-    <div class="modal-box">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <h3 id="dayModalTitle">Day Details</h3>
-            <span style="cursor:pointer; color:var(--j-soft); font-size:1.1rem;" onclick="closeDayModal()">&times;</span>
-        </div>
-        <div id="dayModalBody">Loading...</div>
-    </div>
-</div>
-
-{# ================================================================ #}
-{# TOAST NOTIFICATIONS #}
-{# ================================================================ #}
-<div class="toast" id="jrToast"></div>
-
-{# ================================================================ #}
-{# JAVASCRIPT #}
-{# ================================================================ #}
-<script>
-    // ==========================================
-    // THEME TOGGLE (dark / light, persisted)
-    // ==========================================
-    (function() {
-        var wrapper = document.getElementById('journalWrapper');
-        var toggle = document.getElementById('themeToggle');
-        var icon = document.getElementById('themeIcon');
-        if (!wrapper || !toggle) return;
-
-        var STORAGE_KEY = 'journal-theme';
-
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                wrapper.classList.add('theme-dark');
-                if (icon) { icon.classList.remove('fa-moon'); icon.classList.add('fa-sun'); }
-            } else {
-                wrapper.classList.remove('theme-dark');
-                if (icon) { icon.classList.remove('fa-sun'); icon.classList.add('fa-moon'); }
-            }
-        }
-
-        var saved = null;
-        try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
-
-        if (!saved) {
-            saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
-        applyTheme(saved);
-
-        toggle.addEventListener('click', function() {
-            var isDark = wrapper.classList.contains('theme-dark');
-            var next = isDark ? 'light' : 'dark';
-            applyTheme(next);
-            try { localStorage.setItem(STORAGE_KEY, next); } catch (e) {}
-        });
-    })();
-
-    // ==========================================
-    // WEEKLY P/L 3D-STYLE BAR CHART
-    // ==========================================
-    {% if active_tab == 'dashboard' and weekly_bars %}
-    (function() {
-        var canvas = document.getElementById('weeklyChart');
-        if (!canvas) return;
-
-        var weeklyLabels = {{ weekly_bars|map(attribute='label')|list|tojson }};
-        var weeklyData = {{ weekly_bars|map(attribute='pl')|list|tojson }};
-
-        new Chart(canvas, {
-            type: 'bar',
-            data: {
-                labels: weeklyLabels,
-                datasets: [{
-                    data: weeklyData,
-                    backgroundColor: weeklyData.map(function(v) {
-                        return v >= 0 ? 'rgba(12, 139, 81, 0.75)' : 'rgba(200, 49, 30, 0.75)';
-                    }),
-                    borderColor: weeklyData.map(function(v) {
-                        return v >= 0 ? '#0c8b51' : '#c8311e';
-                    }),
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    borderSkipped: false,
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: {
-                        grid: { color: '#eef0f3' },
-                        ticks: {
-                            callback: function(v) { return '$' + v; },
-                            font: { size: 9 }
-                        }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { font: { size: 9 } }
-                    }
-                }
-            }
-        });
-    })();
-    {% endif %}
-
-    // ==========================================
-    // WIN / LOSS 3D-STYLE DOUGHNUT CHART
-    // ==========================================
-    (function() {
-        var canvas = document.getElementById('winLossChart');
-        if (!canvas) return;
-
-        var wins = {{ overall.wins }};
-        var losses = {{ overall.losses }};
-        var breakeven = {{ overall.breakeven }};
-
-        new Chart(canvas, {
-            type: 'doughnut',
-            data: {
-                labels: ['Wins', 'Losses', 'BE'],
-                datasets: [{
-                    data: [wins || 0, losses || 0, breakeven || 0],
-                    backgroundColor: [
-                        'rgba(12, 139, 81, 0.85)',
-                        'rgba(200, 49, 30, 0.85)',
-                        'rgba(150, 166, 181, 0.7)'
-                    ],
-                    borderColor: ['#0c8b51', '#c8311e', '#96a6b5'],
-                    borderWidth: 2,
-                    hoverOffset: 6,
-                    spacing: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '55%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 12,
-                            usePointStyle: true,
-                            pointStyleWidth: 8,
-                            font: { size: 9 }
-                        }
-                    }
-                }
-            }
-        });
-    })();
-
-    // ==========================================
-    // BUY vs SELL 3D-STYLE DOUGHNUT CHART
-    // ==========================================
-    (function() {
-        var canvas = document.getElementById('buySellChart');
-        if (!canvas) return;
-
-        var buys = 0;
-        var sells = 0;
-        document.querySelectorAll('.jr-table tbody tr').forEach(function(row) {
-            var badge = row.querySelector('.badge');
-            if (badge) {
-                var type = badge.textContent.trim();
-                if (type === 'BUY') buys++;
-                else if (type === 'SELL') sells++;
-            }
-        });
-
-        new Chart(canvas, {
-            type: 'doughnut',
-            data: {
-                labels: ['Buy', 'Sell'],
-                datasets: [{
-                    data: [buys || 1, sells || 1],
-                    backgroundColor: [
-                        'rgba(12, 139, 81, 0.85)',
-                        'rgba(200, 49, 30, 0.85)'
-                    ],
-                    borderColor: ['#0c8b51', '#c8311e'],
-                    borderWidth: 2,
-                    hoverOffset: 6,
-                    spacing: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '55%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 12,
-                            usePointStyle: true,
-                            pointStyleWidth: 8,
-                            font: { size: 9 }
-                        }
-                    }
-                }
-            }
-        });
-    })();
-
-    // ==========================================
-    // SYMBOL DISTRIBUTION 3D-STYLE DOUGHNUT CHART
-    // ==========================================
-    (function() {
-        var canvas = document.getElementById('symbolChart');
-        if (!canvas) return;
-
-        var symbolCounts = {};
-        document.querySelectorAll('.jr-table tbody tr').forEach(function(row) {
-            var cells = row.querySelectorAll('td');
-            if (cells.length > 1) {
-                var symbol = cells[1].textContent.trim();
-                if (symbol && symbol !== '—') {
-                    symbolCounts[symbol] = (symbolCounts[symbol] || 0) + 1;
-                }
-            }
-        });
-
-        var labels = Object.keys(symbolCounts);
-        var data = labels.map(function(s) { return symbolCounts[s]; });
-
-        var colors = [
-            'rgba(30, 84, 229, 0.85)',
-            'rgba(109, 60, 224, 0.85)',
-            'rgba(12, 139, 81, 0.85)',
-            'rgba(230, 126, 34, 0.85)',
-            'rgba(200, 49, 30, 0.85)',
-            'rgba(0, 180, 255, 0.85)',
-            'rgba(255, 200, 0, 0.85)'
-        ];
-
-        if (labels.length === 0) {
-            labels.push('No trades');
-            data.push(1);
-        }
-
-        new Chart(canvas, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: labels.map(function(_, i) {
-                        return colors[i % colors.length];
-                    }),
-                    borderWidth: 2,
-                    borderColor: '#ffffff',
-                    hoverOffset: 6,
-                    spacing: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '55%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 12,
-                            usePointStyle: true,
-                            pointStyleWidth: 8,
-                            font: { size: 9 }
-                        }
-                    }
-                }
-            }
-        });
-    })();
-
-    // ==========================================
-    // DAY DETAIL MODAL
-    // ==========================================
-    var accountId = {{ account.id if account else 0 }};
-
-    function openDay(dateStr) {
-        var modal = document.getElementById('dayModal');
-        var title = document.getElementById('dayModalTitle');
-        var body = document.getElementById('dayModalBody');
-
-        modal.classList.add('show');
-        title.textContent = dateStr;
-        body.innerHTML = '<p style="color:var(--j-muted);">Loading...</p>';
-
-        fetch('/journal/api/day/' + accountId + '/' + dateStr)
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (!data.trades || !data.trades.length) {
-                    body.innerHTML = '<p style="color:var(--j-muted); text-align:center; padding:1rem;">No trades on this day.</p>';
-                    return;
-                }
-
-                var rows = data.trades.map(function(t) {
-                    return '<div class="stat-row">' +
-                        '<span class="k">' + t.symbol + ' · ' + t.type.toUpperCase() + ' · ' + t.volume + ' lots · ' + t.duration + '</span>' +
-                        '<span class="v ' + (t.profit >= 0 ? 'pos' : 'neg') + '">' + (t.profit >= 0 ? '+' : '') + '$' + t.profit.toFixed(2) + '</span>' +
-                    '</div>';
-                }).join('');
-
-                body.innerHTML = 
-                    '<div class="stat-row"><span class="k">Net P/L</span><span class="v ' + (data.stats.net_profit >= 0 ? 'pos' : 'neg') + '">$' + data.stats.net_profit.toFixed(2) + '</span></div>' +
-                    '<div class="stat-row"><span class="k">Trades</span><span class="v">' + data.stats.total_trades + '</span></div>' +
-                    '<div class="stat-row"><span class="k">Win Rate</span><span class="v">' + data.stats.win_rate + '%</span></div>' +
-                    '<div style="margin-top:0.75rem; border-top:1px solid var(--j-border); padding-top:0.5rem;">' + rows + '</div>';
-            })
-            .catch(function() {
-                body.innerHTML = '<p style="color:var(--j-red); text-align:center; padding:1rem;">Failed to load day data.</p>';
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Copied!', 'success');
             });
-    }
-
-    function closeDayModal() {
-        document.getElementById('dayModal').classList.remove('show');
-    }
-
-    document.getElementById('dayModal').addEventListener('click', function(e) {
-        if (e.target === e.currentTarget) closeDayModal();
-    });
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeDayModal();
-    });
-
-    // ==========================================
-    // TOAST NOTIFICATIONS
-    // ==========================================
-    function showToast(msg, type) {
-        var t = document.getElementById('jrToast');
-        if (!t) return;
-
-        t.textContent = msg;
-        t.className = 'toast';
-
-        if (type === 'error') t.classList.add('error');
-        if (type === 'success') t.classList.add('success');
-
-        t.classList.add('show');
-
-        if (t._hideTimeout) clearTimeout(t._hideTimeout);
-        t._hideTimeout = setTimeout(function() {
-            t.classList.remove('show');
-        }, 3500);
-    }
-
-    // ==========================================
-    // AUTO-REFRESH DASHBOARD (every 60 seconds)
-    // ==========================================
-    var autoRefreshInterval;
-
-    function startAutoRefresh() {
-        var activeTab = '{{ active_tab }}';
-        if (activeTab === 'dashboard' && accountId) {
-            autoRefreshInterval = setInterval(refreshDashboardData, 60000);
         }
-    }
 
-    function refreshDashboardData() {
-        if (!accountId) return;
+        function showToast(message, type = 'info') {
+            const colors = {
+                success: '#3FBFB3',
+                error: '#EF4444',
+                info: '#4B7BE5'
+            };
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type] || colors.info};
+                color: white;
+                padding: 1rem 2rem;
+                border-radius: 12px;
+                z-index: 9999;
+                font-weight: 500;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                animation: slideDown 0.3s ease;
+            `;
+            toast.innerHTML = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.5s';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
 
-        fetch('/journal/api/dashboard-data/' + accountId)
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (!data.success) return;
+        // Auto-hide flash messages
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.style.opacity = '0';
+                alert.style.transition = 'opacity 0.5s';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+    </script>
 
-                // Update KPI cards
-                var balanceEl = document.querySelector('.kpi-card:nth-child(1) .val');
-                if (balanceEl) balanceEl.textContent = '$' + data.balance.toFixed(2);
+    {% block extra_js %}{% endblock %}
+</body>
 
-                var equityEl = document.querySelector('.kpi-card:nth-child(2) .val');
-                if (equityEl) equityEl.textContent = '$' + data.equity.toFixed(2);
-
-                var profitEl = document.querySelector('.kpi-card:nth-child(3) .val');
-                if (profitEl) {
-                    var np = data.overall.net_profit;
-                    profitEl.textContent = (np >= 0 ? '+' : '') + '$' + np.toFixed(2);
-                    var kpiCard = profitEl.closest('.kpi-card');
-                    if (kpiCard) {
-                        kpiCard.classList.toggle('pos', np >= 0);
-                        kpiCard.classList.toggle('neg', np < 0);
-                    }
-                }
-
-                var tradesEl = document.querySelector('.kpi-card:nth-child(4) .val');
-                if (tradesEl) tradesEl.textContent = data.overall.total_trades;
-
-                var winRateEl = document.querySelector('.kpi-card:nth-child(5) .val');
-                if (winRateEl) winRateEl.textContent = data.overall.win_rate + '%';
-
-                var pfEl = document.querySelector('.kpi-card:nth-child(6) .val');
-                if (pfEl) pfEl.textContent = data.overall.profit_factor;
-
-                // Update weekly chart
-                var chart = Chart.getChart('weeklyChart');
-                if (chart && data.weekly_bars) {
-                    chart.data.datasets[0].data = data.weekly_bars.map(function(b) { return b.pl; });
-                    chart.update();
-                }
-
-                // Update recent trades table
-                if (data.recent_trades && data.recent_trades.length) {
-                    var tbody = document.querySelector('.jr-table tbody');
-                    if (tbody) {
-                        tbody.innerHTML = data.recent_trades.map(function(t) {
-                            var d = new Date(t.close_time);
-                            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                            var dateStr = ('0' + d.getDate()).slice(-2) + ' ' + months[d.getMonth()] + ', ' + 
-                                         ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-                            return '<tr>' +
-                                '<td>' + dateStr + '</td>' +
-                                '<td style="font-weight:600;">' + t.symbol + '</td>' +
-                                '<td><span class="badge ' + t.trade_type + '">' + t.trade_type.toUpperCase() + '</span></td>' +
-                                '<td>' + t.volume + '</td>' +
-                                '<td>' + (t.entry_price || '—') + '</td>' +
-                                '<td>' + (t.exit_price || '—') + '</td>' +
-                                '<td class="' + (t.profit >= 0 ? 'pos' : 'neg') + '">' + (t.profit >= 0 ? '+' : '') + '$' + t.profit.toFixed(2) + '</td>' +
-                                '<td>' + t.duration + '</td>' +
-                            '</tr>';
-                        }).join('');
-                    }
-                }
-
-                // Update sync status
-                var syncInfo = document.querySelector('.sync-info');
-                if (syncInfo && data.last_synced_at) {
-                    syncInfo.innerHTML = '<span class="dot" style="background: var(--j-green);"></span> EA Connected';
-                }
-            })
-            .catch(function() {});
-    }
-
-    document.addEventListener('DOMContentLoaded', startAutoRefresh);
-    window.addEventListener('beforeunload', function() {
-        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-    });
-</script>
-{% endblock %}
+</html>
