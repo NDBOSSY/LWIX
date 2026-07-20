@@ -57,12 +57,14 @@
     .activity-item{display:flex;gap:0.8rem;padding:0.6rem 0.8rem;margin-bottom:0.4rem;background:#FFF8ED;border-radius:10px;border:1px solid #E5E7EB;transition:all 0.2s;}
     .activity-item:hover{transform:translateX(4px);border-color:#6FDFDF;}
     .activity-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
-    .activity-dot.login{background:#4B7BE5;} .activity-dot.license{background:#3FBFB3;} .activity-dot.revoke{background:#EF4444;} .activity-dot.upload{background:#A85CF9;} .activity-dot.order,.activity-dot.payment{background:#F59E0B;} .activity-dot.delete{background:#EF4444;} .activity-dot.default{background:#807F80;}
+    .activity-dot.login{background:#4B7BE5;} .activity-dot.license{background:#3FBFB3;} .activity-dot.revoke{background:#EF4444;} .activity-dot.upload{background:#A85CF9;} .activity-dot.order,.activity-dot.payment{background:#F59E0B;} .activity-dot.delete{background:#EF4444;} .activity-dot.connector{background:#3FBFB3;} .activity-dot.default{background:#807F80;}
 
     .btn-primary{background:linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%);border:none;border-radius:10px;padding:0.6rem 1.2rem;font-weight:600;font-size:0.85rem;color:white;transition:all 0.3s;}
     .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(75,123,229,0.3);}
     .btn-outline-danger{border:1.5px solid #EF4444;color:#EF4444;border-radius:8px;padding:0.25rem 0.6rem;font-size:0.75rem;transition:all 0.3s;background:white;}
     .btn-outline-danger:hover{background:#EF4444;color:white;}
+    .btn-connector{background:linear-gradient(135deg,#3FBFB3 0%,#6FDFDF 100%);color:white;border:none;border-radius:8px;padding:0.25rem 0.6rem;font-size:0.75rem;transition:all 0.2s;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;font-weight:600;}
+    .btn-connector:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(63,191,179,0.35);color:white;}
 
     .badge-active{background:linear-gradient(135deg,#3FBFB3 0%,#6FDFDF 100%);color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
     .badge-expired{background:#807F80;color:white;padding:0.3rem 0.7rem;border-radius:20px;font-size:0.75rem;}
@@ -96,7 +98,7 @@
                 <div class="col-lg-8">
                     <div class="d-flex align-items-center gap-3">
                         <div class="admin-icon-circle"><i class="fas fa-user-shield"></i></div>
-                        <div><h2 class="fw-bold mb-1">Admin Dashboard</h2><p class="mb-0 opacity-75">Manage users, licenses, and EA files</p></div>
+                        <div><h2 class="fw-bold mb-1">Admin Dashboard</h2><p class="mb-0 opacity-75">Manage users, licenses, EA files, and connector indicator</p></div>
                     </div>
                 </div>
                 <div class="col-lg-4">
@@ -209,6 +211,106 @@
         </div>
     </div>
 
+    <!-- MT5 Connector Indicator Management -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-chart-simple me-2"></i>MT5 Connector Indicator</h5>
+            {% if connector_indicator %}
+            <small style="opacity: 0.75;">Current: {{ connector_indicator.filename }} (v{{ connector_indicator.version }})</small>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            {% if connector_indicator %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Version</th>
+                            <th>Uploaded</th>
+                            <th>Downloads</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="ea-file-row">
+                                    <i class="fas fa-chart-simple" style="color:#3FBFB3;"></i>
+                                    <div>
+                                        <strong style="font-size:0.85rem;">{{ connector_indicator.filename }}</strong>
+                                        {% if connector_indicator.description %}
+                                        <br><small style="color:#807F80;">{{ connector_indicator.description }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge badge-active">v{{ connector_indicator.version }}</span></td>
+                            <td><small style="color:#807F80;">{{ connector_indicator.uploaded_at.strftime('%b %d, %Y') }}</small></td>
+                            <td>{{ connector_indicator.download_count or 0 }}</td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('download_connector') }}" class="btn-connector">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
+                                    <form method="POST" action="{{ url_for('admin_delete_connector') }}" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete MT5 Connector Indicator?\n\nThis will remove the download link from the journal page.')" title="Delete Connector Indicator">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-box-open fa-2x mb-2 d-block"></i>
+                No MT5 Connector Indicator uploaded yet
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Upload MT5 Connector Indicator -->
+    <div class="upload-card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-upload me-2"></i>
+                {% if connector_indicator %}Update{% else %}Upload{% endif %} MT5 Connector Indicator
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_upload_connector') }}" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">Indicator File (.ex5, .ex4)</label>
+                    <input type="file" name="file" class="form-control" accept=".ex5,.ex4" required>
+                    <small style="color:#807F80;font-size:0.75rem;">
+                        This indicator syncs manual trades from MT5 to the journal. 
+                        {% if connector_indicator %}
+                        Current version: <strong>v{{ connector_indicator.version }}</strong>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Version</label>
+                        <input type="text" name="version" class="form-control" placeholder="e.g., 1.0.0" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Description (optional)</label>
+                        <input type="text" name="description" class="form-control" placeholder="Brief description of changes">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>
+                    {% if connector_indicator %}Update{% else %}Upload{% endif %} Indicator
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Upload EA -->
     <div class="upload-card mb-4">
         <div class="card-header"><h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5></div>
@@ -235,8 +337,8 @@
         <div class="card-body" style="max-height:400px;overflow-y:auto;">
             {% for log in recent_logs %}
             <div class="activity-item">
-                <div class="activity-dot {% if 'login' in log.action %}login{% elif 'license' in log.action %}license{% elif 'revok' in log.action %}revoke{% elif 'upload' in log.action %}upload{% elif 'delete' in log.action %}delete{% elif 'order' in log.action or 'payment' in log.action %}order{% else %}default{% endif %}"></div>
-                <div class="flex-grow-1"><strong style="color:#2D2D2D;font-size:0.85rem;">{{ log.action|title }}</strong><p class="mb-0" style="color:#807F80;font-size:0.78rem;">{{ log.details }}</p><small style="color:#807F80;font-size:0.72rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}{% if log.ip_address %} · {{ log.ip_address }}{% endif %}</small></div>
+                <div class="activity-dot {% if 'login' in log.action %}login{% elif 'license' in log.action %}license{% elif 'revok' in log.action %}revoke{% elif 'upload_connector' in log.action %}connector{% elif 'upload' in log.action %}upload{% elif 'delete_connector' in log.action %}delete{% elif 'delete' in log.action %}delete{% elif 'order' in log.action or 'payment' in log.action %}order{% else %}default{% endif %}"></div>
+                <div class="flex-grow-1"><strong style="color:#2D2D2D;font-size:0.85rem;">{{ log.action|title|replace('_', ' ') }}</strong><p class="mb-0" style="color:#807F80;font-size:0.78rem;">{{ log.details }}</p><small style="color:#807F80;font-size:0.72rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}{% if log.ip_address %} · {{ log.ip_address }}{% endif %}</small></div>
             </div>
             {% endfor %}
         </div>
