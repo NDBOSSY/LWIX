@@ -2184,7 +2184,7 @@ def user_dashboard():
         EAFile.plan_level <= user_level
     ).order_by(EAFile.upload_date.desc()).all()
 
-    all_ea_count = EAFile.query.filter_by(is_active=True).all()
+    all_ea_count = EAFile.query.filter_by(is_active=True).count()
 
     # License account tracking
     default_max = get_max_accounts_for_level(user_level)
@@ -2224,6 +2224,9 @@ def user_dashboard():
         except Exception:
             vps_password_decrypted = None
 
+    # Get connector indicator info
+    connector = MT5ConnectorIndicator.query.first()
+
     return render_template(
         "user/dashboard.html",
         user=user,
@@ -2241,9 +2244,11 @@ def user_dashboard():
         membership_end_date=user.membership_end,
         current_language=get_user_language(),
         vps_password_decrypted=vps_password_decrypted,
-        vps_default_port=Config.FOREXVPS_DEFAULT_RDP_PORT
+        vps_default_port=Config.FOREXVPS_DEFAULT_RDP_PORT,
+        indicator_download_url=url_for('download_connector') if connector else None,
+        indicator_version=connector.version if connector else '1.0',
+        webrequest_url=Config.APP_URL
     )
-
 
 # ============================================================================
 # GENERATE LICENSE
