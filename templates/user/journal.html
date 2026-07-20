@@ -362,7 +362,7 @@
     .cal-day {
         aspect-ratio: 1;
         border-radius: 8px;
-        border: 1px solid var(--j-border);
+        border: 1px solid #ffffff;
         font-size: 0.68rem;
         padding: 0.25rem 0.3rem;
         cursor: pointer;
@@ -382,26 +382,26 @@
     }
     .cal-day.neutral {
         background: var(--j-sunken);
-        border-color: var(--j-border);
+        border-color: #ffffff;
     }
     .cal-day.neutral .n { color: var(--j-muted); }
     .cal-day.neutral .p { color: var(--j-soft); }
     /* Profit days */
     .cal-day.pos {
         background: var(--j-cal-pos-bg);
-        border-color: var(--j-cal-pos-bg);
+        border-color: #ffffff;
     }
     .cal-day.pos .n { color: var(--j-cal-pos-text); }
     .cal-day.pos .p { color: var(--j-cal-pos-text); font-weight: 700; }
     /* Loss days */
     .cal-day.neg {
         background: var(--j-cal-neg-bg);
-        border-color: var(--j-cal-neg-bg);
+        border-color: #ffffff;
     }
     .cal-day.neg .n { color: var(--j-cal-neg-text); }
     .cal-day.neg .p { color: var(--j-cal-neg-text); font-weight: 700; }
     .cal-day:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .cal-day.today { border-color: var(--j-accent); border-width: 2px; }
+    .cal-day.today { border-width: 2px; }
 
     .stat-row {
         display: flex;
