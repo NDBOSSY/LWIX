@@ -2461,7 +2461,30 @@ def download_ea(file_id):
         as_attachment=True, download_name=ea.filename
     )
 
-
+@app.route("/download-connector")
+def download_connector():
+    """Download MT5 Journal Sync Service (increment counter)."""
+    connector = MT5ConnectorIndicator.query.first()
+    if not connector:
+        flash('Geen sync service beschikbaar.', 'error')
+        return redirect(url_for('user_dashboard'))
+    
+    connector.download_count = (connector.download_count or 0) + 1
+    db.session.commit()
+    
+    full_path = os.path.join(app.root_path, connector.file_path)
+    
+    if not os.path.exists(full_path):
+        flash('Service bestand niet gevonden op server.', 'error')
+        return redirect(url_for('user_dashboard'))
+    
+    return send_from_directory(
+        os.path.join(app.root_path, 'static', 'downloads'),
+        connector.filename,
+        as_attachment=True,
+        download_name=connector.filename
+    )
+       
 # ============================================================================
 # MT5 CONNECTOR INDICATOR DOWNLOAD
 # ============================================================================
@@ -2503,7 +2526,7 @@ def journal_page():
     requested_id = request.args.get("account_id", type=int)
     account = get_selected_journal_account(requested_id)
     
-    # Get connector indicator info for download link
+    # Get connector info for download
     connector = MT5ConnectorIndicator.query.first()
     
     if not account:
@@ -2600,7 +2623,6 @@ def journal_page():
         indicator_version=connector.version if connector else '1.0',
         webrequest_url=Config.APP_URL
     )
-
 
 @app.route("/journal/account/new", methods=["POST"])
 @login_required
@@ -2940,7 +2962,6 @@ def admin_dashboard():
         vps_pending_users=vps_pending_users
     )
 
-
 @app.route("/admin/fix-all-licenses", methods=["POST"])
 @admin_required
 def fix_all_licenses():
@@ -3270,7 +3291,7 @@ def delete_ea(ea_id):
 @app.route("/admin/upload-connector", methods=["POST"])
 @admin_required
 def admin_upload_connector():
-    """Upload or update MT5 Connector Indicator."""
+    """Upload or update MT5 Journal Sync Service."""
     if 'file' not in request.files:
         flash('Geen bestand geselecteerd.', 'error')
         return redirect(url_for('admin_dashboard'))
@@ -3287,7 +3308,6 @@ def admin_upload_connector():
         flash('Versie is verplicht.', 'error')
         return redirect(url_for('admin_dashboard'))
     
-    # Validate file extension
     allowed_extensions = {'.ex5', '.ex4'}
     file_ext = os.path.splitext(file.filename)[1].lower()
     if file_ext not in allowed_extensions:
@@ -3295,55 +3315,57 @@ def admin_upload_connector():
         return redirect(url_for('admin_dashboard'))
     
     try:
-        # Create downloads directory if it doesn't exist
         downloads_dir = os.path.join(app.root_path, 'static', 'downloads')
         os.makedirs(downloads_dir, exist_ok=True)
         
-        # Delete old file if exists
-        existing = MT5ConnectorIndicator.query.first()
-        if existing:
-            old_file_path = os.path.join(app.root_path, existing.file_path)
-            if os.path.exists(old_file_path):
-                os.remove(old_file_path)
+        # Always use fixed filename
+        fixed_filename = "MT5JournalSync" + file_ext
         
-        # Save new file
-        safe_filename = f"MT5ConnectorIndicator_v{version}{file_ext}"
-        file_path = os.path.join('static', 'downloads', safe_filename)
+        # Delete all old database records
+        old_connectors = MT5ConnectorIndicator.query.all()
+        for old in old_connectors:
+            old_path = os.path.join(app.root_path, old.file_path)
+            if os.path.exists(old_path):
+                os.remove(old_path)
+            db.session.delete(old)
+        
+        # Clean downloads folder of any old MT5 files
+        for f in os.listdir(downloads_dir):
+            if f.startswith('MT5') and (f.endswith('.ex5') or f.endswith('.ex4')):
+                try:
+                    os.remove(os.path.join(downloads_dir, f))
+                except:
+                    pass
+        
+        # Save with fixed filename
+        file_path = os.path.join('static', 'downloads', fixed_filename)
         full_path = os.path.join(app.root_path, file_path)
         file.save(full_path)
         
-        # Update or create database record
-        if existing:
-            existing.filename = safe_filename
-            existing.file_path = file_path
-            existing.version = version
-            existing.description = description or existing.description
-            existing.uploaded_at = datetime.utcnow()
-            existing.uploaded_by = current_user.id
-        else:
-            connector = MT5ConnectorIndicator(
-                filename=safe_filename,
-                file_path=file_path,
-                version=version,
-                description=description,
-                uploaded_by=current_user.id
-            )
-            db.session.add(connector)
+        # Create fresh record
+        connector = MT5ConnectorIndicator(
+            filename=fixed_filename,
+            file_path=file_path,
+            version=version,
+            description=description,
+            uploaded_by=current_user.id
+        )
+        db.session.add(connector)
         
-        # Log activity
         log_audit(
             current_user.id,
             'upload_connector',
-            f'MT5 Connector Indicator v{version} geüpload',
+            f'MT5 Journal Sync Service v{version} ({fixed_filename})',
             request.remote_addr
         )
         db.session.commit()
         
-        flash('MT5 Connector Indicator succesvol geüpload!', 'success')
+        flash(f'MT5 Journal Sync Service v{version} geüpload!', 'success')
+        
     except Exception as e:
         db.session.rollback()
-        logger.error(f'Error uploading connector indicator: {str(e)}')
-        flash(f'Fout bij uploaden: {str(e)}', 'error')
+        logger.error(f'Upload error: {e}')
+        flash(f'Fout: {str(e)}', 'error')
     
     return redirect(url_for('admin_dashboard'))
 
@@ -3351,10 +3373,10 @@ def admin_upload_connector():
 @app.route("/admin/delete-connector", methods=["POST"])
 @admin_required
 def admin_delete_connector():
-    """Delete MT5 Connector Indicator."""
+    """Delete MT5 Journal Sync Service."""
     connector = MT5ConnectorIndicator.query.first()
     if not connector:
-        flash('Geen connector indicator gevonden.', 'error')
+        flash('Geen sync service gevonden.', 'error')
         return redirect(url_for('admin_dashboard'))
     
     try:
@@ -3367,7 +3389,7 @@ def admin_delete_connector():
         log_audit(
             current_user.id,
             'delete_connector',
-            f'MT5 Connector Indicator v{connector.version} verwijderd',
+            f'MT5 Journal Sync Service v{connector.version} verwijderd',
             request.remote_addr
         )
         
@@ -3375,14 +3397,14 @@ def admin_delete_connector():
         db.session.delete(connector)
         db.session.commit()
         
-        flash('MT5 Connector Indicator verwijderd.', 'success')
+        flash('MT5 Journal Sync Service verwijderd.', 'success')
+        
     except Exception as e:
         db.session.rollback()
-        logger.error(f'Error deleting connector indicator: {str(e)}')
+        logger.error(f'Delete error: {str(e)}')
         flash(f'Fout bij verwijderen: {str(e)}', 'error')
     
     return redirect(url_for('admin_dashboard'))
-
 
 # ============================================================================
 # API - LICENSE VALIDATION
