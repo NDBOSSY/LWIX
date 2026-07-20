@@ -33,7 +33,7 @@
     @media(max-width:1300px){.stats-grid{grid-template-columns:repeat(3,1fr);}}
     @media(max-width:600px){.stats-grid{grid-template-columns:1fr 1fr;gap:0.6rem;}.stat-card{padding:0.6rem 0.8rem;}.stat-icon{width:32px;height:32px;font-size:0.9rem;}.stat-value{font-size:1.1rem;}}
 
-    .card { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; }
+    .card { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; margin-bottom: 1.5rem; }
     .card-header { background: linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%); padding: 1rem 1.5rem; color: white; border: none; display: flex; justify-content: space-between; align-items: center; }
     .card-header h5 { color: white; font-weight: 600; font-size: 1rem; margin: 0; }
     .card-body { background: white; padding: 1.2rem; } .card-body.p-0{padding:0;}
@@ -43,7 +43,7 @@
     .table tbody td { padding: 0.6rem 0.8rem; vertical-align: middle; font-size: 0.85rem; background: white; }
     .table tbody tr:hover td{background:#FFF8ED;}
 
-    .upload-card { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; }
+    .upload-card { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; margin-bottom: 1.5rem; }
     .upload-card .card-header { background: linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%); padding: 1rem 1.5rem; color: white; }
     .upload-card .card-body { background: linear-gradient(135deg,#D6E4FB 0%,#E2DAF7 100%); padding: 1.2rem; }
 
@@ -87,18 +87,28 @@
     .btn-retry-vps{background:linear-gradient(135deg,#3FBFB3 0%,#6FDFDF 100%);border:none;border-radius:8px;padding:0.35rem 0.8rem;font-size:0.75rem;font-weight:600;color:white;transition:all 0.2s;white-space:nowrap;}
     .btn-retry-vps:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(63,191,179,0.35);color:white;}
     .vps-error-text{color:#EF4444;font-size:0.72rem;max-width:260px;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+    .section-divider { border-top: 2px solid #E5E7EB; margin: 2rem 0 1.5rem; position: relative; }
+    .section-divider span { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: white; padding: 0 1rem; color: #807F80; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .connector-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(63,191,179,0.15); color: #3FBFB3; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="admin-container">
+    
+    {# HEADER #}
     <div class="admin-header">
         <div class="admin-header-content">
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <div class="d-flex align-items-center gap-3">
                         <div class="admin-icon-circle"><i class="fas fa-user-shield"></i></div>
-                        <div><h2 class="fw-bold mb-1">Admin Dashboard</h2><p class="mb-0 opacity-75">Manage users, licenses, EA files, and connector indicator</p></div>
+                        <div>
+                            <h2 class="fw-bold mb-1">Admin Dashboard</h2>
+                            <p class="mb-0 opacity-75">Manage users, licenses, EA files & connector service</p>
+                        </div>
                     </div>
                 </div>
                 <div class="col-lg-4">
@@ -117,6 +127,7 @@
         </div>
     </div>
 
+    {# STATS #}
     <div class="stats-grid">
         <div class="stat-card users"><div class="stat-icon blue"><i class="fas fa-users"></i></div><div class="stat-info"><div class="stat-value">{{ total_users }}</div><div class="stat-label">Total Users</div></div></div>
         <div class="stat-card active"><div class="stat-icon teal"><i class="fas fa-user-check"></i></div><div class="stat-info"><div class="stat-value">{{ active_users }}</div><div class="stat-label">Active Members</div></div></div>
@@ -125,22 +136,27 @@
         <div class="stat-card vps"><div class="stat-icon teal"><i class="fas fa-server"></i></div><div class="stat-info"><div class="stat-value">{{ active_vps }}</div><div class="stat-label">Active VPS</div></div></div>
     </div>
 
+    {# SUBSCRIPTION BREAKDOWN #}
     {% if subscription_stats %}
-    <div class="card mb-4">
-        <div class="card-header"><h5><i class="fas fa-chart-pie me-2"></i>Subscription Breakdown</h5></div>
+    <div class="card">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Subscription Breakdown</h5></div>
         <div class="card-body">
             <div class="subscription-breakdown">
                 {% for stat in subscription_stats %}
-                <div class="sub-breakdown-item"><div class="sub-type">{{ stat[0] or 'Unknown' }}</div><div class="sub-count">{{ stat[1] }} users</div><div class="sub-revenue">€{{ "%.2f"|format(stat[2] or 0) }}</div></div>
+                <div class="sub-breakdown-item">
+                    <div class="sub-type">{{ stat[0] or 'Unknown' }}</div>
+                    <div class="sub-count">{{ stat[1] }} users</div>
+                    <div class="sub-revenue">€{{ "%.2f"|format(stat[2] or 0) }}</div>
+                </div>
                 {% endfor %}
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- VPS Pending -->
+    {# VPS PENDING #}
     {% if vps_pending_users %}
-    <div class="card mb-4">
+    <div class="card">
         <div class="card-header"><h5 class="mb-0"><i class="fas fa-server me-2"></i>VPS Pending ({{ vps_pending_users|length }})</h5></div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -187,8 +203,8 @@
     </div>
     {% endif %}
 
-    <!-- EA Files List -->
-    <div class="card mb-4">
+    {# EA FILES #}
+    <div class="card">
         <div class="card-header"><h5 class="mb-0"><i class="fas fa-robot me-2"></i>EA Files ({{ ea_files|length }})</h5></div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -211,12 +227,40 @@
         </div>
     </div>
 
-    <!-- MT5 Connector Indicator Management -->
-    <div class="card mb-4">
+    {# UPLOAD EA #}
+    <div class="upload-card">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('upload_ea') }}" enctype="multipart/form-data">
+                <div class="mb-3"><label class="form-label">EA File (.ex4, .ex5, .dll, .zip)</label><input type="file" name="file" class="form-control" accept=".ex4,.ex5,.dll,.zip" required><small style="color:#807F80;font-size:0.75rem;">Max: 50MB</small></div>
+                <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">Version</label><input type="text" name="version" class="form-control" placeholder="1.0.0" required></div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Plan Level Required</label><select name="plan_level" class="form-select"><option value="1">🟢 Level 1 (Basic)</option><option value="2" selected>🟣 Level 2 (Full)</option></select></div>
+                    <div class="col-md-4 mb-3"><label class="form-label">Description</label><input type="text" name="description" class="form-control" placeholder="Optional"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-8 mb-3"><label class="form-label">Changelog</label><textarea name="changelog" class="form-control" rows="2" placeholder="What's new?"></textarea></div>
+                    <div class="col-md-4 mb-3 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_beta" id="isBeta"><label class="form-check-label" for="isBeta" style="font-size:0.85rem;"><i class="fas fa-flask me-1" style="color:#A85CF9;"></i>Beta version</label></div></div>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-cloud-upload-alt me-2"></i>Upload EA</button>
+            </form>
+        </div>
+    </div>
+
+    {# SECTION DIVIDER #}
+    <div class="section-divider"><span>MT5 Journal Sync Service</span></div>
+
+    {# MT5 CONNECTOR SERVICE - CURRENT FILE #}
+    <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-chart-simple me-2"></i>MT5 Connector Indicator</h5>
+            <h5 class="mb-0"><i class="fas fa-sync-alt me-2"></i>MT5 Journal Sync Service</h5>
             {% if connector_indicator %}
-            <small style="opacity: 0.75;">Current: {{ connector_indicator.filename }} (v{{ connector_indicator.version }})</small>
+            <span class="connector-badge">
+                <i class="fas fa-check-circle"></i> 
+                {{ connector_indicator.filename }} (v{{ connector_indicator.version }})
+            </span>
+            {% else %}
+            <span class="badge badge-revoked">Not Uploaded</span>
             {% endif %}
         </div>
         <div class="card-body p-0">
@@ -236,7 +280,7 @@
                         <tr>
                             <td>
                                 <div class="ea-file-row">
-                                    <i class="fas fa-chart-simple" style="color:#3FBFB3;"></i>
+                                    <i class="fas fa-sync-alt" style="color:#3FBFB3;"></i>
                                     <div>
                                         <strong style="font-size:0.85rem;">{{ connector_indicator.filename }}</strong>
                                         {% if connector_indicator.description %}
@@ -247,14 +291,14 @@
                             </td>
                             <td><span class="badge badge-active">v{{ connector_indicator.version }}</span></td>
                             <td><small style="color:#807F80;">{{ connector_indicator.uploaded_at.strftime('%b %d, %Y') }}</small></td>
-                            <td>{{ connector_indicator.download_count or 0 }}</td>
+                            <td><strong>{{ connector_indicator.download_count or 0 }}</strong></td>
                             <td>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ url_for('download_connector') }}" class="btn-connector">
-                                        <i class="fas fa-download me-1"></i>Download
+                                    <a href="{{ url_for('download_connector') }}" class="btn-connector" title="Download current version">
+                                        <i class="fas fa-download"></i> Download
                                     </a>
                                     <form method="POST" action="{{ url_for('admin_delete_connector') }}" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete MT5 Connector Indicator?\n\nThis will remove the download link from the journal page.')" title="Delete Connector Indicator">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete MT5 Journal Sync Service?\n\nThis will remove the download link from the journal page. Users will no longer be able to download the service.')" title="Delete Service">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -265,31 +309,32 @@
                 </table>
             </div>
             {% else %}
-            <div class="text-center text-muted py-3">
-                <i class="fas fa-box-open fa-2x mb-2 d-block"></i>
-                No MT5 Connector Indicator uploaded yet
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block" style="color: #3FBFB3;"></i>
+                <strong>No MT5 Journal Sync Service uploaded yet</strong>
+                <p style="font-size:0.8rem; margin-top:0.3rem;">Upload the compiled .ex5 service file below to make it available for download on the journal page.</p>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Upload MT5 Connector Indicator -->
-    <div class="upload-card mb-4">
+    {# UPLOAD/UPDATE MT5 CONNECTOR SERVICE #}
+    <div class="upload-card">
         <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-upload me-2"></i>
-                {% if connector_indicator %}Update{% else %}Upload{% endif %} MT5 Connector Indicator
+                {% if connector_indicator %}Update{% else %}Upload{% endif %} MT5 Journal Sync Service
             </h5>
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('admin_upload_connector') }}" enctype="multipart/form-data">
                 <div class="mb-3">
-                    <label class="form-label">Indicator File (.ex5, .ex4)</label>
+                    <label class="form-label">Service File (.ex5)</label>
                     <input type="file" name="file" class="form-control" accept=".ex5,.ex4" required>
                     <small style="color:#807F80;font-size:0.75rem;">
-                        This indicator syncs manual trades from MT5 to the journal. 
+                        Upload the compiled MT5 Journal Sync Service (.ex5). This service runs in MT5 background and auto-syncs trades to the journal every 5 minutes. No license key required.
                         {% if connector_indicator %}
-                        Current version: <strong>v{{ connector_indicator.version }}</strong>
+                        <br>Current version: <strong>v{{ connector_indicator.version }}</strong> — uploading will replace it.
                         {% endif %}
                     </small>
                 </div>
@@ -300,49 +345,37 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Description (optional)</label>
-                        <input type="text" name="description" class="form-control" placeholder="Brief description of changes">
+                        <input type="text" name="description" class="form-control" placeholder="e.g., Fixed WebRequest timeout, added retry logic">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-cloud-upload-alt me-2"></i>
-                    {% if connector_indicator %}Update{% else %}Upload{% endif %} Indicator
+                    {% if connector_indicator %}Update Service{% else %}Upload Service{% endif %}
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Upload EA -->
-    <div class="upload-card mb-4">
-        <div class="card-header"><h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload New EA</h5></div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('upload_ea') }}" enctype="multipart/form-data">
-                <div class="mb-3"><label class="form-label">EA File (.ex4, .ex5, .dll, .zip)</label><input type="file" name="file" class="form-control" accept=".ex4,.ex5,.dll,.zip" required><small style="color:#807F80;font-size:0.75rem;">Max: 50MB</small></div>
-                <div class="row">
-                    <div class="col-md-4 mb-3"><label class="form-label">Version</label><input type="text" name="version" class="form-control" placeholder="1.0.0" required></div>
-                    <div class="col-md-4 mb-3"><label class="form-label">Plan Level Required</label><select name="plan_level" class="form-select"><option value="1">🟢 Level 1 (Basic)</option><option value="2" selected>🟣 Level 2 (Full)</option></select></div>
-                    <div class="col-md-4 mb-3"><label class="form-label">Description</label><input type="text" name="description" class="form-control" placeholder="Optional"></div>
-                </div>
-                <div class="row">
-                    <div class="col-md-8 mb-3"><label class="form-label">Changelog</label><textarea name="changelog" class="form-control" rows="2" placeholder="What's new?"></textarea></div>
-                    <div class="col-md-4 mb-3 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_beta" id="isBeta"><label class="form-check-label" for="isBeta" style="font-size:0.85rem;"><i class="fas fa-flask me-1" style="color:#A85CF9;"></i>Beta version</label></div></div>
-                </div>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-cloud-upload-alt me-2"></i>Upload EA</button>
-            </form>
-        </div>
-    </div>
+    {# SECTION DIVIDER #}
+    <div class="section-divider"><span>Activity Log</span></div>
 
-    <!-- Activity Log -->
+    {# ACTIVITY LOG #}
     <div class="activity-card">
         <div class="card-header"><h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5></div>
         <div class="card-body" style="max-height:400px;overflow-y:auto;">
             {% for log in recent_logs %}
             <div class="activity-item">
-                <div class="activity-dot {% if 'login' in log.action %}login{% elif 'license' in log.action %}license{% elif 'revok' in log.action %}revoke{% elif 'upload_connector' in log.action %}connector{% elif 'upload' in log.action %}upload{% elif 'delete_connector' in log.action %}delete{% elif 'delete' in log.action %}delete{% elif 'order' in log.action or 'payment' in log.action %}order{% else %}default{% endif %}"></div>
-                <div class="flex-grow-1"><strong style="color:#2D2D2D;font-size:0.85rem;">{{ log.action|title|replace('_', ' ') }}</strong><p class="mb-0" style="color:#807F80;font-size:0.78rem;">{{ log.details }}</p><small style="color:#807F80;font-size:0.72rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}{% if log.ip_address %} · {{ log.ip_address }}{% endif %}</small></div>
+                <div class="activity-dot {% if 'login' in log.action %}login{% elif 'license' in log.action %}license{% elif 'revok' in log.action %}revoke{% elif 'upload_connector' in log.action %}connector{% elif 'delete_connector' in log.action %}delete{% elif 'upload' in log.action %}upload{% elif 'delete' in log.action %}delete{% elif 'order' in log.action or 'payment' in log.action %}order{% else %}default{% endif %}"></div>
+                <div class="flex-grow-1">
+                    <strong style="color:#2D2D2D;font-size:0.85rem;">{{ log.action|title|replace('_', ' ') }}</strong>
+                    <p class="mb-0" style="color:#807F80;font-size:0.78rem;">{{ log.details }}</p>
+                    <small style="color:#807F80;font-size:0.72rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}{% if log.ip_address %} · {{ log.ip_address }}{% endif %}</small>
+                </div>
             </div>
             {% endfor %}
         </div>
     </div>
+
 </div>
 
 <script>
@@ -350,8 +383,8 @@ function toggleTestMode() {
     const status = document.getElementById('testModeStatus');
     fetch('/admin/toggle-test-mode', {method:'POST',headers:{'Content-Type':'application/json'}})
     .then(r=>r.json()).then(data=>{
-        if(data.test_mode==='on'){status.textContent='⚠️ 1-DAY LICENSES';status.style.color='#FCA5A5';showToast('⚠️ Test mode ON','warning');}
-        else{status.textContent='✅ NORMAL';status.style.color='#6FDFDF';showToast('✅ Test mode OFF','success');}
+        if(data.test_mode==='on'){status.textContent='⚠️ 1-DAY LICENSES';status.style.color='#FCA5A5';}
+        else{status.textContent='✅ NORMAL';status.style.color='#6FDFDF';}
     }).catch(()=>{document.getElementById('testModeToggle').checked=!document.getElementById('testModeToggle').checked;});
 }
 </script>
