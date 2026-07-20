@@ -2678,41 +2678,26 @@ def journal_api_day(account_id, day):
 @app.route("/journal/api/ingest", methods=["POST"])
 def journal_api_ingest():
     """
-    Called by the EA via WebRequest.
-    Auth: X-License-Key header (same as license validation).
-    Auto-matches trades to journal account by MT5 login number.
+    Called by the MT5 Journal Sync Service via WebRequest.
+    Matches trades by MT5 login number.
     """
-    license_key = request.headers.get("X-License-Key", "")
     mt5_login = request.headers.get("X-MT5-Login", "").strip()
 
-    if not license_key or not mt5_login:
-        return jsonify({"success": False, "error": "Missing license key or MT5 login"}), 400
+    if not mt5_login:
+        return jsonify({"success": False, "error": "Missing MT5 login"}), 400
 
-    # Find the user by license key
-    lic = License.query.filter_by(license_key=license_key).first()
-    if not lic:
-        return jsonify({"success": False, "error": "Invalid license key"}), 401
-
-    # Find or create journal account matching this MT5 login
-    account = JournalAccount.query.filter_by(
-        user_id=lic.user_id, mt5_login=mt5_login
-    ).first()
+    # Find any journal account with this MT5 login
+    account = JournalAccount.query.filter_by(mt5_login=mt5_login).first()
 
     if not account:
-        # Auto-create journal account on first EA sync
-        account = JournalAccount(
-            user_id=lic.user_id,
-            name=f"MT5-{mt5_login}",
-            mt5_login=mt5_login,
-            sync_token=secrets.token_hex(24),
-        )
-        db.session.add(account)
-        db.session.flush()
-        logger.info(f"[JOURNAL] Auto-created account for MT5 login {mt5_login}")
+        return jsonify({
+            "success": False, 
+            "error": "No journal account found for this MT5 login. Add it on the journal page first."
+        }), 404
 
     data = request.get_json(silent=True) or {}
 
-    # Auto-detect account metadata from EA
+    # Auto-detect account metadata
     account_info = data.get("account_info", {})
     if account_info:
         if account_info.get("broker"):
@@ -2739,7 +2724,6 @@ def journal_api_ingest():
             skipped += 1
             continue
 
-        # Parse close_time
         close_time = None
         close_str = str(tr.get("close_time", "")).replace("T", " ")[:19]
         for fmt in ["%Y.%m.%d %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"]:
@@ -2752,7 +2736,6 @@ def journal_api_ingest():
         if not close_time:
             continue
 
-        # Parse open_time
         open_time = None
         if tr.get("open_time"):
             open_str = str(tr["open_time"]).replace("T", " ")[:19]
@@ -2782,7 +2765,6 @@ def journal_api_ingest():
         ))
         imported += 1
 
-    # Update balance/equity
     if "balance" in data:
         account.current_balance = data["balance"]
     if "equity" in data:
@@ -2791,8 +2773,6 @@ def journal_api_ingest():
     account.last_synced_at = datetime.utcnow()
     account.last_sync_error = None
     db.session.commit()
-
-    logger.info(f"[JOURNAL] Sync for MT5-{mt5_login}: {imported} new, {skipped} skipped")
 
     return jsonify({
         "success": True,
