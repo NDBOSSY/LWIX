@@ -839,6 +839,18 @@
         font-size: 0.75rem;
     }
 
+    /* Side-by-side accounts list + connect form */
+    .accounts-flex {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 1.25rem;
+        align-items: start;
+    }
+    .accounts-flex .accounts-list .new-form { margin-top: 0; }
+    @media (max-width: 1150px) {
+        .accounts-flex { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 780px) {
         .journal-wrapper { padding: 1rem 0.9rem 3rem; }
         .journal-header { margin-bottom: 1.1rem; }
@@ -890,6 +902,7 @@
         .modal-box { padding: 1.1rem; width: 94%; }
         .theme-toggle { width: 38px; height: 21px; }
         .setup-guide .steps { grid-template-columns: 1fr; }
+        .accounts-flex { gap: 0.9rem; }
     }
 
     @media (max-width: 420px) {
@@ -924,10 +937,10 @@
 
     {# NO ACCOUNTS - SHOW SETUP GUIDE #}
     {% if not account %}
-    <div style="max-width: 700px;">
-        
+    <div>
+
         {# Setup Guide #}
-        <div class="setup-guide">
+        <div class="setup-guide" style="max-width: 900px;">
             <h3><i class="fas fa-rocket"></i> Get Started in 3 Steps</h3>
             <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;">
                 Connect your MT5 account and install the sync service to automatically track your trades.
@@ -951,71 +964,75 @@
             </div>
         </div>
 
-        {# Existing Accounts #}
-        {% if accounts %}
-        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem;">
-            <i class="fas fa-list"></i> Your Accounts
-        </h2>
-        {% for a in accounts %}
-        <div class="acc-card">
-            <div>
-                <h3>
-                    {{ a.name }}
-                    {% if a.last_synced_at %}
-                    <span style="font-size:0.65rem; color:var(--j-green); font-weight:500;">
-                        <i class="fas fa-check-circle"></i> Synced
-                    </span>
-                    {% endif %}
-                </h3>
-                <div class="meta">
-                    MT5 Login: <strong>{{ a.mt5_login }}</strong>
-                    {% if a.broker %} · {{ a.broker }}{% endif %}
-                    {% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}
-                    {% if a.currency %} · {{ a.currency }}{% endif %}
+        {# Existing Accounts (left) + Connect form (right), side by side #}
+        <div class="accounts-flex" style="max-width: 900px;">
+            <div class="accounts-list">
+                {% if accounts %}
+                <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem;">
+                    <i class="fas fa-list"></i> Your Accounts
+                </h2>
+                {% for a in accounts %}
+                <div class="acc-card">
+                    <div>
+                        <h3>
+                            {{ a.name }}
+                            {% if a.last_synced_at %}
+                            <span style="font-size:0.65rem; color:var(--j-green); font-weight:500;">
+                                <i class="fas fa-check-circle"></i> Synced
+                            </span>
+                            {% endif %}
+                        </h3>
+                        <div class="meta">
+                            MT5 Login: <strong>{{ a.mt5_login }}</strong>
+                            {% if a.broker %} · {{ a.broker }}{% endif %}
+                            {% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}
+                            {% if a.currency %} · {{ a.currency }}{% endif %}
+                        </div>
+                        <div class="meta">
+                            Balance: ${{ '%.2f'|format(a.current_balance or a.starting_balance or 0) }} ·
+                            Trades: <strong>{{ a.trades.count() }}</strong> ·
+                            Last sync: {{ a.last_synced_at.strftime('%d %b %H:%M') if a.last_synced_at else 'never' }}
+                        </div>
+                    </div>
+                    <div class="acc-actions">
+                        <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">
+                            <i class="fas fa-folder-open"></i> Open
+                        </a>
+                        <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history? This cannot be undone.');">
+                            <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="meta">
-                    Balance: ${{ '%.2f'|format(a.current_balance or a.starting_balance or 0) }} ·
-                    Trades: <strong>{{ a.trades.count() }}</strong> ·
-                    Last sync: {{ a.last_synced_at.strftime('%d %b %H:%M') if a.last_synced_at else 'never' }}
-                </div>
+                {% endfor %}
+                {% endif %}
             </div>
-            <div class="acc-actions">
-                <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">
-                    <i class="fas fa-folder-open"></i> Open
-                </a>
-                <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history? This cannot be undone.');">
-                    <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
+
+            {# Connect Account Form #}
+            <div class="new-form">
+                <h3><i class="fas fa-plug"></i> Step 1: Connect Your MT5 Account</h3>
+                <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
+                    Enter your MT5 login number. Your broker, server, currency, and balance will be auto-detected by the sync service.
+                </p>
+                <form method="POST" action="{{ url_for('journal_account_new') }}">
+                    <div class="form-grid">
+                        <div>
+                            <label>Account Name (optional)</label>
+                            <input name="name" placeholder="e.g. FTMO 100K">
+                        </div>
+                        <div>
+                            <label>MT5 Login Number *</label>
+                            <input name="mt5_login" placeholder="52601220" required>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
+                        <i class="fas fa-plug"></i> Connect Account
+                    </button>
                 </form>
             </div>
         </div>
-        {% endfor %}
-        {% endif %}
-
-        {# Connect Account Form #}
-        <div class="new-form">
-            <h3><i class="fas fa-plug"></i> Step 1: Connect Your MT5 Account</h3>
-            <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
-                Enter your MT5 login number. Your broker, server, currency, and balance will be auto-detected by the sync service.
-            </p>
-            <form method="POST" action="{{ url_for('journal_account_new') }}">
-                <div class="form-grid">
-                    <div>
-                        <label>Account Name (optional)</label>
-                        <input name="name" placeholder="e.g. FTMO 100K">
-                    </div>
-                    <div>
-                        <label>MT5 Login Number *</label>
-                        <input name="mt5_login" placeholder="52601220" required>
-                    </div>
-                </div>
-                <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                    <i class="fas fa-plug"></i> Connect Account
-                </button>
-            </form>
-        </div>
 
         {# Step 2 & 3: Download and Install Service #}
-        <div class="indicator-card">
+        <div class="indicator-card" style="max-width: 900px;">
             <div class="ind-head">
                 <div class="ind-head-text">
                     <h3><i class="fas fa-sync-alt"></i> Step 2 & 3: Install the MT5 Journal Sync Service</h3>
@@ -1029,43 +1046,43 @@
                     <span class="ver">{{ indicator_version or 'v1.0' }}</span>
                 </a>
             </div>
-            
+
             <ol class="steps-list">
                 <li>
                     <strong>Download the Service file</strong> using the button above. Save it to your computer.
                 </li>
                 <li>
-                    <strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5 
+                    <strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5
                     <code>MQL5/Services</code> folder.<br>
                     <small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small>
                 </li>
                 <li>
-                    <strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click 
+                    <strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click
                     <strong>Services</strong> and choose <strong>Refresh</strong>.<br>
                     <small style="color: var(--j-muted);">Or simply restart MT5.</small>
                 </li>
                 <li>
-                    <strong>Allow WebRequest:</strong> In MT5, go to 
-                    <strong>Tools → Options → Expert Advisors</strong>, tick 
+                    <strong>Allow WebRequest:</strong> In MT5, go to
+                    <strong>Tools → Options → Expert Advisors</strong>, tick
                     <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br>
                     <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>
                 </li>
                 <li>
-                    <strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>, 
-                    find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it. 
+                    <strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>,
+                    find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it.
                     Review the settings and click <strong>OK</strong>.
                 </li>
                 <li>
-                    <strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the 
+                    <strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the
                     <strong>Experts</strong> tab. You should see:<br>
                     <code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code>
                 </li>
                 <li>
-                    <strong>Auto-start (recommended):</strong> Right-click the service in Navigator → 
+                    <strong>Auto-start (recommended):</strong> Right-click the service in Navigator →
                     <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.
                 </li>
             </ol>
-            
+
             <div class="troubleshoot-box">
                 <strong><i class="fas fa-exclamation-triangle"></i> Troubleshooting:</strong>
                 <ul>
@@ -1103,7 +1120,7 @@
             {% if account.last_synced_at and (now - account.last_synced_at).total_seconds() < 600 %}
                 <span class="dot" style="background: var(--j-green);"></span> Service Running
             {% elif account.last_synced_at %}
-                <span class="dot" style="background: var(--j-amber);"></span> 
+                <span class="dot" style="background: var(--j-amber);"></span>
                 Last sync: {{ account.last_synced_at.strftime('%d %b %H:%M') }}
             {% else %}
                 <span class="dot" style="background: var(--j-red);"></span> Waiting for Service...
@@ -1435,10 +1452,10 @@
 
     {# ACCOUNTS TAB #}
     {% elif active_tab == 'accounts' %}
-    <div style="max-width: 700px;">
-        
+    <div>
+
         {# Setup Guide (shown even when accounts exist) #}
-        <div class="setup-guide" style="margin-bottom: 1.5rem;">
+        <div class="setup-guide" style="margin-bottom: 1.5rem; max-width: 900px;">
             <h3><i class="fas fa-sync-alt"></i> MT5 Journal Sync Service</h3>
             <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;">
                 The sync service runs in MT5 background and automatically sends your trades to the journal every 5 minutes.
@@ -1449,58 +1466,63 @@
             </a>
         </div>
 
-        {% for a in accounts %}
-        <div class="acc-card {{ 'selected' if a.id == account.id else '' }}">
-            <div>
-                <h3>
-                    {{ a.name }}
-                    {% if a.id == account.id %}<span class="badge neutral" style="font-size:0.65rem;">CURRENT</span>{% endif %}
-                </h3>
-                <div class="meta">
-                    MT5 Login: <strong>{{ a.mt5_login }}</strong>
-                    {% if a.broker %} · {{ a.broker }}{% endif %}
-                    {% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}
-                    {% if a.currency %} · {{ a.currency }}{% endif %}
+        {# Accounts list (left) + connect form (right), side by side #}
+        <div class="accounts-flex" style="max-width: 900px;">
+            <div class="accounts-list">
+                {% for a in accounts %}
+                <div class="acc-card {{ 'selected' if a.id == account.id else '' }}">
+                    <div>
+                        <h3>
+                            {{ a.name }}
+                            {% if a.id == account.id %}<span class="badge neutral" style="font-size:0.65rem;">CURRENT</span>{% endif %}
+                        </h3>
+                        <div class="meta">
+                            MT5 Login: <strong>{{ a.mt5_login }}</strong>
+                            {% if a.broker %} · {{ a.broker }}{% endif %}
+                            {% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}
+                            {% if a.currency %} · {{ a.currency }}{% endif %}
+                        </div>
+                        <div class="meta">
+                            Starting: ${{ '%.2f'|format(a.starting_balance or 0) }} ·
+                            Current: ${{ '%.2f'|format(a.current_balance or 0) }} ·
+                            Trades: <strong>{{ a.trades.count() }}</strong>
+                        </div>
+                        <div class="meta">
+                            Created: {{ a.created_at.strftime('%d %b %Y') }} ·
+                            Last sync: {{ a.last_synced_at.strftime('%d %b %Y %H:%M') if a.last_synced_at else 'never' }}
+                        </div>
+                    </div>
+                    <div class="acc-actions">
+                        <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">
+                            <i class="fas fa-folder-open"></i> Open
+                        </a>
+                        <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history? This cannot be undone.');">
+                            <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="meta">
-                    Starting: ${{ '%.2f'|format(a.starting_balance or 0) }} ·
-                    Current: ${{ '%.2f'|format(a.current_balance or 0) }} ·
-                    Trades: <strong>{{ a.trades.count() }}</strong>
-                </div>
-                <div class="meta">
-                    Created: {{ a.created_at.strftime('%d %b %Y') }} ·
-                    Last sync: {{ a.last_synced_at.strftime('%d %b %Y %H:%M') if a.last_synced_at else 'never' }}
-                </div>
+                {% endfor %}
             </div>
-            <div class="acc-actions">
-                <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">
-                    <i class="fas fa-folder-open"></i> Open
-                </a>
-                <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history? This cannot be undone.');">
-                    <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
+
+            <div class="new-form">
+                <h3><i class="fas fa-plus-circle"></i> Connect Another MT5 Account</h3>
+                <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
+                    Enter your MT5 login number. The sync service will auto-detect broker, server, currency, and balance.
+                </p>
+                <form method="POST" action="{{ url_for('journal_account_new') }}">
+                    <div class="form-grid">
+                        <div><label>Account Name (optional)</label><input name="name" placeholder="e.g. FTMO 100K"></div>
+                        <div><label>MT5 Login Number *</label><input name="mt5_login" placeholder="52601220" required></div>
+                    </div>
+                    <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
+                        <i class="fas fa-plug"></i> Connect Account
+                    </button>
                 </form>
             </div>
         </div>
-        {% endfor %}
-
-        <div class="new-form">
-            <h3><i class="fas fa-plus-circle"></i> Connect Another MT5 Account</h3>
-            <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
-                Enter your MT5 login number. The sync service will auto-detect broker, server, currency, and balance.
-            </p>
-            <form method="POST" action="{{ url_for('journal_account_new') }}">
-                <div class="form-grid">
-                    <div><label>Account Name (optional)</label><input name="name" placeholder="e.g. FTMO 100K"></div>
-                    <div><label>MT5 Login Number *</label><input name="mt5_login" placeholder="52601220" required></div>
-                </div>
-                <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                    <i class="fas fa-plug"></i> Connect Account
-                </button>
-            </form>
-        </div>
 
         {# Service Installation Instructions #}
-        <div class="indicator-card">
+        <div class="indicator-card" style="max-width: 900px;">
             <div class="ind-head">
                 <div class="ind-head-text">
                     <h3><i class="fas fa-sync-alt"></i> How to Install the MT5 Sync Service</h3>
@@ -1513,7 +1535,7 @@
                     <span class="ver">{{ indicator_version or 'v1.0' }}</span>
                 </a>
             </div>
-            
+
             <ol class="steps-list">
                 <li><strong>Download</strong> the service file using the button above.</li>
                 <li>Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br>
@@ -1525,7 +1547,7 @@
                 <li>Verify in Experts tab (Ctrl+T): look for the green success message.</li>
                 <li>Right-click service → <strong>Add to Favorites</strong> for auto-start with MT5.</li>
             </ol>
-            
+
             <div class="troubleshoot-box">
                 <strong><i class="fas fa-exclamation-triangle"></i> Troubleshooting:</strong>
                 <ul>
