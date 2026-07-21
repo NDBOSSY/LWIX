@@ -639,6 +639,12 @@
         justify-content: center;
         margin-top: 0.05rem;
     }
+    .steps-list .step-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
     .steps-list code {
         background: var(--j-sunken);
         border: 1px solid var(--j-border);
@@ -647,6 +653,10 @@
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.76rem;
         color: var(--j-ink);
+        overflow-wrap: break-word;
+        word-break: break-all;
+        display: inline-block;
+        max-width: 100%;
     }
 
     .waiting-ea {
@@ -852,7 +862,8 @@
     }
 
     @media (max-width: 780px) {
-        .journal-wrapper { padding: 1rem 0.9rem 3rem; }
+        .journal-wrapper { padding: 1rem 0.9rem 3rem; overflow-x: hidden; }
+        .indicator-card, .steps-list, .steps-list li, .steps-list code { max-width: 100%; }
         .journal-header { margin-bottom: 1.1rem; }
         .journal-header h1 { font-size: 1.35rem; gap: 0.5rem; }
         .journal-header h1 i { font-size: 1.1rem; }
@@ -1049,37 +1060,37 @@
 
             <ol class="steps-list">
                 <li>
-                    <strong>Download the Service file</strong> using the button above. Save it to your computer.
+                    <span class="step-text"><strong>Download the Service file</strong> using the button above. Save it to your computer.</span>
                 </li>
                 <li>
-                    <strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5
+                    <span class="step-text"><strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5
                     <code>MQL5/Services</code> folder.<br>
-                    <small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small>
+                    <small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small></span>
                 </li>
                 <li>
-                    <strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click
+                    <span class="step-text"><strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click
                     <strong>Services</strong> and choose <strong>Refresh</strong>.<br>
-                    <small style="color: var(--j-muted);">Or simply restart MT5.</small>
+                    <small style="color: var(--j-muted);">Or simply restart MT5.</small></span>
                 </li>
                 <li>
-                    <strong>Allow WebRequest:</strong> In MT5, go to
+                    <span class="step-text"><strong>Allow WebRequest:</strong> In MT5, go to
                     <strong>Tools → Options → Expert Advisors</strong>, tick
                     <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br>
-                    <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>
+                    <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code></span>
                 </li>
                 <li>
-                    <strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>,
+                    <span class="step-text"><strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>,
                     find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it.
-                    Review the settings and click <strong>OK</strong>.
+                    Review the settings and click <strong>OK</strong>.</span>
                 </li>
                 <li>
-                    <strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the
+                    <span class="step-text"><strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the
                     <strong>Experts</strong> tab. You should see:<br>
-                    <code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code>
+                    <code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code></span>
                 </li>
                 <li>
-                    <strong>Auto-start (recommended):</strong> Right-click the service in Navigator →
-                    <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.
+                    <span class="step-text"><strong>Auto-start (recommended):</strong> Right-click the service in Navigator →
+                    <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.</span>
                 </li>
             </ol>
 
@@ -1534,15 +1545,15 @@
             </div>
 
             <ol class="steps-list">
-                <li><strong>Download</strong> the service file using the button above.</li>
-                <li>Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br>
-                    <small style="color: var(--j-muted);">File → Open Data Folder → MQL5 → Services</small></li>
-                <li>In Navigator (Ctrl+N), right-click <strong>Services</strong> → <strong>Refresh</strong>.</li>
-                <li>Go to <strong>Tools → Options → Expert Advisors</strong>, enable <strong>WebRequest</strong>, add:<br>
-                    <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code></li>
-                <li>In Navigator, <strong>double-click</strong> <strong>MT5JournalSync</strong> → <strong>OK</strong>.</li>
-                <li>Verify in Experts tab (Ctrl+T): look for the green success message.</li>
-                <li>Right-click service → <strong>Add to Favorites</strong> for auto-start with MT5.</li>
+                <li><span class="step-text"><strong>Download</strong> the service file using the button above.</span></li>
+                <li><span class="step-text">Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br>
+                    <small style="color: var(--j-muted);">File → Open Data Folder → MQL5 → Services</small></span></li>
+                <li><span class="step-text">In Navigator (Ctrl+N), right-click <strong>Services</strong> → <strong>Refresh</strong>.</span></li>
+                <li><span class="step-text">Go to <strong>Tools → Options → Expert Advisors</strong>, enable <strong>WebRequest</strong>, add:<br>
+                    <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code></span></li>
+                <li><span class="step-text">In Navigator, <strong>double-click</strong> <strong>MT5JournalSync</strong> → <strong>OK</strong>.</span></li>
+                <li><span class="step-text">Verify in Experts tab (Ctrl+T): look for the green success message.</span></li>
+                <li><span class="step-text">Right-click service → <strong>Add to Favorites</strong> for auto-start with MT5.</span></li>
             </ol>
 
             <div class="troubleshoot-box">
