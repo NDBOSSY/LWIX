@@ -1459,11 +1459,8 @@
             <h3><i class="fas fa-sync-alt"></i> MT5 Journal Sync Service</h3>
             <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;">
                 The sync service runs in MT5 background and automatically sends your trades to the journal every 5 minutes.
+                Scroll down for the download and install instructions.
             </p>
-            <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSyncService.ex5') }}" download style="margin-top: 0.75rem;">
-                <i class="fas fa-download"></i> Download Service
-                <span class="ver">{{ indicator_version or 'v1.0' }}</span>
-            </a>
         </div>
 
         {# Accounts list (left) + connect form (right), side by side #}
