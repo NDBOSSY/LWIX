@@ -43,9 +43,9 @@
     body { background: var(--bg); font-family: var(--font); }
 
     .dashboard-wrapper {
-        max-width: 1280px;
+        max-width: 1500px;
         margin: 0 auto;
-        padding: 2rem 1.75rem 4rem;
+        padding: 2rem 2rem 4rem;
         font-family: var(--font);
     }
 
@@ -76,30 +76,35 @@
 
     .kpi-card {
         border-radius: 14px;
-        padding: 0.85rem 1rem;
+        padding: 0.9rem 1.1rem;
         border: 1px solid rgba(255,255,255,0.5);
         transition: transform 0.15s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
     }
     .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-raised); }
     .kpi-card .icon-box {
-        width: 28px; height: 28px;
-        border-radius: 8px;
+        width: 42px; height: 42px;
+        border-radius: 11px;
         display: flex; align-items: center; justify-content: center;
         color: #fff;
-        font-size: 0.78rem;
-        margin-bottom: 0.55rem;
+        font-size: 1rem;
+        flex-shrink: 0;
+        margin-bottom: 0;
     }
+    .kpi-card .kpi-text { min-width: 0; }
     .kpi-card .label {
-        font-size: 0.62rem;
+        font-size: 0.64rem;
         font-weight: 700;
         letter-spacing: 0.05em;
         text-transform: uppercase;
-        opacity: 0.75;
-        margin-bottom: 0.1rem;
+        opacity: 0.8;
+        margin-bottom: 0.15rem;
     }
     .kpi-card .value {
         font-weight: 700;
-        font-size: 1rem;
+        font-size: 1.05rem;
         display: flex;
         align-items: center;
         gap: 0.35rem;
@@ -241,32 +246,37 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 2rem;
-        padding-top: 0;
+        gap: 0;
+        padding: 1.1rem 1.5rem;
     }
     .vps-row-left {
         display: flex;
         align-items: center;
         gap: 0.9rem;
-        min-width: 220px;
+        min-width: 260px;
+        padding-right: 1.5rem;
+        border-right: 1px solid var(--border);
+        margin-right: 1.5rem;
     }
     .vps-row-left .vps-icon {
-        width: 46px; height: 46px;
+        width: 44px; height: 44px;
         border-radius: 12px;
         background: linear-gradient(135deg, #4b8ef0, #2f6fe4);
         color: white;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.15rem;
+        font-size: 1.1rem;
         flex-shrink: 0;
     }
-    .vps-row-left strong { display: block; font-size: 0.92rem; color: var(--ink); }
-    .vps-row-left span { font-size: 0.78rem; color: var(--ink-muted); }
+    .vps-row-left .vps-title-line { display: flex; align-items: center; gap: 0.5rem; }
+    .vps-row-left strong { font-size: 0.92rem; color: var(--ink); font-weight: 700; }
+    .vps-row-left span.vps-sub { font-size: 0.78rem; color: var(--ink-muted); display:block; margin-top: 0.1rem; }
 
     .vps-fields {
         display: flex;
         flex-wrap: wrap;
-        gap: 2rem;
+        gap: 2.5rem;
         flex: 1;
+        justify-content: space-between;
     }
     .vps-field .f-label {
         font-size: 0.7rem;
@@ -577,34 +587,42 @@
     <div class="kpi-grid">
         <div class="kpi-card c-green">
             <div class="icon-box"><i class="fas fa-table-cells-large"></i></div>
-            <div class="label" data-en="Plan Level" data-nl="Planniveau">
-                {{ 'Planniveau' if current_language == 'nl' else 'Plan Level' }}
+            <div class="kpi-text">
+                <div class="label" data-en="Plan Level" data-nl="Planniveau">
+                    {{ 'Planniveau' if current_language == 'nl' else 'Plan Level' }}
+                </div>
+                <div class="value">{{ user.get_subscription_type_display(current_language) }}</div>
             </div>
-            <div class="value">{{ user.get_subscription_type_display(current_language) }}</div>
         </div>
         <div class="kpi-card c-purple">
             <div class="icon-box"><i class="fas fa-robot"></i></div>
-            <div class="label">EA's</div>
-            <div class="value">{{ ea_files|length if ea_files else 0 }} <span style="font-weight:500; font-size:0.85rem; opacity:0.8;" data-en="available" data-nl="beschikbaar">{{ 'beschikbaar' if current_language == 'nl' else 'available' }}</span></div>
+            <div class="kpi-text">
+                <div class="label">EA's</div>
+                <div class="value">{{ ea_files|length if ea_files else 0 }} <span style="font-weight:500; font-size:0.85rem; opacity:0.8;" data-en="available" data-nl="beschikbaar">{{ 'beschikbaar' if current_language == 'nl' else 'available' }}</span></div>
+            </div>
         </div>
         <div class="kpi-card c-amber">
             <div class="icon-box"><i class="fas fa-server"></i></div>
-            <div class="label" data-en="MT5 Accounts" data-nl="MT5-Accounts">
-                {{ 'MT5-Accounts' if current_language == 'nl' else 'MT5 Accounts' }}
+            <div class="kpi-text">
+                <div class="label" data-en="MT5 Accounts" data-nl="MT5-Accounts">
+                    {{ 'MT5-Accounts' if current_language == 'nl' else 'MT5 Accounts' }}
+                </div>
+                <div class="value">{{ max_accounts }} <span style="font-weight:500; font-size:0.85rem; opacity:0.8;" data-en="available" data-nl="beschikbaar">{{ 'beschikbaar' if current_language == 'nl' else 'available' }}</span></div>
             </div>
-            <div class="value">{{ max_accounts }} <span style="font-weight:500; font-size:0.85rem; opacity:0.8;" data-en="available" data-nl="beschikbaar">{{ 'beschikbaar' if current_language == 'nl' else 'available' }}</span></div>
         </div>
         <div class="kpi-card c-blue">
             <div class="icon-box"><i class="fas fa-cloud"></i></div>
-            <div class="label" data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</div>
-            <div class="value">
-                {% if user.vps_id and user.vps_status == 'active' %}
-                    <span class="dot-online"></span> <span data-en="ONLINE" data-nl="ONLINE">ONLINE</span>
-                {% elif user.vps_id and user.vps_status == 'provisioning' %}
-                    <span class="dot-off"></span> <span data-en="PROVISIONING" data-nl="BEZIG">{{ 'BEZIG' if current_language == 'nl' else 'PROVISIONING' }}</span>
-                {% else %}
-                    <span class="dot-off"></span> <span data-en="NO VPS" data-nl="GEEN VPS">{{ 'GEEN VPS' if current_language == 'nl' else 'NO VPS' }}</span>
-                {% endif %}
+            <div class="kpi-text">
+                <div class="label" data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</div>
+                <div class="value">
+                    {% if user.vps_id and user.vps_status == 'active' %}
+                        <span class="dot-online"></span> <span data-en="ONLINE" data-nl="ONLINE">ONLINE</span>
+                    {% elif user.vps_id and user.vps_status == 'provisioning' %}
+                        <span class="dot-off"></span> <span data-en="PROVISIONING" data-nl="BEZIG">{{ 'BEZIG' if current_language == 'nl' else 'PROVISIONING' }}</span>
+                    {% else %}
+                        <span class="dot-off"></span> <span data-en="NO VPS" data-nl="GEEN VPS">{{ 'GEEN VPS' if current_language == 'nl' else 'NO VPS' }}</span>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -647,28 +665,16 @@
 
     <!-- Forex VPS row panel -->
     <div class="panel vps-row-panel">
-        <div class="panel-head">
-            <div class="title">
-                <span class="title-icon" style="background: linear-gradient(135deg,#4b8ef0,#2f6fe4);"><i class="fas fa-server"></i></span>
-                <span data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</span>
-            </div>
-            {% if user.vps_id and user.vps_status == 'active' %}
-            <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> ONLINE</span>
-            {% elif user.vps_id and user.vps_status == 'provisioning' %}
-            <span class="pill pill-orange"><i class="fas fa-spinner fa-spin" style="font-size:6px;"></i> {{ 'BEZIG' if current_language == 'nl' else 'PROVISIONING' }}</span>
-            {% elif user.vps_id and user.vps_status == 'terminated' %}
-            <span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'BEËINDIGD' if current_language == 'nl' else 'TERMINATED' }}</span>
-            {% else %}
-            <span class="pill pill-neutral"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'GEEN VPS' if current_language == 'nl' else 'NO VPS' }}</span>
-            {% endif %}
-        </div>
         <div class="panel-body">
             {% if user.vps_id and user.vps_status == 'active' %}
             <div class="vps-row-left">
                 <div class="vps-icon"><i class="fas fa-server"></i></div>
                 <div>
-                    <strong data-en="Forex VPS" data-nl="Forex VPS">{{ 'Forex VPS' if current_language == 'nl' else 'Forex VPS' }}</strong>
-                    <span data-en="Running 24/7 for your EAs" data-nl="Draait 24/7 voor jouw EA's">
+                    <div class="vps-title-line">
+                        <strong data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</strong>
+                        <span class="pill pill-green"><i class="fas fa-circle" style="font-size:6px;"></i> ONLINE</span>
+                    </div>
+                    <span class="vps-sub" data-en="Running 24/7 for your EAs" data-nl="Draait 24/7 voor jouw EA's">
                         {{ "Draait 24/7 voor jouw EA's" if current_language == 'nl' else 'Running 24/7 for your EAs' }}
                     </span>
                 </div>
@@ -701,25 +707,43 @@
                 </div>
             </div>
             {% elif user.vps_id and user.vps_status == 'provisioning' %}
-            <div class="vps-no-vps">
-                <i class="fas fa-spinner fa-spin" style="color:var(--amber);"></i>
-                <span data-en="Your VPS is being provisioned. This usually takes 5-10 minutes." data-nl="Je VPS wordt aangemaakt. Dit duurt meestal 5-10 minuten.">
-                    {{ 'Je VPS wordt aangemaakt. Dit duurt meestal 5-10 minuten.' if current_language == 'nl' else 'Your VPS is being provisioned. This usually takes 5-10 minutes.' }}
-                </span>
+            <div class="vps-row-left" style="border-right:none; margin-right:0;">
+                <div class="vps-icon" style="background: linear-gradient(135deg, #f0b04b, #e2952f);"><i class="fas fa-server"></i></div>
+                <div>
+                    <div class="vps-title-line">
+                        <strong data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</strong>
+                        <span class="pill pill-orange"><i class="fas fa-spinner fa-spin" style="font-size:6px;"></i> {{ 'BEZIG' if current_language == 'nl' else 'PROVISIONING' }}</span>
+                    </div>
+                    <span class="vps-sub" data-en="Your VPS is being provisioned. This usually takes 5-10 minutes." data-nl="Je VPS wordt aangemaakt. Dit duurt meestal 5-10 minuten.">
+                        {{ 'Je VPS wordt aangemaakt. Dit duurt meestal 5-10 minuten.' if current_language == 'nl' else 'Your VPS is being provisioned. This usually takes 5-10 minutes.' }}
+                    </span>
+                </div>
             </div>
             {% elif user.vps_id and user.vps_status == 'terminated' %}
-            <div class="vps-no-vps">
-                <i class="fas fa-info-circle"></i>
-                <span data-en="Your VPS has been terminated because your subscription ended." data-nl="Je VPS is beëindigd omdat je abonnement is verlopen.">
-                    {{ 'Je VPS is beëindigd omdat je abonnement is verlopen.' if current_language == 'nl' else 'Your VPS has been terminated because your subscription ended.' }}
-                </span>
+            <div class="vps-row-left" style="border-right:none; margin-right:0;">
+                <div class="vps-icon" style="background: var(--ink-soft);"><i class="fas fa-server"></i></div>
+                <div>
+                    <div class="vps-title-line">
+                        <strong data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</strong>
+                        <span class="pill pill-red"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'BEËINDIGD' if current_language == 'nl' else 'TERMINATED' }}</span>
+                    </div>
+                    <span class="vps-sub" data-en="Your VPS has been terminated because your subscription ended." data-nl="Je VPS is beëindigd omdat je abonnement is verlopen.">
+                        {{ 'Je VPS is beëindigd omdat je abonnement is verlopen.' if current_language == 'nl' else 'Your VPS has been terminated because your subscription ended.' }}
+                    </span>
+                </div>
             </div>
             {% else %}
-            <div class="vps-no-vps">
-                <i class="fas fa-cloud"></i>
-                <span data-en="No VPS provisioned yet. A Forex VPS is included with your membership." data-nl="Nog geen VPS toegewezen. Een Forex VPS is inbegrepen bij je abonnement.">
-                    {{ 'Nog geen VPS toegewezen. Een Forex VPS is inbegrepen bij je abonnement.' if current_language == 'nl' else 'No VPS provisioned yet. A Forex VPS is included with your membership.' }}
-                </span>
+            <div class="vps-row-left" style="border-right:none; margin-right:0;">
+                <div class="vps-icon" style="background: var(--ink-soft);"><i class="fas fa-cloud"></i></div>
+                <div>
+                    <div class="vps-title-line">
+                        <strong data-en="Forex VPS" data-nl="Forex VPS">Forex VPS</strong>
+                        <span class="pill pill-neutral"><i class="fas fa-circle" style="font-size:6px;"></i> {{ 'GEEN VPS' if current_language == 'nl' else 'NO VPS' }}</span>
+                    </div>
+                    <span class="vps-sub" data-en="No VPS provisioned yet. A Forex VPS is included with your membership." data-nl="Nog geen VPS toegewezen. Een Forex VPS is inbegrepen bij je abonnement.">
+                        {{ 'Nog geen VPS toegewezen. Een Forex VPS is inbegrepen bij je abonnement.' if current_language == 'nl' else 'No VPS provisioned yet. A Forex VPS is included with your membership.' }}
+                    </span>
+                </div>
             </div>
             {% endif %}
         </div>
