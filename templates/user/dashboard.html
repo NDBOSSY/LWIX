@@ -333,35 +333,51 @@
     }
     @media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
 
+    .panel-equal-height {
+        display: flex;
+        flex-direction: column;
+    }
+    .panel-equal-height .panel-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
     /* EA list */
+    .ea-list-scrollable {
+        max-height: 210px;
+        overflow-y: auto;
+        margin-bottom: 0.5rem;
+        flex: 1;
+    }
     .ea-list-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0.7rem 0;
+        padding: 0.5rem 0;
         border-bottom: 1px solid var(--border);
         gap: 0.75rem;
     }
     .ea-list-row:last-child { border-bottom: none; }
-    .ea-list-row .file-cell { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+    .ea-list-row .file-cell { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
     .ea-list-row .file-icon {
-        width: 32px; height: 32px;
-        border-radius: 9px;
+        width: 28px; height: 28px;
+        border-radius: 8px;
         background: var(--accent-light);
         color: var(--accent);
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
     }
-    .ea-list-row .fname { font-weight: 600; font-size: 0.86rem; color: var(--ink-secondary); }
-    .ea-list-row .fver { font-size: 0.72rem; color: var(--ink-soft); font-family: var(--mono); }
+    .ea-list-row .fname { font-weight: 600; font-size: 0.82rem; color: var(--ink-secondary); }
+    .ea-list-row .fver { font-size: 0.7rem; color: var(--ink-soft); font-family: var(--mono); }
 
     .table-btn {
-        display: inline-flex; align-items: center; gap: 0.35rem;
-        padding: 0.4rem 0.95rem;
-        border-radius: 9px;
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.35rem 0.8rem;
+        border-radius: 8px;
         font-weight: 600;
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         border: 1.5px solid var(--accent);
         background: var(--surface);
         color: var(--accent);
@@ -374,10 +390,10 @@
     .table-btn.disabled { opacity: 0.5; pointer-events: none; border-color: var(--border-strong); color: var(--ink-soft); }
 
     .panel-footnote {
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         color: var(--ink-soft);
-        margin-top: 0.9rem;
-        padding-top: 0.9rem;
+        margin-top: 0.6rem;
+        padding-top: 0.6rem;
         border-top: 1px solid var(--border);
     }
     .panel-footnote a { color: var(--accent); font-weight: 600; text-decoration: none; }
@@ -772,7 +788,7 @@
 
     <!-- EA Portfolio + License -->
     <div class="grid-2">
-        <div class="panel">
+        <div class="panel panel-equal-height">
             <div class="panel-head">
                 <div class="title">
                     <span class="title-icon" style="background: linear-gradient(135deg,#9b7bea,#7c4fe0);"><i class="fas fa-robot"></i></span>
@@ -781,6 +797,7 @@
             </div>
             <div class="panel-body">
                 {% if ea_files %}
+                <div class="ea-list-scrollable">
                 {% for ea in ea_files %}
                 <div class="ea-list-row">
                     <div class="file-cell">
@@ -797,6 +814,7 @@
                     {% endif %}
                 </div>
                 {% endfor %}
+                </div>
                 <div class="panel-footnote" data-en="View and download your EAs and updates." data-nl="Bekijk en download jouw EA's en updates.">
                     {{ "Bekijk en download jouw EA's en updates." if current_language == 'nl' else 'View and download your EAs and updates.' }}
                     {% if license and ea_files|length > 1 %}
@@ -814,7 +832,7 @@
             </div>
         </div>
 
-        <div class="panel">
+        <div class="panel panel-equal-height">
             <div class="panel-head">
                 <div class="title">
                     <span class="title-icon" style="background: linear-gradient(135deg,#4b8ef0,#2f6fe4);"><i class="fas fa-key"></i></span>
