@@ -1057,113 +1057,23 @@
             </div>
 
             <ol class="steps-list">
-                <li>
-                    <span class="step-text">
-                        {% if current_language == 'nl' %}
-                        <strong>Download het Service-bestand</strong> met de knop hierboven. Sla het op je computer op.
-                        {% else %}
-                        <strong>Download the Service file</strong> using the button above. Save it to your computer.
-                        {% endif %}
-                    </span>
-                </li>
-                <li>
-                    <span class="step-text">
-                        {% if current_language == 'nl' %}
-                        <strong>Installeer in MT5:</strong> Kopieer het <code>.ex5</code> bestand naar je MT5
-                        <code>MQL5/Services</code> map.<br>
-                        <small style="color: var(--j-muted);">In MT5: Bestand → Gegevensmap openen → MQL5 → Services</small>
-                        {% else %}
-                        <strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5
-                        <code>MQL5/Services</code> folder.<br>
-                        <small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small>
-                        {% endif %}
-                    </span>
-                </li>
-                <li>
-                    <span class="step-text">
-                        {% if current_language == 'nl' %}
-                        <strong>Vernieuw MT5:</strong> Klik in het Navigator-paneel (Ctrl+N) met de rechtermuisknop op
-                        <strong>Services</strong> en kies <strong>Vernieuwen</strong>.<br>
-                        <small style="color: var(--j-muted);">Of herstart MT5.</small>
-                        {% else %}
-                        <strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click
-                        <strong>Services</strong> and choose <strong>Refresh</strong>.<br>
-                        <small style="color: var(--j-muted);">Or simply restart MT5.</small>
-                        {% endif %}
-                    </span>
-                </li>
-                <li>
-                    <span class="step-text">
-                        {% if current_language == 'nl' %}
-                        <strong>Sta WebRequest toe:</strong> Ga in MT5 naar
-                        <strong>Tools → Opties → Expert Advisors</strong>, vink
-                        <strong>"WebRequest toestaan voor vermelde URL"</strong> aan, en voeg exact toe:<br>
-                        <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>
-                        {% else %}
-                        <strong>Allow WebRequest:</strong> In MT5, go to
-                        <strong>Tools → Options → Expert Advisors</strong>, tick
-                        <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br>
-                        <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>
-                        {% endif %}
-                    </span>
-                </li>
-                <li>
-                    <span class="step-text">
-                        {% if current_language == 'nl' %}
-                        <strong>Start de Service:</strong> Vouw in het Navigator-paneel <strong>Services</strong> uit,
-                        zoek <strong>MT5JournalSyncService</strong> en <strong>dubbelklik</strong> erop.
-                        Controleer de instellingen en klik op <strong>OK</strong>.
-                        {% else %}
-                        <strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>,
-                        find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it.
-                        Review the settings and click <strong>OK</strong>.
-                        {% endif %}
-                    </span>
-                </li>
-                <li>
-                    <span class="step-text">
-                        {% if current_language == 'nl' %}
-                        <strong>Controleer of het draait:</strong> Druk op Ctrl+T om de Terminal te openen, klik op het
-                        <strong>Experts</strong> tabblad. Je zou moeten zien:<br>
-                        <code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code>
-                        {% else %}
-                        <strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the
-                        <strong>Experts</strong> tab. You should see:<br>
-                        <code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code>
-                        {% endif %}
-                    </span>
-                </li>
-                <li>
-                    <span class="step-text">
-                        {% if current_language == 'nl' %}
-                        <strong>Automatisch starten (aanbevolen):</strong> Klik met de rechtermuisknop op de service in Navigator →
-                        <strong>Toevoegen aan Favorieten</strong>. Het start automatisch wanneer je MT5 opent.
-                        {% else %}
-                        <strong>Auto-start (recommended):</strong> Right-click the service in Navigator →
-                        <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.
-                        {% endif %}
-                    </span>
-                </li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Download het Service-bestand</strong> met de knop hierboven. Sla het op je computer op.{% else %}<strong>Download the Service file</strong> using the button above. Save it to your computer.{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Installeer in MT5:</strong> Kopieer het <code>.ex5</code> bestand naar je MT5 <code>MQL5/Services</code> map.<br><small style="color: var(--j-muted);">In MT5: Bestand → Gegevensmap openen → MQL5 → Services</small>{% else %}<strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br><small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small>{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Vernieuw MT5:</strong> Klik in het Navigator-paneel (Ctrl+N) met de rechtermuisknop op <strong>Services</strong> en kies <strong>Vernieuwen</strong>.<br><small style="color: var(--j-muted);">Of herstart MT5.</small>{% else %}<strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click <strong>Services</strong> and choose <strong>Refresh</strong>.<br><small style="color: var(--j-muted);">Or simply restart MT5.</small>{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Sta WebRequest toe:</strong> Ga in MT5 naar <strong>Tools → Opties → Expert Advisors</strong>, vink <strong>"WebRequest toestaan voor vermelde URL"</strong> aan, en voeg exact toe:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% else %}<strong>Allow WebRequest:</strong> In MT5, go to <strong>Tools → Options → Expert Advisors</strong>, tick <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Start de Service:</strong> Vouw in het Navigator-paneel <strong>Services</strong> uit, zoek <strong>MT5JournalSyncService</strong> en <strong>dubbelklik</strong> erop. Controleer de instellingen en klik op <strong>OK</strong>.{% else %}<strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>, find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it. Review the settings and click <strong>OK</strong>.{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Controleer of het draait:</strong> Druk op Ctrl+T om de Terminal te openen, klik op het <strong>Experts</strong> tabblad. Je zou moeten zien:<br><code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code>{% else %}<strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the <strong>Experts</strong> tab. You should see:<br><code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code>{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Automatisch starten (aanbevolen):</strong> Klik met de rechtermuisknop op de service in Navigator → <strong>Toevoegen aan Favorieten</strong>. Het start automatisch wanneer je MT5 opent.{% else %}<strong>Auto-start (recommended):</strong> Right-click the service in Navigator → <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.{% endif %}</span></li>
             </ol>
 
             <div class="troubleshoot-box">
                 <strong><i class="fas fa-exclamation-triangle"></i> <span data-en="Troubleshooting:" data-nl="Probleemoplossing:">{{ 'Probleemoplossing:' if current_language == 'nl' else 'Troubleshooting:' }}</span></strong>
                 <ul>
-                    <li data-en="<strong>HTTP -1 error?</strong> Check Step 4 — the WebRequest URL must be added exactly as shown above." data-nl="<strong>HTTP -1 fout?</strong> Controleer Stap 4 — de WebRequest URL moet exact worden toegevoegd zoals hierboven getoond.">
-                        {% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer Stap 4 — de WebRequest URL moet exact worden toegevoegd zoals hierboven getoond.{% else %}<strong>HTTP -1 error?</strong> Check Step 4 — the WebRequest URL must be added exactly as shown above.{% endif %}
-                    </li>
-                    <li data-en="<strong>No trades syncing?</strong> Make sure you completed Step 1 (connect your MT5 account above)." data-nl="<strong>Geen trades synchroniseren?</strong> Zorg dat je Stap 1 hebt voltooid (verbind je MT5-account hierboven).">
-                        {% if current_language == 'nl' %}<strong>Geen trades synchroniseren?</strong> Zorg dat je Stap 1 hebt voltooid (verbind je MT5-account hierboven).{% else %}<strong>No trades syncing?</strong> Make sure you completed Step 1 (connect your MT5 account above).{% endif %}
-                    </li>
-                    <li data-en="<strong>Service not in Navigator?</strong> Check Step 2 — the file must be in the <code>MQL5/Services</code> folder, then refresh." data-nl="<strong>Service niet in Navigator?</strong> Controleer Stap 2 — het bestand moet in de <code>MQL5/Services</code> map staan, vernieuw daarna.">
-                        {% if current_language == 'nl' %}<strong>Service niet in Navigator?</strong> Controleer Stap 2 — het bestand moet in de <code>MQL5/Services</code> map staan, vernieuw daarna.{% else %}<strong>Service not in Navigator?</strong> Check Step 2 — the file must be in the <code>MQL5/Services</code> folder, then refresh.{% endif %}
-                    </li>
-                    <li data-en="<strong>Service stopped?</strong> Double-click it again in Navigator to restart." data-nl="<strong>Service gestopt?</strong> Dubbelklik er opnieuw op in Navigator om te herstarten.">
-                        {% if current_language == 'nl' %}<strong>Service gestopt?</strong> Dubbelklik er opnieuw op in Navigator om te herstarten.{% else %}<strong>Service stopped?</strong> Double-click it again in Navigator to restart.{% endif %}
-                    </li>
-                    <li data-en="<strong>Still having issues?</strong> Contact support for help." data-nl="<strong>Nog steeds problemen?</strong> Neem contact op met support voor hulp.">
-                        {% if current_language == 'nl' %}<strong>Nog steeds problemen?</strong> Neem contact op met support voor hulp.{% else %}<strong>Still having issues?</strong> Contact support for help.{% endif %}
-                    </li>
+                    <li>{% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer Stap 4 — de WebRequest URL moet exact worden toegevoegd zoals hierboven getoond.{% else %}<strong>HTTP -1 error?</strong> Check Step 4 — the WebRequest URL must be added exactly as shown above.{% endif %}</li>
+                    <li>{% if current_language == 'nl' %}<strong>Geen trades synchroniseren?</strong> Zorg dat je Stap 1 hebt voltooid (verbind je MT5-account hierboven).{% else %}<strong>No trades syncing?</strong> Make sure you completed Step 1 (connect your MT5 account above).{% endif %}</li>
+                    <li>{% if current_language == 'nl' %}<strong>Service niet in Navigator?</strong> Controleer Stap 2 — het bestand moet in de <code>MQL5/Services</code> map staan, vernieuw daarna.{% else %}<strong>Service not in Navigator?</strong> Check Step 2 — the file must be in the <code>MQL5/Services</code> folder, then refresh.{% endif %}</li>
+                    <li>{% if current_language == 'nl' %}<strong>Service gestopt?</strong> Dubbelklik er opnieuw op in Navigator om te herstarten.{% else %}<strong>Service stopped?</strong> Double-click it again in Navigator to restart.{% endif %}</li>
+                    <li>{% if current_language == 'nl' %}<strong>Nog steeds problemen?</strong> Neem contact op met support voor hulp.{% else %}<strong>Still having issues?</strong> Contact support for help.{% endif %}</li>
                 </ul>
             </div>
         </div>
@@ -1497,7 +1407,7 @@
             </div>
             <div class="panel-body">
                 <div class="cal-grid">
-                    {% for dow_en, dow_nl in [('Mon','Ma'),('Tue','Di'),('Wed','Wo'),('Thu','Do'),('Fri','Vr'),('Sat','Za'),('Sun','Zo') %}<div class="cal-dow">{{ dow_nl if current_language == 'nl' else dow_en }}</div>{% endfor %}
+                    {% for dow_pair in [('Mon','Ma'),('Tue','Di'),('Wed','Wo'),('Thu','Do'),('Fri','Vr'),('Sat','Za'),('Sun','Zo') %}{% set dow_en = dow_pair[0] %}{% set dow_nl = dow_pair[1] %}<div class="cal-dow">{{ dow_nl if current_language == 'nl' else dow_en }}</div>{% endfor %}
                     {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
                     {% for day_num in range(1, cal_days_in_month + 1) %}
                         {% set key = '%04d-%02d-%02d'|format(cal_year, cal_month, day_num) %}
@@ -1620,9 +1530,9 @@
             <div class="troubleshoot-box">
                 <strong><i class="fas fa-exclamation-triangle"></i> <span data-en="Troubleshooting:" data-nl="Probleemoplossing:">{{ 'Probleemoplossing:' if current_language == 'nl' else 'Troubleshooting:' }}</span></strong>
                 <ul>
-                    <li data-en="<strong>HTTP -1 error?</strong> Check WebRequest URL is added exactly as shown." data-nl="<strong>HTTP -1 fout?</strong> Controleer of WebRequest URL exact is toegevoegd zoals getoond.">{% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer of WebRequest URL exact is toegevoegd zoals getoond.{% else %}<strong>HTTP -1 error?</strong> Check WebRequest URL is added exactly as shown.{% endif %}</li>
-                    <li data-en="<strong>Service not found?</strong> Make sure file is in <code>MQL5/Services</code> and you refreshed." data-nl="<strong>Service niet gevonden?</strong> Zorg dat het bestand in <code>MQL5/Services</code> staat en je hebt vernieuwd.">{% if current_language == 'nl' %}<strong>Service niet gevonden?</strong> Zorg dat het bestand in <code>MQL5/Services</code> staat en je hebt vernieuwd.{% else %}<strong>Service not found?</strong> Make sure file is in <code>MQL5/Services</code> and you refreshed.{% endif %}</li>
-                    <li data-en="<strong>No sync?</strong> Make sure you added your MT5 login above first." data-nl="<strong>Geen sync?</strong> Zorg dat je eerst je MT5-login hierboven hebt toegevoegd.">{% if current_language == 'nl' %}<strong>Geen sync?</strong> Zorg dat je eerst je MT5-login hierboven hebt toegevoegd.{% else %}<strong>No sync?</strong> Make sure you added your MT5 login above first.{% endif %}</li>
+                    <li>{% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer of WebRequest URL exact is toegevoegd zoals getoond.{% else %}<strong>HTTP -1 error?</strong> Check WebRequest URL is added exactly as shown.{% endif %}</li>
+                    <li>{% if current_language == 'nl' %}<strong>Service niet gevonden?</strong> Zorg dat het bestand in <code>MQL5/Services</code> staat en je hebt vernieuwd.{% else %}<strong>Service not found?</strong> Make sure file is in <code>MQL5/Services</code> and you refreshed.{% endif %}</li>
+                    <li>{% if current_language == 'nl' %}<strong>Geen sync?</strong> Zorg dat je eerst je MT5-login hierboven hebt toegevoegd.{% else %}<strong>No sync?</strong> Make sure you added your MT5 login above first.{% endif %}</li>
                 </ul>
             </div>
         </div>
