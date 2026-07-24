@@ -32,59 +32,12 @@
         --j-cal-neg-text: #8a1538;
     }
 
-    .journal-wrapper.theme-dark {
-        --j-bg: #0e1318;
-        --j-surface: #151b22;
-        --j-sunken: #10151b;
-        --j-border: #232b34;
-        --j-border-strong: #303a45;
-        --j-ink: #eef2f6;
-        --j-ink-secondary: #d6dde4;
-        --j-muted: #8a97a3;
-        --j-soft: #5e6b76;
-        --j-green: #35c281;
-        --j-green-bg: rgba(53,194,129,0.12);
-        --j-red: #ef5b48;
-        --j-red-bg: rgba(239,91,72,0.12);
-        --j-accent: #5b84f2;
-        --j-accent-bg: rgba(91,132,242,0.14);
-        --j-amber: #e0a437;
-        --j-amber-bg: rgba(224,164,55,0.12);
-        --j-violet: #a488f5;
-        --j-violet-bg: rgba(164,136,245,0.14);
-        --j-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.3);
-        background: var(--j-bg);
-    }
-    .journal-wrapper.theme-dark .account-bar select,
-    .journal-wrapper.theme-dark .filter-bar input,
-    .journal-wrapper.theme-dark .filter-bar select,
-    .journal-wrapper.theme-dark .form-grid input,
-    .journal-wrapper.theme-dark .acc-card,
-    .journal-wrapper.theme-dark .new-form,
-    .journal-wrapper.theme-dark .acc-btn,
-    .journal-wrapper.theme-dark .btn-clear,
-    .journal-wrapper.theme-dark .cal-nav button {
-        background: var(--j-surface);
-        color: var(--j-ink);
-    }
-    .journal-wrapper.theme-dark .cal-day.neutral {
-        background: var(--j-sunken);
-        color: var(--j-ink);
-    }
-    .journal-wrapper.theme-dark .badge.buy { background: var(--j-green-bg); color: var(--j-green); }
-    .journal-wrapper.theme-dark .badge.sell { background: var(--j-red-bg); color: var(--j-red); }
-    .journal-wrapper.theme-dark .badge.neutral { background: var(--j-accent-bg); color: var(--j-accent); }
-    .journal-wrapper.theme-dark .toast { background: #f3f5f7; color: #10151b; }
-    .journal-wrapper.theme-dark .modal-box { background: var(--j-surface); color: var(--j-ink); }
-    .journal-wrapper.theme-dark .info-note { background: var(--j-accent-bg); border-color: #2a3a63; color: #b9c6ee; }
-
     .journal-wrapper {
         max-width: 1400px;
         margin: 0 auto;
         padding: 1.5rem 1.75rem 4rem;
         font-family: 'Inter', sans-serif;
         color: var(--j-ink);
-        transition: background 0.2s ease;
     }
 
     .journal-header {
@@ -123,39 +76,6 @@
         transition: color 0.15s;
     }
     .back-link:hover { color: var(--j-ink); }
-
-    .theme-toggle {
-        position: relative;
-        width: 40px;
-        height: 22px;
-        border-radius: 20px;
-        border: 1px solid var(--j-border-strong);
-        background: var(--j-sunken);
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        padding: 2px;
-        transition: background 0.2s ease, border-color 0.2s ease;
-        flex-shrink: 0;
-    }
-    .theme-toggle .knob {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: var(--j-surface);
-        border: 1px solid var(--j-border-strong);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.55rem;
-        color: var(--j-soft);
-        transition: transform 0.2s ease;
-        transform: translateX(0);
-    }
-    .journal-wrapper.theme-dark .theme-toggle .knob {
-        transform: translateX(18px);
-    }
-    .theme-toggle:hover { border-color: var(--j-soft); }
 
     .account-bar {
         background: var(--j-sunken);
@@ -239,12 +159,6 @@
     .kpi-card.color-4 { background: linear-gradient(135deg, #fce7f3, #fbcfe8); border-color: #f9a8d4; }
     .kpi-card.color-5 { background: linear-gradient(135deg, #e8f0fe, #d2e3fc); border-color: #a8c8f8; }
     .kpi-card.color-6 { background: linear-gradient(135deg, #f2edfe, #e0d6fc); border-color: #c4b5fd; }
-    .journal-wrapper.theme-dark .kpi-card.color-1 { background: linear-gradient(135deg, #1a2140, #171d38); border-color: #2c3564; }
-    .journal-wrapper.theme-dark .kpi-card.color-2 { background: linear-gradient(135deg, #0f2b23, #0c241d); border-color: #1c4536; }
-    .journal-wrapper.theme-dark .kpi-card.color-3 { background: linear-gradient(135deg, #3a2c10, #33260d); border-color: #5c4416; }
-    .journal-wrapper.theme-dark .kpi-card.color-4 { background: linear-gradient(135deg, #3a1a2a, #331624); border-color: #5c2a45; }
-    .journal-wrapper.theme-dark .kpi-card.color-5 { background: linear-gradient(135deg, #142238, #101c30); border-color: #23385c; }
-    .journal-wrapper.theme-dark .kpi-card.color-6 { background: linear-gradient(135deg, #241a3a, #1e1633); border-color: #392a5c; }
     .kpi-card .lbl {
         font-size: 0.64rem;
         font-weight: 700;
@@ -909,7 +823,6 @@
         .btn-download { justify-content: center; }
         .form-grid { gap: 0.6rem; }
         .modal-box { padding: 1.1rem; width: 94%; }
-        .theme-toggle { width: 38px; height: 21px; }
         .setup-guide .steps { grid-template-columns: 1fr; }
         .accounts-flex { gap: 0.9rem; }
     }
@@ -935,9 +848,6 @@
     <div class="journal-header">
         <h1><i class="fas fa-chart-line"></i> <span data-en="Trading Journal" data-nl="Trading Journal">{{ 'Trading Journal' if current_language == 'nl' else 'Trading Journal' }}</span></h1>
         <div class="header-right">
-            <button type="button" class="theme-toggle" id="themeToggle" title="{{ 'Wissel donker/licht thema' if current_language == 'nl' else 'Toggle dark / light theme' }}" aria-label="{{ 'Wissel donker en licht thema' if current_language == 'nl' else 'Toggle dark and light theme' }}">
-                <span class="knob"><i class="fas fa-moon" id="themeIcon"></i></span>
-            </button>
             <a href="{{ url_for('user_dashboard') }}" class="back-link">
                 <i class="fas fa-arrow-left"></i> <span data-en="Back to Dashboard" data-nl="Terug naar Dashboard">{{ 'Terug naar Dashboard' if current_language == 'nl' else 'Back to Dashboard' }}</span>
             </a>
@@ -1589,33 +1499,6 @@
         })
         .catch(function(error) { console.error('Language toggle failed:', error); });
     }
-
-    // THEME TOGGLE
-    (function() {
-        var wrapper = document.getElementById('journalWrapper');
-        var toggle = document.getElementById('themeToggle');
-        var icon = document.getElementById('themeIcon');
-        if (!wrapper || !toggle) return;
-        var STORAGE_KEY = 'journal-theme';
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                wrapper.classList.add('theme-dark');
-                if (icon) { icon.classList.remove('fa-moon'); icon.classList.add('fa-sun'); }
-            } else {
-                wrapper.classList.remove('theme-dark');
-                if (icon) { icon.classList.remove('fa-sun'); icon.classList.add('fa-moon'); }
-            }
-        }
-        var saved = null;
-        try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
-        if (!saved) saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        applyTheme(saved);
-        toggle.addEventListener('click', function() {
-            var isDark = wrapper.classList.contains('theme-dark');
-            applyTheme(isDark ? 'light' : 'dark');
-            try { localStorage.setItem(STORAGE_KEY, isDark ? 'light' : 'dark'); } catch (e) {}
-        });
-    })();
 
     // WEEKLY P/L CHART
     {% if active_tab == 'dashboard' and weekly_bars %}
