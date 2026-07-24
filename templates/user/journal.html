@@ -15,10 +15,6 @@
         --j-ink-secondary: #1e2a36;
         --j-muted: #5b6f7e;
         --j-soft: #96a6b5;
-        --j-green: #0c8b51;
-        --j-green-bg: #e7f4ed;
-        --j-red: #c8311e;
-        --j-red-bg: #fcebe8;
         --j-accent: #1e54e5;
         --j-accent-bg: #eaf0fd;
         --j-amber: #a86200;
@@ -26,10 +22,8 @@
         --j-violet: #6d3ce0;
         --j-violet-bg: #f2edfe;
         --j-shadow: 0 2px 6px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04);
-        --j-cal-pos-bg: rgb(63,191,179);
-        --j-cal-neg-bg: rgb(255,178,199);
-        --j-cal-pos-text: #ffffff;
-        --j-cal-neg-text: #8a1538;
+        --j-cal-pos-bg: #3FBFB3;
+        --j-cal-neg-bg: #545454;
     }
 
     .journal-wrapper {
@@ -173,9 +167,8 @@
         margin-top: 0.2rem;
     }
     .kpi-card .sub { font-size: 0.68rem; color: var(--j-muted); margin-top: 0.1rem; }
-    .kpi-card.pos .val { color: var(--j-green); }
-    .kpi-card.neg .val { color: var(--j-red); }
-    .kpi-card.accent .val { color: var(--j-accent); }
+    .kpi-card.pos .val { color: #3FBFB3; }
+    .kpi-card.neg .val { color: #545454; }
 
     .charts-row {
         display: grid;
@@ -298,10 +291,10 @@
         background: var(--j-cal-pos-bg);
         border-color: #ffffff;
     }
-    .cal-day.pos .n { color: var(--j-cal-pos-text); }
-    .cal-day.pos .p { color: var(--j-cal-pos-text); font-weight: 700; }
+    .cal-day.pos .n { color: #ffffff; }
+    .cal-day.pos .p { color: #ffffff; font-weight: 700; }
     .cal-day.neg {
-        background: #545454;
+        background: var(--j-cal-neg-bg);
         border-color: #ffffff;
     }
     .cal-day.neg .n { color: #ffffff; }
@@ -319,8 +312,8 @@
     .stat-row:last-child { border-bottom: none; }
     .stat-row .k { color: var(--j-muted); }
     .stat-row .v { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-    .stat-row .v.pos { color: var(--j-green); }
-    .stat-row .v.neg { color: var(--j-red); }
+    .stat-row .v.pos { color: #3FBFB3; }
+    .stat-row .v.neg { color: #545454; }
 
     .jr-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
     .jr-table thead th {
@@ -343,12 +336,12 @@
     }
     .jr-table tbody tr:last-child td { border-bottom: none; }
     .jr-table tbody tr:hover { background: var(--j-sunken); }
-    .jr-table td.pos { color: var(--j-green); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-    .jr-table td.neg { color: var(--j-red); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .jr-table td.pos { color: #3FBFB3; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .jr-table td.neg { color: #545454; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 
     .badge { font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 20px; }
-    .badge.buy { background: var(--j-green-bg); color: var(--j-green); }
-    .badge.sell { background: var(--j-red-bg); color: var(--j-red); }
+    .badge.buy { background: rgba(63, 191, 179, 0.15); color: #3FBFB3; }
+    .badge.sell { background: rgba(84, 84, 84, 0.15); color: #545454; }
     .badge.neutral { background: var(--j-accent-bg); color: var(--j-accent); }
 
     .filter-bar {
@@ -433,7 +426,7 @@
     .acc-btn:hover { border-color: var(--j-ink); }
     .acc-btn.primary { background: var(--j-accent); border-color: var(--j-accent); color: #fff; }
     .acc-btn.primary:hover { background: #1642c9; }
-    .acc-btn.danger:hover { background: var(--j-red-bg); border-color: var(--j-red); color: var(--j-red); }
+    .acc-btn.danger:hover { background: #fcebe8; border-color: #c8311e; color: #c8311e; }
 
     .new-form {
         border: 1px solid var(--j-border);
@@ -458,17 +451,6 @@
         border: 1px solid var(--j-border);
         border-radius: 8px;
         font-size: 0.85rem;
-    }
-
-    .info-note {
-        background: var(--j-accent-bg);
-        border: 1px solid #d7ddff;
-        border-radius: 10px;
-        padding: 0.8rem 1rem;
-        font-size: 0.78rem;
-        color: #2b3d8f;
-        margin-top: 1rem;
-        line-height: 1.5;
     }
 
     .indicator-card {
@@ -616,8 +598,6 @@
     }
     .detail-value { font-size: 0.82rem; font-weight: 600; color: var(--j-ink-secondary); }
     .detail-value.mono { font-family: 'JetBrains Mono', monospace; }
-    .detail-value.pos { color: var(--j-green); }
-    .detail-value.neg { color: var(--j-red); }
 
     .modal-overlay {
         display: none;
@@ -658,8 +638,8 @@
         pointer-events: none;
     }
     .toast.show { opacity: 1; }
-    .toast.error { background: var(--j-red); }
-    .toast.success { background: var(--j-green); }
+    .toast.error { background: #c8311e; }
+    .toast.success { background: #0c8b51; }
 
     .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--j-muted); }
     .empty-state .icon-wrap {
@@ -904,7 +884,7 @@
                         <h3>
                             {{ a.name }}
                             {% if a.last_synced_at %}
-                            <span style="font-size:0.65rem; color:var(--j-green); font-weight:500;">
+                            <span style="font-size:0.65rem; color:#0c8b51; font-weight:500;">
                                 <i class="fas fa-check-circle"></i> <span data-en="Synced" data-nl="Gesynchroniseerd">{{ 'Gesynchroniseerd' if current_language == 'nl' else 'Synced' }}</span>
                             </span>
                             {% endif %}
@@ -978,7 +958,7 @@
                 <li><span class="step-text">{% if current_language == 'nl' %}<strong>Vernieuw MT5:</strong> Klik in het Navigator-paneel (Ctrl+N) met de rechtermuisknop op <strong>Services</strong> en kies <strong>Vernieuwen</strong>.<br><small style="color: var(--j-muted);">Of herstart MT5.</small>{% else %}<strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click <strong>Services</strong> and choose <strong>Refresh</strong>.<br><small style="color: var(--j-muted);">Or simply restart MT5.</small>{% endif %}</span></li>
                 <li><span class="step-text">{% if current_language == 'nl' %}<strong>Sta WebRequest toe:</strong> Ga in MT5 naar <strong>Tools → Opties → Expert Advisors</strong>, vink <strong>"WebRequest toestaan voor vermelde URL"</strong> aan, en voeg exact toe:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% else %}<strong>Allow WebRequest:</strong> In MT5, go to <strong>Tools → Options → Expert Advisors</strong>, tick <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% endif %}</span></li>
                 <li><span class="step-text">{% if current_language == 'nl' %}<strong>Start de Service:</strong> Vouw in het Navigator-paneel <strong>Services</strong> uit, zoek <strong>MT5JournalSyncService</strong> en <strong>dubbelklik</strong> erop. Controleer de instellingen en klik op <strong>OK</strong>.{% else %}<strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>, find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it. Review the settings and click <strong>OK</strong>.{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Controleer of het draait:</strong> Druk op Ctrl+T om de Terminal te openen, klik op het <strong>Experts</strong> tabblad. Je zou moeten zien:<br><code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service</code>{% else %}<strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the <strong>Experts</strong> tab. You should see:<br><code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service</code>{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Controleer of het draait:</strong> Druk op Ctrl+T om de Terminal te openen, klik op het <strong>Experts</strong> tabblad. Je zou moeten zien:<br><code style="color: #0c8b51;">[SERVICE] Trading Engine Journal Sync Service</code>{% else %}<strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the <strong>Experts</strong> tab. You should see:<br><code style="color: #0c8b51;">[SERVICE] Trading Engine Journal Sync Service</code>{% endif %}</span></li>
                 <li><span class="step-text">{% if current_language == 'nl' %}<strong>Automatisch starten (aanbevolen):</strong> Klik met de rechtermuisknop op de service in Navigator → <strong>Toevoegen aan Favorieten</strong>. Het start automatisch wanneer je MT5 opent.{% else %}<strong>Auto-start (recommended):</strong> Right-click the service in Navigator → <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.{% endif %}</span></li>
             </ol>
 
@@ -1017,12 +997,12 @@
         </div>
         <div class="sync-info">
             {% if account.last_synced_at and (now - account.last_synced_at).total_seconds() < 600 %}
-                <span class="dot" style="background: var(--j-green);"></span> <span data-en="Service Running" data-nl="Service Actief">{{ 'Service Actief' if current_language == 'nl' else 'Service Running' }}</span>
+                <span class="dot" style="background: #0c8b51;"></span> <span data-en="Service Running" data-nl="Service Actief">{{ 'Service Actief' if current_language == 'nl' else 'Service Running' }}</span>
             {% elif account.last_synced_at %}
                 <span class="dot" style="background: var(--j-amber);"></span>
                 <span data-en="Last sync:" data-nl="Laatste sync:">{{ 'Laatste sync:' if current_language == 'nl' else 'Last sync:' }}</span> {{ account.last_synced_at.strftime('%d %b %H:%M') }}
             {% else %}
-                <span class="dot" style="background: var(--j-red);"></span> <span data-en="Waiting for Service..." data-nl="Wachten op Service...">{{ 'Wachten op Service...' if current_language == 'nl' else 'Waiting for Service...' }}</span>
+                <span class="dot" style="background: #c8311e;"></span> <span data-en="Waiting for Service..." data-nl="Wachten op Service...">{{ 'Wachten op Service...' if current_language == 'nl' else 'Waiting for Service...' }}</span>
             {% endif %}
         </div>
     </div>
@@ -1355,16 +1335,8 @@
     {% elif active_tab == 'accounts' %}
     <div>
 
-        {# Manual Trading Setup Guide #}
-        <div class="setup-guide" style="margin-bottom: 1.5rem; max-width: 900px;">
-            <h3><i class="fas fa-sync-alt"></i> <span data-en="Manual Trading – MT5 Journal Sync Service" data-nl="Handmatig Handelen – MT5 Journal Sync Service">{{ 'Handmatig Handelen – MT5 Journal Sync Service' if current_language == 'nl' else 'Manual Trading – MT5 Journal Sync Service' }}</span></h3>
-            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;" data-en="The sync service runs in MT5 background and automatically sends your manual trades to the journal every 5 minutes. Scroll down for the download and install instructions." data-nl="De sync-service draait op de achtergrond in MT5 en stuurt je handmatige trades automatisch elke 5 minuten naar het journaal. Scroll naar beneden voor de download- en installatie-instructies.">
-                {{ 'De sync-service draait op de achtergrond in MT5 en stuurt je handmatige trades automatisch elke 5 minuten naar het journaal. Scroll naar beneden voor de download- en installatie-instructies.' if current_language == 'nl' else 'The sync service runs in MT5 background and automatically sends your manual trades to the journal every 5 minutes. Scroll down for the download and install instructions.' }}
-            </p>
-        </div>
-
         {# Accounts list (left) + connect form (right), side by side #}
-        <div class="accounts-flex" style="max-width: 900px;">
+        <div class="accounts-flex" style="max-width: 900px; margin-bottom: 1.5rem;">
             <div class="accounts-list">
                 {% for a in accounts %}
                 <div class="acc-card {{ 'selected' if a.id == account.id else '' }}">
@@ -1418,11 +1390,19 @@
             </div>
         </div>
 
+        {# Manual Trading – MT5 Journal Sync Service #}
+        <div class="setup-guide" style="max-width: 900px; margin-bottom: 1.5rem;">
+            <h3><i class="fas fa-sync-alt"></i> <span data-en="Manual Trading – MT5 Journal Sync Service" data-nl="Handmatig Handelen – MT5 Journal Sync Service">{{ 'Handmatig Handelen – MT5 Journal Sync Service' if current_language == 'nl' else 'Manual Trading – MT5 Journal Sync Service' }}</span></h3>
+            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;" data-en="The sync service runs in MT5 background and automatically sends your manual trades to the journal every 5 minutes." data-nl="De sync-service draait op de achtergrond in MT5 en stuurt je handmatige trades automatisch elke 5 minuten naar het journaal.">
+                {{ 'De sync-service draait op de achtergrond in MT5 en stuurt je handmatige trades automatisch elke 5 minuten naar het journaal.' if current_language == 'nl' else 'The sync service runs in MT5 background and automatically sends your manual trades to the journal every 5 minutes.' }}
+            </p>
+        </div>
+
         {# Service Installation Instructions #}
         <div class="indicator-card" style="max-width: 900px;">
             <div class="ind-head">
                 <div class="ind-head-text">
-                    <h3><i class="fas fa-sync-alt"></i> <span data-en="How to Install the MT5 Sync Service" data-nl="Hoe de MT5 Sync Service te Installeren">{{ 'Hoe de MT5 Sync Service te Installeren' if current_language == 'nl' else 'How to Install the MT5 Sync Service' }}</span></h3>
+                    <h3><i class="fas fa-download"></i> <span data-en="How to Install the MT5 Sync Service" data-nl="Hoe de MT5 Sync Service te Installeren">{{ 'Hoe de MT5 Sync Service te Installeren' if current_language == 'nl' else 'How to Install the MT5 Sync Service' }}</span></h3>
                     <p data-en="Follow these steps to install the service that auto-syncs your manual trades." data-nl="Volg deze stappen om de service te installeren die je handmatige trades automatisch synchroniseert.">
                         {{ 'Volg deze stappen om de service te installeren die je handmatige trades automatisch synchroniseert.' if current_language == 'nl' else 'Follow these steps to install the service that auto-syncs your manual trades.' }}
                     </p>
@@ -1474,20 +1454,14 @@
 <script>
     var currentLanguage = '{{ current_language }}';
 
-    // LANGUAGE TOGGLE
     function setLanguage(lang) {
         if (lang === currentLanguage) return;
-        
         fetch('/api/set-language', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ language: lang })
         })
-        .then(function(response) { return response.json(); })
+        .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
                 document.querySelectorAll('.lang-option').forEach(function(btn) {
@@ -1500,7 +1474,6 @@
         .catch(function(error) { console.error('Language toggle failed:', error); });
     }
 
-    // WEEKLY P/L CHART
     {% if active_tab == 'dashboard' and weekly_bars %}
     (function() {
         var canvas = document.getElementById('weeklyChart');
@@ -1513,8 +1486,8 @@
                 labels: weeklyLabels,
                 datasets: [{
                     data: weeklyData,
-                    backgroundColor: weeklyData.map(function(v) { return v >= 0 ? 'rgba(12, 139, 81, 0.75)' : 'rgba(200, 49, 30, 0.75)'; }),
-                    borderColor: weeklyData.map(function(v) { return v >= 0 ? '#0c8b51' : '#c8311e'; }),
+                    backgroundColor: weeklyData.map(function(v) { return v >= 0 ? 'rgba(63, 191, 179, 0.75)' : 'rgba(84, 84, 84, 0.75)'; }),
+                    borderColor: weeklyData.map(function(v) { return v >= 0 ? '#3FBFB3' : '#545454'; }),
                     borderWidth: 1, borderRadius: 4, borderSkipped: false, barPercentage: 0.7, categoryPercentage: 0.8
                 }]
             },
@@ -1530,7 +1503,6 @@
     })();
     {% endif %}
 
-    // WIN/LOSS CHART
     {% if active_tab == 'dashboard' %}
     (function() {
         var canvas = document.getElementById('winLossChart');
@@ -1543,8 +1515,8 @@
                 labels: [winsLabel, lossesLabel, 'BE'],
                 datasets: [{
                     data: [{{ overall.wins }} || 0, {{ overall.losses }} || 0, {{ overall.breakeven }} || 0],
-                    backgroundColor: ['rgba(12, 139, 81, 0.85)', 'rgba(200, 49, 30, 0.85)', 'rgba(150, 166, 181, 0.7)'],
-                    borderColor: ['#0c8b51', '#c8311e', '#96a6b5'],
+                    backgroundColor: ['rgba(63, 191, 179, 0.85)', 'rgba(84, 84, 84, 0.85)', 'rgba(150, 166, 181, 0.7)'],
+                    borderColor: ['#3FBFB3', '#545454', '#96a6b5'],
                     borderWidth: 2, hoverOffset: 6, spacing: 2
                 }]
             },
@@ -1556,7 +1528,6 @@
     })();
     {% endif %}
 
-    // BUY/SELL CHART
     (function() {
         var canvas = document.getElementById('buySellChart');
         if (!canvas) return;
@@ -1576,8 +1547,8 @@
                 labels: [buyLabel, sellLabel],
                 datasets: [{
                     data: [buys || 1, sells || 1],
-                    backgroundColor: ['rgba(12, 139, 81, 0.85)', 'rgba(200, 49, 30, 0.85)'],
-                    borderColor: ['#0c8b51', '#c8311e'],
+                    backgroundColor: ['rgba(63, 191, 179, 0.85)', 'rgba(84, 84, 84, 0.85)'],
+                    borderColor: ['#3FBFB3', '#545454'],
                     borderWidth: 2, hoverOffset: 6, spacing: 2
                 }]
             },
@@ -1588,7 +1559,6 @@
         });
     })();
 
-    // SYMBOL CHART
     (function() {
         var canvas = document.getElementById('symbolChart');
         if (!canvas) return;
@@ -1602,7 +1572,7 @@
         });
         var labels = Object.keys(symbolCounts);
         var data = labels.map(function(s) { return symbolCounts[s]; });
-        var colors = ['rgba(30, 84, 229, 0.85)', 'rgba(109, 60, 224, 0.85)', 'rgba(12, 139, 81, 0.85)', 'rgba(230, 126, 34, 0.85)', 'rgba(200, 49, 30, 0.85)', 'rgba(0, 180, 255, 0.85)', 'rgba(255, 200, 0, 0.85)'];
+        var colors = ['rgba(63, 191, 179, 0.85)', 'rgba(84, 84, 84, 0.85)', 'rgba(30, 84, 229, 0.85)', 'rgba(109, 60, 224, 0.85)', 'rgba(230, 126, 34, 0.85)', 'rgba(0, 180, 255, 0.85)', 'rgba(255, 200, 0, 0.85)'];
         if (labels.length === 0) { labels.push(currentLanguage === 'nl' ? 'Geen trades' : 'No trades'); data.push(1); }
         new Chart(canvas, {
             type: 'doughnut',
@@ -1617,7 +1587,6 @@
         });
     })();
 
-    // DAY MODAL
     var accountId = {{ account.id if account else 0 }};
     function openDay(dateStr) {
         var modal = document.getElementById('dayModal');
@@ -1647,7 +1616,6 @@
     document.getElementById('dayModal').addEventListener('click', function(e) { if (e.target === e.currentTarget) closeDayModal(); });
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeDayModal(); });
 
-    // TOAST
     function showToast(msg, type) {
         var t = document.getElementById('jrToast');
         if (!t) return;
@@ -1660,7 +1628,6 @@
         t._hideTimeout = setTimeout(function() { t.classList.remove('show'); }, 3500);
     }
 
-    // AUTO-REFRESH DASHBOARD
     var autoRefreshInterval;
     function startAutoRefresh() {
         var activeTab = '{{ active_tab }}';
@@ -1685,30 +1652,8 @@
                     var kpiCard = profitEl.closest('.kpi-card');
                     if (kpiCard) { kpiCard.classList.toggle('pos', np >= 0); kpiCard.classList.toggle('neg', np < 0); }
                 }
-                var tradesEl = document.querySelector('.kpi-card:nth-child(4) .val');
-                if (tradesEl) tradesEl.textContent = data.overall.total_trades;
-                var winRateEl = document.querySelector('.kpi-card:nth-child(5) .val');
-                if (winRateEl) winRateEl.textContent = data.overall.win_rate + '%';
-                var pfEl = document.querySelector('.kpi-card:nth-child(6) .val');
-                if (pfEl) pfEl.textContent = data.overall.profit_factor;
                 var chart = Chart.getChart('weeklyChart');
                 if (chart && data.weekly_bars) { chart.data.datasets[0].data = data.weekly_bars.map(function(b) { return b.pl; }); chart.update(); }
-                if (data.recent_trades && data.recent_trades.length) {
-                    var tbody = document.querySelector('.jr-table tbody');
-                    if (tbody) {
-                        tbody.innerHTML = data.recent_trades.map(function(t) {
-                            var d = new Date(t.close_time);
-                            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                            var dateStr = ('0' + d.getDate()).slice(-2) + ' ' + months[d.getMonth()] + ', ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-                            return '<tr><td>' + dateStr + '</td><td style="font-weight:600;">' + t.symbol + '</td><td><span class="badge ' + t.trade_type + '">' + t.trade_type.toUpperCase() + '</span></td><td>' + t.volume + '</td><td>' + (t.entry_price || '—') + '</td><td>' + (t.exit_price || '—') + '</td><td class="' + (t.profit >= 0 ? 'pos' : 'neg') + '">' + (t.profit >= 0 ? '+' : '') + '$' + t.profit.toFixed(2) + '</td><td>' + t.duration + '</td></tr>';
-                        }).join('');
-                    }
-                }
-                var syncInfo = document.querySelector('.sync-info');
-                if (syncInfo && data.last_synced_at) {
-                    var runningText = currentLanguage === 'nl' ? 'Service Actief' : 'Service Running';
-                    syncInfo.innerHTML = '<span class="dot" style="background: var(--j-green);"></span> ' + runningText;
-                }
             }).catch(function() {});
     }
     document.addEventListener('DOMContentLoaded', startAutoRefresh);
