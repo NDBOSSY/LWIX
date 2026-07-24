@@ -444,24 +444,60 @@
     }
     .empty-state p { font-size: 0.8rem; margin-bottom: 0.3rem; }
 
-    /* discord + membership cards */
+    /* discord + membership cards - ENHANCED FOR EQUAL HEIGHT */
     .status-card-body {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
         flex-wrap: wrap;
+        min-height: 130px; /* Ensures consistent height */
     }
-    .status-card-body .info { display: flex; align-items: center; gap: 0.85rem; min-width: 0; }
+    .status-card-body .info { 
+        display: flex; 
+        align-items: center; 
+        gap: 0.85rem; 
+        min-width: 0;
+        flex: 1;
+    }
     .status-card-body .sc-icon {
         width: 44px; height: 44px; border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
         font-size: 1.15rem; color: white; flex-shrink: 0;
     }
-    .status-card-body .info-text strong { display: block; font-size: 0.85rem; color: var(--ink); }
-    .status-card-body .info-text .desc { font-size: 0.78rem; color: var(--ink-muted); }
-    .status-card-body .info-text .price-line { font-size: 0.9rem; font-weight: 700; color: var(--ink); margin-top: 0.15rem; }
-    .status-card-body .info-text .sub-line { font-size: 0.75rem; color: var(--ink-soft); margin-top: 0.1rem; }
+    .status-card-body .info-text { 
+        flex: 1;
+        min-width: 0;
+    }
+    .status-card-body .info-text strong { 
+        display: block; 
+        font-size: 0.85rem; 
+        color: var(--ink); 
+        margin-bottom: 0.2rem;
+    }
+    .status-card-body .info-text .desc { 
+        font-size: 0.78rem; 
+        color: var(--ink-muted); 
+        display: block;
+        margin-bottom: 0.15rem;
+    }
+    .status-card-body .info-text .price-line { 
+        font-size: 0.9rem; 
+        font-weight: 700; 
+        color: var(--ink); 
+        margin-top: 0.15rem; 
+    }
+    .status-card-body .info-text .sub-line { 
+        font-size: 0.75rem; 
+        color: var(--ink-soft); 
+        margin-top: 0.1rem; 
+    }
+    .status-card-body .info-text .extra-desc {
+        font-size: 0.75rem;
+        color: var(--ink-soft);
+        margin-top: 0.15rem;
+        display: block;
+    }
 
     .btn-dark-pill {
         display: inline-flex; align-items: center; gap: 0.4rem;
@@ -476,6 +512,7 @@
         cursor: pointer;
         transition: all 0.15s;
         white-space: nowrap;
+        flex-shrink: 0;
     }
     .btn-dark-pill:hover { background: #000; color: #fff; }
 
@@ -489,6 +526,7 @@
         background: transparent;
         border: none;
         cursor: pointer;
+        flex-shrink: 0;
     }
     .link-manage:hover { color: var(--accent-hover); }
 
@@ -514,15 +552,59 @@
         cursor: pointer;
     }
     .help-option:hover { border-color: var(--border-strong); background: #fff; box-shadow: var(--shadow-card); }
-    .help-option .ho-left { display: flex; align-items: center; gap: 0.8rem; min-width: 0; }
+    .help-option .ho-left { display: flex; align-items: center; gap: 0.8rem; min-width: 0; flex: 1; }
     .help-option .ho-icon {
         width: 36px; height: 36px; border-radius: 10px;
         display: flex; align-items: center; justify-content: center;
         color: white; font-size: 0.9rem; flex-shrink: 0;
     }
-    .help-option .ho-text strong { display: block; font-size: 0.85rem; color: var(--ink); }
-    .help-option .ho-text span { font-size: 0.76rem; color: var(--ink-muted); }
+    .help-option .ho-text { flex: 1; min-width: 0; }
+    .help-option .ho-text strong { display: block; font-size: 0.85rem; color: var(--ink); margin-bottom: 0.15rem; }
+    .help-option .ho-text span { font-size: 0.76rem; color: var(--ink-muted); display: block; }
+    .help-option .ho-text .email-display {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--ink-secondary);
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        margin-top: 0.2rem;
+    }
+    .help-option .ho-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
     .help-option .ho-chevron { color: var(--ink-soft); font-size: 0.85rem; flex-shrink: 0; }
+    
+    .email-copy-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        background: var(--surface);
+        border: 1px solid var(--border-strong);
+        color: var(--ink-secondary);
+        cursor: pointer;
+        transition: all 0.15s;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .email-copy-btn:hover { 
+        background: var(--accent); 
+        color: white; 
+        border-color: var(--accent);
+    }
+    .email-copy-btn.copied {
+        background: var(--green);
+        color: white;
+        border-color: var(--green);
+    }
 
     .btn {
         display: inline-flex; align-items: center; gap: 0.4rem;
@@ -678,14 +760,14 @@
             </svg>
             <div>
                 <div class="hero-icon"><i class="fas fa-chart-line"></i></div>
-                <h3 data-en="Performance Dashboard" data-nl="Performance Dashboard">Performance Dashboard</h3>
+                <h3 data-en="Trading Journal" data-nl="Trading Journal">Trading Journal</h3>
                 <p data-en="View your results, performance per EA and your complete trading history."
                    data-nl="Bekijk je resultaten, prestaties per EA en volledige tradinghistorie.">
                     {{ 'Bekijk je resultaten, prestaties per EA en volledige tradinghistorie.' if current_language == 'nl' else 'View your results, performance per EA and your complete trading history.' }}
                 </p>
             </div>
             <a href="/journal" class="hero-btn">
-                <span data-en="Open Dashboard" data-nl="Open Dashboard">Open Dashboard</span> <i class="fas fa-arrow-right"></i>
+                <span data-en="Open Journal" data-nl="Open Journal">Open Journal</span> <i class="fas fa-arrow-right"></i>
             </a>
         </div>
 
@@ -901,6 +983,9 @@
                             <span data-en="Generate license to unlock" data-nl="Genereer licentie om te ontgrendelen">{{ 'Genereer licentie om te ontgrendelen' if current_language == 'nl' else 'Generate license to unlock' }}</span>
                             {% endif %}
                         </span>
+                        <span class="extra-desc" data-en="Private Community · For questions and support" data-nl="Privé Community · Voor vragen en ondersteuning">
+                            {{ 'Privé Community · Voor vragen en ondersteuning' if current_language == 'nl' else 'Private Community · For questions and support' }}
+                        </span>
                     </div>
                 </div>
                 {% if user.discord_joined %}
@@ -938,6 +1023,9 @@
                             {% endif %}: {{ user.membership_end.strftime('%d %b %Y') }}
                         </div>
                         {% endif %}
+                        <span class="extra-desc" data-en="Full platform access" data-nl="Volledige platformtoegang">
+                            {{ 'Volledige platformtoegang' if current_language == 'nl' else 'Full platform access' }}
+                        </span>
                     </div>
                 </div>
                 <button class="link-manage" onclick="{{ 'showCancelModal()' if user.membership_status == 'active' else '' }}">
@@ -954,7 +1042,8 @@
             <h4 data-en="Need Help?" data-nl="Hulp nodig?">{{ 'Hulp nodig?' if current_language == 'nl' else 'Need Help?' }}</h4>
         </div>
         <div class="help-options">
-            <a href="mailto:support@thinkhuge.net" class="help-option">
+            <!-- VPS Support -->
+            <div class="help-option">
                 <div class="ho-left">
                     <div class="ho-icon" style="background: var(--blue);"><i class="fas fa-server"></i></div>
                     <div class="ho-text">
@@ -962,10 +1051,20 @@
                         <span data-en="For questions about the VPS, logging in, Windows or MT5." data-nl="Voor vragen over de VPS, inloggen, Windows of MT5.">
                             {{ 'Voor vragen over de VPS, inloggen, Windows of MT5.' if current_language == 'nl' else 'For questions about the VPS, logging in, Windows or MT5.' }}
                         </span>
+                        <span class="email-display">
+                            <i class="fas fa-envelope" style="font-size:0.65rem;"></i> support@thinkhuge.net
+                        </span>
                     </div>
                 </div>
-                <i class="fas fa-chevron-right ho-chevron"></i>
-            </a>
+                <div class="ho-actions">
+                    <button class="email-copy-btn" onclick="copyEmail('support@thinkhuge.net', this)" data-en="Copy" data-nl="Kopiëren">
+                        <i class="fas fa-copy"></i> <span>Kopiëren</span>
+                    </button>
+                    <i class="fas fa-chevron-right ho-chevron"></i>
+                </div>
+            </div>
+            
+            <!-- Discord -->
             <a href="{{ discord_invite }}" target="_blank" class="help-option">
                 <div class="ho-left">
                     <div class="ho-icon" style="background: #5865F2;"><i class="fab fa-discord"></i></div>
@@ -974,11 +1073,16 @@
                         <span data-en="For questions about using the EAs, settings or strategies." data-nl="Voor vragen over het gebruik van de EA's, instellingen of strategieën.">
                             {{ "Voor vragen over het gebruik van de EA's, instellingen of strategieën." if current_language == 'nl' else 'For questions about using the EAs, settings or strategies.' }}
                         </span>
+                        <span class="email-display">
+                            <i class="fab fa-discord" style="font-size:0.65rem;"></i> <span data-en="Join our Discord server" data-nl="Word lid van onze Discord-server">{{ 'Word lid van onze Discord-server' if current_language == 'nl' else 'Join our Discord server' }}</span>
+                        </span>
                     </div>
                 </div>
                 <i class="fas fa-chevron-right ho-chevron"></i>
             </a>
-            <a href="mailto:hello@tradingengine.nl" class="help-option">
+            
+            <!-- Membership -->
+            <div class="help-option">
                 <div class="ho-left">
                     <div class="ho-icon" style="background: var(--green);"><i class="fas fa-user-shield"></i></div>
                     <div class="ho-text">
@@ -986,10 +1090,18 @@
                         <span data-en="For questions about payments, membership or licenses." data-nl="Voor vragen over betalingen, membership of licenties.">
                             {{ 'Voor vragen over betalingen, membership of licenties.' if current_language == 'nl' else 'For questions about payments, membership or licenses.' }}
                         </span>
+                        <span class="email-display">
+                            <i class="fas fa-envelope" style="font-size:0.65rem;"></i> hello@tradingengine.nl
+                        </span>
                     </div>
                 </div>
-                <i class="fas fa-chevron-right ho-chevron"></i>
-            </a>
+                <div class="ho-actions">
+                    <button class="email-copy-btn" onclick="copyEmail('hello@tradingengine.nl', this)" data-en="Copy" data-nl="Kopiëren">
+                        <i class="fas fa-copy"></i> <span>Kopiëren</span>
+                    </button>
+                    <i class="fas fa-chevron-right ho-chevron"></i>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1163,6 +1275,58 @@
     }
 
     // ==========================================
+    // EMAIL COPY FUNCTION
+    // ==========================================
+    function copyEmail(email, buttonElement) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(email).then(() => {
+                // Visual feedback on button
+                const originalHTML = buttonElement.innerHTML;
+                buttonElement.classList.add('copied');
+                buttonElement.innerHTML = '<i class="fas fa-check"></i> <span data-en="Copied!" data-nl="Gekopieerd!">' + (currentLanguage === 'nl' ? 'Gekopieerd!' : 'Copied!') + '</span>';
+                
+                const msg = currentLanguage === 'nl' ? 'E-mailadres gekopieerd! ✓' : 'Email copied! ✓';
+                showToast(msg, 'success');
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    buttonElement.classList.remove('copied');
+                    buttonElement.innerHTML = originalHTML;
+                }, 2000);
+            }).catch(() => fallbackCopy(email, buttonElement));
+        } else {
+            fallbackCopy(email, buttonElement);
+        }
+    }
+    
+    function fallbackCopy(text, buttonElement) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            const originalHTML = buttonElement.innerHTML;
+            buttonElement.classList.add('copied');
+            buttonElement.innerHTML = '<i class="fas fa-check"></i> <span data-en="Copied!" data-nl="Gekopieerd!">' + (currentLanguage === 'nl' ? 'Gekopieerd!' : 'Copied!') + '</span>';
+            
+            const msg = currentLanguage === 'nl' ? 'E-mailadres gekopieerd! ✓' : 'Email copied! ✓';
+            showToast(msg, 'success');
+            
+            setTimeout(() => {
+                buttonElement.classList.remove('copied');
+                buttonElement.innerHTML = originalHTML;
+            }, 2000);
+        } catch (err) {
+            const msg = currentLanguage === 'nl' ? 'Kopiëren mislukt' : 'Failed to copy';
+            showToast(msg, 'error');
+        }
+        document.body.removeChild(textarea);
+    }
+
+    // ==========================================
     // LICENSE REVEAL
     // ==========================================
     let licenseVisible = false;
@@ -1209,13 +1373,13 @@
             navigator.clipboard.writeText(text).then(() => {
                 const msg = currentLanguage === 'nl' ? 'Gekopieerd! ✓' : 'Copied! ✓';
                 showToast(msg, 'success');
-            }).catch(() => fallbackCopy(text));
+            }).catch(() => fallbackCopyGeneric(text));
         } else {
-            fallbackCopy(text);
+            fallbackCopyGeneric(text);
         }
     }
 
-    function fallbackCopy(text) {
+    function fallbackCopyGeneric(text) {
         const textarea = document.createElement('textarea');
         textarea.value = text;
         textarea.style.position = 'fixed';
