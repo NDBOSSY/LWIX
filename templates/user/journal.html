@@ -1407,7 +1407,8 @@
             </div>
             <div class="panel-body">
                 <div class="cal-grid">
-                    {% for i in range(7) %}{% set dow_en = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i] %}{% set dow_nl = ['Ma','Di','Wo','Do','Vr','Za','Zo'][i] %}<div class="cal-dow">{{ dow_nl if current_language == 'nl' else dow_en }}</div>{% endfor %}                    {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
+                    {% for i in range(7) %}{% set dow_en = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i] %}{% set dow_nl = ['Ma','Di','Wo','Do','Vr','Za','Zo'][i] %}<div class="cal-dow">{{ dow_nl if current_language == 'nl' else dow_en }}</div>{% endfor %}
+                    {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
                     {% for day_num in range(1, cal_days_in_month + 1) %}
                         {% set key = '%04d-%02d-%02d'|format(cal_year, cal_month, day_num) %}
                         {% set pl = cal_daily_pl.get(key) %}
@@ -1556,6 +1557,34 @@
 <div class="toast" id="jrToast"></div>
 
 <script>
+    var currentLanguage = '{{ current_language }}';
+
+    // LANGUAGE TOGGLE
+    function setLanguage(lang) {
+        if (lang === currentLanguage) return;
+        
+        fetch('/api/set-language', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ language: lang })
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success) {
+                document.querySelectorAll('.lang-option').forEach(function(btn) {
+                    btn.classList.remove('active');
+                    if (btn.dataset.lang === lang) btn.classList.add('active');
+                });
+                window.location.reload();
+            }
+        })
+        .catch(function(error) { console.error('Language toggle failed:', error); });
+    }
+
     // THEME TOGGLE
     (function() {
         var wrapper = document.getElementById('journalWrapper');
@@ -1574,19 +1603,14 @@
         }
         var saved = null;
         try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
-        if (!saved) {
-            saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
+        if (!saved) saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
         applyTheme(saved);
         toggle.addEventListener('click', function() {
             var isDark = wrapper.classList.contains('theme-dark');
-            var next = isDark ? 'light' : 'dark';
-            applyTheme(next);
-            try { localStorage.setItem(STORAGE_KEY, next); } catch (e) {}
+            applyTheme(isDark ? 'light' : 'dark');
+            try { localStorage.setItem(STORAGE_KEY, isDark ? 'light' : 'dark'); } catch (e) {}
         });
     })();
-
-    var currentLanguage = '{{ current_language }}';
 
     // WEEKLY P/L CHART
     {% if active_tab == 'dashboard' and weekly_bars %}
@@ -1625,11 +1649,10 @@
         if (!canvas) return;
         var winsLabel = currentLanguage === 'nl' ? 'Winsten' : 'Wins';
         var lossesLabel = currentLanguage === 'nl' ? 'Verliezen' : 'Losses';
-        var beLabel = 'BE';
         new Chart(canvas, {
             type: 'doughnut',
             data: {
-                labels: [winsLabel, lossesLabel, beLabel],
+                labels: [winsLabel, lossesLabel, 'BE'],
                 datasets: [{
                     data: [{{ overall.wins }} || 0, {{ overall.losses }} || 0, {{ overall.breakeven }} || 0],
                     backgroundColor: ['rgba(12, 139, 81, 0.85)', 'rgba(200, 49, 30, 0.85)', 'rgba(150, 166, 181, 0.7)'],
