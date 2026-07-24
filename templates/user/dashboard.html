@@ -432,6 +432,77 @@
     }
     .license-meta strong { color: var(--ink); }
 
+    /* activated accounts list */
+    .license-accounts {
+        margin-bottom: 0.5rem;
+    }
+    .license-accounts .accounts-title {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin-bottom: 0.4rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .license-accounts-list {
+        max-height: 110px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+    .license-accounts .account-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 8px;
+        background: var(--surface-sunken);
+        border: 1px solid var(--border);
+    }
+    .license-accounts .account-number {
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 0.75rem;
+        color: var(--ink-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        min-width: 0;
+    }
+    .license-accounts .account-date {
+        font-size: 0.66rem;
+        color: var(--ink-soft);
+        font-family: var(--mono);
+        flex-shrink: 0;
+    }
+    .license-accounts .account-badge {
+        font-size: 0.58rem;
+        font-weight: 700;
+        padding: 0.12rem 0.5rem;
+        border-radius: 10px;
+        background: var(--green-light);
+        color: var(--green);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    .license-accounts .no-accounts-mini {
+        font-size: 0.75rem;
+        color: var(--ink-soft);
+        text-align: center;
+        padding: 0.5rem 0;
+        background: var(--surface-sunken);
+        border-radius: 8px;
+        border: 1px dashed var(--border-strong);
+    }
+
     .license-activate-link { font-size: 0.75rem; color: var(--accent); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; }
     .license-activate-link:hover { color: var(--accent-hover); }
 
@@ -939,6 +1010,34 @@
                     <i class="fas fa-desktop"></i>
                     <span><strong>{{ account_count if license_accounts else 0 }} / {{ max_accounts }}</strong> <span data-en="accounts activated" data-nl="accounts geactiveerd">{{ 'accounts geactiveerd' if current_language == 'nl' else 'accounts activated' }}</span></span>
                 </div>
+
+                <div class="license-accounts">
+                    <div class="accounts-title">
+                        <i class="fas fa-server"></i>
+                        <span data-en="Activated Accounts" data-nl="Geactiveerde Accounts">
+                            {{ 'Geactiveerde Accounts' if current_language == 'nl' else 'Activated Accounts' }}
+                        </span>
+                    </div>
+                    {% if license_accounts %}
+                    <div class="license-accounts-list">
+                        {% for acc in license_accounts %}
+                        <div class="account-item">
+                            <span class="account-number"><i class="fas fa-hashtag" style="color:var(--ink-soft); font-size:0.65rem;"></i> {{ acc.account }}</span>
+                            <span class="account-date">{{ acc.activated.strftime('%d %b %Y') if acc.activated else 'N/B' }}</span>
+                            <span class="account-badge"><i class="fas fa-check-circle" style="font-size:0.6rem;"></i> <span data-en="Active" data-nl="Actief">{{ 'Actief' if current_language == 'nl' else 'Active' }}</span></span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="no-accounts-mini">
+                        <i class="fas fa-circle-plus" style="margin-right:0.3rem;"></i>
+                        <span data-en="No accounts activated yet" data-nl="Nog geen accounts geactiveerd">
+                            {{ 'Nog geen accounts geactiveerd' if current_language == 'nl' else 'No accounts activated yet' }}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+
                 <a href="https://www.tradingengine.nl/academy" target="_blank" class="license-activate-link">
                     <span data-en="How do I activate my license?" data-nl="Hoe activeer ik mijn licentie?">{{ 'Hoe activeer ik mijn licentie?' if current_language == 'nl' else 'How do I activate my license?' }}</span> <i class="fas fa-arrow-right"></i>
                 </a>
