@@ -849,7 +849,6 @@
         font-size: 0.75rem;
     }
 
-    /* Side-by-side accounts list + connect form */
     .accounts-flex {
         display: grid;
         grid-template-columns: 1fr 380px;
@@ -935,13 +934,13 @@
 
     {# HEADER #}
     <div class="journal-header">
-        <h1><i class="fas fa-chart-line"></i> Trading Journal</h1>
+        <h1><i class="fas fa-chart-line"></i> <span data-en="Trading Journal" data-nl="Trading Journal">{{ 'Trading Journal' if current_language == 'nl' else 'Trading Journal' }}</span></h1>
         <div class="header-right">
-            <button type="button" class="theme-toggle" id="themeToggle" title="Toggle dark / light theme" aria-label="Toggle dark and light theme">
+            <button type="button" class="theme-toggle" id="themeToggle" title="{{ 'Wissel donker/licht thema' if current_language == 'nl' else 'Toggle dark / light theme' }}" aria-label="{{ 'Wissel donker en licht thema' if current_language == 'nl' else 'Toggle dark and light theme' }}">
                 <span class="knob"><i class="fas fa-moon" id="themeIcon"></i></span>
             </button>
             <a href="{{ url_for('user_dashboard') }}" class="back-link">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
+                <i class="fas fa-arrow-left"></i> <span data-en="Back to Dashboard" data-nl="Terug naar Dashboard">{{ 'Terug naar Dashboard' if current_language == 'nl' else 'Back to Dashboard' }}</span>
             </a>
         </div>
     </div>
@@ -952,25 +951,25 @@
 
         {# Setup Guide #}
         <div class="setup-guide" style="max-width: 900px;">
-            <h3><i class="fas fa-rocket"></i> Get Started in 3 Steps</h3>
-            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;">
-                Connect your MT5 account and install the sync service to automatically track your trades.
+            <h3><i class="fas fa-rocket"></i> <span data-en="Get Started in 3 Steps" data-nl="Start in 3 Stappen">{{ 'Start in 3 Stappen' if current_language == 'nl' else 'Get Started in 3 Steps' }}</span></h3>
+            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;" data-en="Connect your MT5 account and install the sync service to automatically track your trades." data-nl="Verbind je MT5-account en installeer de sync-service om je trades automatisch te volgen.">
+                {{ 'Verbind je MT5-account en installeer de sync-service om je trades automatisch te volgen.' if current_language == 'nl' else 'Connect your MT5 account and install the sync service to automatically track your trades.' }}
             </p>
             <div class="steps">
                 <div class="step">
                     <div class="step-num">1</div>
-                    <h4>Connect MT5 Account</h4>
-                    <p>Enter your MT5 login number below to link your account.</p>
+                    <h4 data-en="Connect MT5 Account" data-nl="Verbind MT5 Account">{{ 'Verbind MT5 Account' if current_language == 'nl' else 'Connect MT5 Account' }}</h4>
+                    <p data-en="Enter your MT5 login number below to link your account." data-nl="Voer hieronder je MT5-login in om je account te koppelen.">{{ 'Voer hieronder je MT5-login in om je account te koppelen.' if current_language == 'nl' else 'Enter your MT5 login number below to link your account.' }}</p>
                 </div>
                 <div class="step">
                     <div class="step-num">2</div>
-                    <h4>Install Sync Service</h4>
-                    <p>Download and install the MT5 Journal Sync Service.</p>
+                    <h4 data-en="Install Sync Service" data-nl="Installeer Sync Service">{{ 'Installeer Sync Service' if current_language == 'nl' else 'Install Sync Service' }}</h4>
+                    <p data-en="Download and install the MT5 Journal Sync Service." data-nl="Download en installeer de MT5 Journal Sync Service.">{{ 'Download en installeer de MT5 Journal Sync Service.' if current_language == 'nl' else 'Download and install the MT5 Journal Sync Service.' }}</p>
                 </div>
                 <div class="step">
                     <div class="step-num">3</div>
-                    <h4>Auto-Sync Trades</h4>
-                    <p>Your trades sync automatically every 5 minutes.</p>
+                    <h4 data-en="Auto-Sync Trades" data-nl="Auto-Sync Trades">{{ 'Auto-Sync Trades' if current_language == 'nl' else 'Auto-Sync Trades' }}</h4>
+                    <p data-en="Your trades sync automatically every 5 minutes." data-nl="Je trades synchroniseren automatisch elke 5 minuten.">{{ 'Je trades synchroniseren automatisch elke 5 minuten.' if current_language == 'nl' else 'Your trades sync automatically every 5 minutes.' }}</p>
                 </div>
             </div>
         </div>
@@ -980,7 +979,7 @@
             <div class="accounts-list">
                 {% if accounts %}
                 <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem;">
-                    <i class="fas fa-list"></i> Your Accounts
+                    <i class="fas fa-list"></i> <span data-en="Your Accounts" data-nl="Jouw Accounts">{{ 'Jouw Accounts' if current_language == 'nl' else 'Your Accounts' }}</span>
                 </h2>
                 {% for a in accounts %}
                 <div class="acc-card">
@@ -989,28 +988,28 @@
                             {{ a.name }}
                             {% if a.last_synced_at %}
                             <span style="font-size:0.65rem; color:var(--j-green); font-weight:500;">
-                                <i class="fas fa-check-circle"></i> Synced
+                                <i class="fas fa-check-circle"></i> <span data-en="Synced" data-nl="Gesynchroniseerd">{{ 'Gesynchroniseerd' if current_language == 'nl' else 'Synced' }}</span>
                             </span>
                             {% endif %}
                         </h3>
                         <div class="meta">
-                            MT5 Login: <strong>{{ a.mt5_login }}</strong>
+                            <span data-en="MT5 Login:" data-nl="MT5 Login:">{{ 'MT5 Login:' if current_language == 'nl' else 'MT5 Login:' }}</span> <strong>{{ a.mt5_login }}</strong>
                             {% if a.broker %} · {{ a.broker }}{% endif %}
                             {% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}
                             {% if a.currency %} · {{ a.currency }}{% endif %}
                         </div>
                         <div class="meta">
-                            Balance: ${{ '%.2f'|format(a.current_balance or a.starting_balance or 0) }} ·
-                            Trades: <strong>{{ a.trades.count() }}</strong> ·
-                            Last sync: {{ a.last_synced_at.strftime('%d %b %H:%M') if a.last_synced_at else 'never' }}
+                            <span data-en="Balance:" data-nl="Saldo:">{{ 'Saldo:' if current_language == 'nl' else 'Balance:' }}</span> ${{ '%.2f'|format(a.current_balance or a.starting_balance or 0) }} ·
+                            <span data-en="Trades:" data-nl="Trades:">{{ 'Trades:' if current_language == 'nl' else 'Trades:' }}</span> <strong>{{ a.trades.count() }}</strong> ·
+                            <span data-en="Last sync:" data-nl="Laatste sync:">{{ 'Laatste sync:' if current_language == 'nl' else 'Last sync:' }}</span> {{ a.last_synced_at.strftime('%d %b %H:%M') if a.last_synced_at else ('nooit' if current_language == 'nl' else 'never') }}
                         </div>
                     </div>
                     <div class="acc-actions">
                         <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">
-                            <i class="fas fa-folder-open"></i> Open
+                            <i class="fas fa-folder-open"></i> <span data-en="Open" data-nl="Openen">{{ 'Openen' if current_language == 'nl' else 'Open' }}</span>
                         </a>
-                        <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history? This cannot be undone.');">
-                            <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
+                        <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ 'Verwijder ' + a.name + ' en alle handelsgeschiedenis? Dit kan niet ongedaan worden gemaakt.' if current_language == 'nl' else 'Delete ' + a.name + ' and all its trade history? This cannot be undone.' }}');">
+                            <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> <span data-en="Delete" data-nl="Verwijderen">{{ 'Verwijderen' if current_language == 'nl' else 'Delete' }}</span></button>
                         </form>
                     </div>
                 </div>
@@ -1020,23 +1019,23 @@
 
             {# Connect Account Form #}
             <div class="new-form">
-                <h3><i class="fas fa-plug"></i> Step 1: Connect Your MT5 Account</h3>
-                <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
-                    Enter your MT5 login number. Your broker, server, currency, and balance will be auto-detected by the sync service.
+                <h3><i class="fas fa-plug"></i> <span data-en="Step 1: Connect Your MT5 Account" data-nl="Stap 1: Verbind je MT5 Account">{{ 'Stap 1: Verbind je MT5 Account' if current_language == 'nl' else 'Step 1: Connect Your MT5 Account' }}</span></h3>
+                <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;" data-en="Enter your MT5 login number. Your broker, server, currency, and balance will be auto-detected by the sync service." data-nl="Voer je MT5-login in. Je broker, server, valuta en saldo worden automatisch gedetecteerd door de sync-service.">
+                    {{ 'Voer je MT5-login in. Je broker, server, valuta en saldo worden automatisch gedetecteerd door de sync-service.' if current_language == 'nl' else 'Enter your MT5 login number. Your broker, server, currency, and balance will be auto-detected by the sync service.' }}
                 </p>
                 <form method="POST" action="{{ url_for('journal_account_new') }}">
                     <div class="form-grid">
                         <div>
-                            <label>Account Name (optional)</label>
-                            <input name="name" placeholder="e.g. FTMO 100K">
+                            <label data-en="Account Name (optional)" data-nl="Accountnaam (optioneel)">{{ 'Accountnaam (optioneel)' if current_language == 'nl' else 'Account Name (optional)' }}</label>
+                            <input name="name" placeholder="{{ 'bijv. FTMO 100K' if current_language == 'nl' else 'e.g. FTMO 100K' }}">
                         </div>
                         <div>
-                            <label>MT5 Login Number *</label>
+                            <label data-en="MT5 Login Number *" data-nl="MT5 Login Nummer *">{{ 'MT5 Login Nummer *' if current_language == 'nl' else 'MT5 Login Number *' }}</label>
                             <input name="mt5_login" placeholder="52601220" required>
                         </div>
                     </div>
                     <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                        <i class="fas fa-plug"></i> Connect Account
+                        <i class="fas fa-plug"></i> <span data-en="Connect Account" data-nl="Account Verbinden">{{ 'Account Verbinden' if current_language == 'nl' else 'Connect Account' }}</span>
                     </button>
                 </form>
             </div>
@@ -1046,62 +1045,125 @@
         <div class="indicator-card" style="max-width: 900px;">
             <div class="ind-head">
                 <div class="ind-head-text">
-                    <h3><i class="fas fa-sync-alt"></i> Step 2 & 3: Install the MT5 Journal Sync Service</h3>
-                    <p>
-                        Download the service, install it in MT5, and your trades will sync automatically in the background.
-                        No license key needed — runs silently every 5 minutes.
+                    <h3><i class="fas fa-sync-alt"></i> <span data-en="Step 2 & 3: Install the MT5 Journal Sync Service" data-nl="Stap 2 & 3: Installeer de MT5 Journal Sync Service">{{ 'Stap 2 & 3: Installeer de MT5 Journal Sync Service' if current_language == 'nl' else 'Step 2 & 3: Install the MT5 Journal Sync Service' }}</span></h3>
+                    <p data-en="Download the service, install it in MT5, and your trades will sync automatically in the background. No license key needed — runs silently every 5 minutes." data-nl="Download de service, installeer deze in MT5 en je trades synchroniseren automatisch op de achtergrond. Geen licentiesleutel nodig — draait stil elke 5 minuten.">
+                        {{ 'Download de service, installeer deze in MT5 en je trades synchroniseren automatisch op de achtergrond. Geen licentiesleutel nodig — draait stil elke 5 minuten.' if current_language == 'nl' else 'Download the service, install it in MT5, and your trades will sync automatically in the background. No license key needed — runs silently every 5 minutes.' }}
                     </p>
                 </div>
                 <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSyncService.ex5') }}" download>
-                    <i class="fas fa-download"></i> Download Service
+                    <i class="fas fa-download"></i> <span data-en="Download Service" data-nl="Download Service">{{ 'Download Service' if current_language == 'nl' else 'Download Service' }}</span>
                     <span class="ver">{{ indicator_version or 'v1.0' }}</span>
                 </a>
             </div>
 
             <ol class="steps-list">
                 <li>
-                    <span class="step-text"><strong>Download the Service file</strong> using the button above. Save it to your computer.</span>
+                    <span class="step-text">
+                        {% if current_language == 'nl' %}
+                        <strong>Download het Service-bestand</strong> met de knop hierboven. Sla het op je computer op.
+                        {% else %}
+                        <strong>Download the Service file</strong> using the button above. Save it to your computer.
+                        {% endif %}
+                    </span>
                 </li>
                 <li>
-                    <span class="step-text"><strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5
-                    <code>MQL5/Services</code> folder.<br>
-                    <small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small></span>
+                    <span class="step-text">
+                        {% if current_language == 'nl' %}
+                        <strong>Installeer in MT5:</strong> Kopieer het <code>.ex5</code> bestand naar je MT5
+                        <code>MQL5/Services</code> map.<br>
+                        <small style="color: var(--j-muted);">In MT5: Bestand → Gegevensmap openen → MQL5 → Services</small>
+                        {% else %}
+                        <strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5
+                        <code>MQL5/Services</code> folder.<br>
+                        <small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small>
+                        {% endif %}
+                    </span>
                 </li>
                 <li>
-                    <span class="step-text"><strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click
-                    <strong>Services</strong> and choose <strong>Refresh</strong>.<br>
-                    <small style="color: var(--j-muted);">Or simply restart MT5.</small></span>
+                    <span class="step-text">
+                        {% if current_language == 'nl' %}
+                        <strong>Vernieuw MT5:</strong> Klik in het Navigator-paneel (Ctrl+N) met de rechtermuisknop op
+                        <strong>Services</strong> en kies <strong>Vernieuwen</strong>.<br>
+                        <small style="color: var(--j-muted);">Of herstart MT5.</small>
+                        {% else %}
+                        <strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click
+                        <strong>Services</strong> and choose <strong>Refresh</strong>.<br>
+                        <small style="color: var(--j-muted);">Or simply restart MT5.</small>
+                        {% endif %}
+                    </span>
                 </li>
                 <li>
-                    <span class="step-text"><strong>Allow WebRequest:</strong> In MT5, go to
-                    <strong>Tools → Options → Expert Advisors</strong>, tick
-                    <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br>
-                    <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code></span>
+                    <span class="step-text">
+                        {% if current_language == 'nl' %}
+                        <strong>Sta WebRequest toe:</strong> Ga in MT5 naar
+                        <strong>Tools → Opties → Expert Advisors</strong>, vink
+                        <strong>"WebRequest toestaan voor vermelde URL"</strong> aan, en voeg exact toe:<br>
+                        <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>
+                        {% else %}
+                        <strong>Allow WebRequest:</strong> In MT5, go to
+                        <strong>Tools → Options → Expert Advisors</strong>, tick
+                        <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br>
+                        <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>
+                        {% endif %}
+                    </span>
                 </li>
                 <li>
-                    <span class="step-text"><strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>,
-                    find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it.
-                    Review the settings and click <strong>OK</strong>.</span>
+                    <span class="step-text">
+                        {% if current_language == 'nl' %}
+                        <strong>Start de Service:</strong> Vouw in het Navigator-paneel <strong>Services</strong> uit,
+                        zoek <strong>MT5JournalSyncService</strong> en <strong>dubbelklik</strong> erop.
+                        Controleer de instellingen en klik op <strong>OK</strong>.
+                        {% else %}
+                        <strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>,
+                        find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it.
+                        Review the settings and click <strong>OK</strong>.
+                        {% endif %}
+                    </span>
                 </li>
                 <li>
-                    <span class="step-text"><strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the
-                    <strong>Experts</strong> tab. You should see:<br>
-                    <code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code></span>
+                    <span class="step-text">
+                        {% if current_language == 'nl' %}
+                        <strong>Controleer of het draait:</strong> Druk op Ctrl+T om de Terminal te openen, klik op het
+                        <strong>Experts</strong> tabblad. Je zou moeten zien:<br>
+                        <code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code>
+                        {% else %}
+                        <strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the
+                        <strong>Experts</strong> tab. You should see:<br>
+                        <code style="color: var(--j-green);">[SERVICE] Trading Engine Journal Sync Service v1.0</code>
+                        {% endif %}
+                    </span>
                 </li>
                 <li>
-                    <span class="step-text"><strong>Auto-start (recommended):</strong> Right-click the service in Navigator →
-                    <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.</span>
+                    <span class="step-text">
+                        {% if current_language == 'nl' %}
+                        <strong>Automatisch starten (aanbevolen):</strong> Klik met de rechtermuisknop op de service in Navigator →
+                        <strong>Toevoegen aan Favorieten</strong>. Het start automatisch wanneer je MT5 opent.
+                        {% else %}
+                        <strong>Auto-start (recommended):</strong> Right-click the service in Navigator →
+                        <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.
+                        {% endif %}
+                    </span>
                 </li>
             </ol>
 
             <div class="troubleshoot-box">
-                <strong><i class="fas fa-exclamation-triangle"></i> Troubleshooting:</strong>
+                <strong><i class="fas fa-exclamation-triangle"></i> <span data-en="Troubleshooting:" data-nl="Probleemoplossing:">{{ 'Probleemoplossing:' if current_language == 'nl' else 'Troubleshooting:' }}</span></strong>
                 <ul>
-                    <li><strong>HTTP -1 error?</strong> Check Step 4 — the WebRequest URL must be added exactly as shown above.</li>
-                    <li><strong>No trades syncing?</strong> Make sure you completed Step 1 (connect your MT5 account above).</li>
-                    <li><strong>Service not in Navigator?</strong> Check Step 2 — the file must be in the <code>MQL5/Services</code> folder, then refresh.</li>
-                    <li><strong>Service stopped?</strong> Double-click it again in Navigator to restart.</li>
-                    <li><strong>Still having issues?</strong> Contact support for help.</li>
+                    <li data-en="<strong>HTTP -1 error?</strong> Check Step 4 — the WebRequest URL must be added exactly as shown above." data-nl="<strong>HTTP -1 fout?</strong> Controleer Stap 4 — de WebRequest URL moet exact worden toegevoegd zoals hierboven getoond.">
+                        {% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer Stap 4 — de WebRequest URL moet exact worden toegevoegd zoals hierboven getoond.{% else %}<strong>HTTP -1 error?</strong> Check Step 4 — the WebRequest URL must be added exactly as shown above.{% endif %}
+                    </li>
+                    <li data-en="<strong>No trades syncing?</strong> Make sure you completed Step 1 (connect your MT5 account above)." data-nl="<strong>Geen trades synchroniseren?</strong> Zorg dat je Stap 1 hebt voltooid (verbind je MT5-account hierboven).">
+                        {% if current_language == 'nl' %}<strong>Geen trades synchroniseren?</strong> Zorg dat je Stap 1 hebt voltooid (verbind je MT5-account hierboven).{% else %}<strong>No trades syncing?</strong> Make sure you completed Step 1 (connect your MT5 account above).{% endif %}
+                    </li>
+                    <li data-en="<strong>Service not in Navigator?</strong> Check Step 2 — the file must be in the <code>MQL5/Services</code> folder, then refresh." data-nl="<strong>Service niet in Navigator?</strong> Controleer Stap 2 — het bestand moet in de <code>MQL5/Services</code> map staan, vernieuw daarna.">
+                        {% if current_language == 'nl' %}<strong>Service niet in Navigator?</strong> Controleer Stap 2 — het bestand moet in de <code>MQL5/Services</code> map staan, vernieuw daarna.{% else %}<strong>Service not in Navigator?</strong> Check Step 2 — the file must be in the <code>MQL5/Services</code> folder, then refresh.{% endif %}
+                    </li>
+                    <li data-en="<strong>Service stopped?</strong> Double-click it again in Navigator to restart." data-nl="<strong>Service gestopt?</strong> Dubbelklik er opnieuw op in Navigator om te herstarten.">
+                        {% if current_language == 'nl' %}<strong>Service gestopt?</strong> Dubbelklik er opnieuw op in Navigator om te herstarten.{% else %}<strong>Service stopped?</strong> Double-click it again in Navigator to restart.{% endif %}
+                    </li>
+                    <li data-en="<strong>Still having issues?</strong> Contact support for help." data-nl="<strong>Nog steeds problemen?</strong> Neem contact op met support voor hulp.">
+                        {% if current_language == 'nl' %}<strong>Nog steeds problemen?</strong> Neem contact op met support voor hulp.{% else %}<strong>Still having issues?</strong> Contact support for help.{% endif %}
+                    </li>
                 </ul>
             </div>
         </div>
@@ -1122,19 +1184,19 @@
                 {% endfor %}
             </select>
             <span style="font-size:0.8rem; color: var(--j-muted); margin-left:0.75rem;">
-                {{ account.broker or 'Waiting for sync...' }}
+                {{ account.broker or ('Wachten op sync...' if current_language == 'nl' else 'Waiting for sync...') }}
                 {% if account.mt5_server %} · {{ account.mt5_server }}{% endif %}
                 {% if account.currency %} · {{ account.currency }}{% endif %}
             </span>
         </div>
         <div class="sync-info">
             {% if account.last_synced_at and (now - account.last_synced_at).total_seconds() < 600 %}
-                <span class="dot" style="background: var(--j-green);"></span> Service Running
+                <span class="dot" style="background: var(--j-green);"></span> <span data-en="Service Running" data-nl="Service Actief">{{ 'Service Actief' if current_language == 'nl' else 'Service Running' }}</span>
             {% elif account.last_synced_at %}
                 <span class="dot" style="background: var(--j-amber);"></span>
-                Last sync: {{ account.last_synced_at.strftime('%d %b %H:%M') }}
+                <span data-en="Last sync:" data-nl="Laatste sync:">{{ 'Laatste sync:' if current_language == 'nl' else 'Last sync:' }}</span> {{ account.last_synced_at.strftime('%d %b %H:%M') }}
             {% else %}
-                <span class="dot" style="background: var(--j-red);"></span> Waiting for Service...
+                <span class="dot" style="background: var(--j-red);"></span> <span data-en="Waiting for Service..." data-nl="Wachten op Service...">{{ 'Wachten op Service...' if current_language == 'nl' else 'Waiting for Service...' }}</span>
             {% endif %}
         </div>
     </div>
@@ -1142,16 +1204,16 @@
     {# Tabs #}
     <div class="journal-tabs">
         <a href="{{ url_for('journal_page', account_id=account.id, tab='dashboard') }}" class="{{ 'active' if active_tab == 'dashboard' else '' }}">
-            <i class="fas fa-grip"></i> Dashboard
+            <i class="fas fa-grip"></i> <span data-en="Dashboard" data-nl="Dashboard">{{ 'Dashboard' if current_language == 'nl' else 'Dashboard' }}</span>
         </a>
         <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="{{ 'active' if active_tab == 'trades' else '' }}">
-            <i class="fas fa-list"></i> Trades
+            <i class="fas fa-list"></i> <span data-en="Trades" data-nl="Trades">{{ 'Trades' if current_language == 'nl' else 'Trades' }}</span>
         </a>
         <a href="{{ url_for('journal_page', account_id=account.id, tab='calendar') }}" class="{{ 'active' if active_tab == 'calendar' else '' }}">
-            <i class="fas fa-calendar"></i> Calendar
+            <i class="fas fa-calendar"></i> <span data-en="Calendar" data-nl="Kalender">{{ 'Kalender' if current_language == 'nl' else 'Calendar' }}</span>
         </a>
         <a href="{{ url_for('journal_page', account_id=account.id, tab='accounts') }}" class="{{ 'active' if active_tab == 'accounts' else '' }}">
-            <i class="fas fa-cog"></i> Accounts & Setup
+            <i class="fas fa-cog"></i> <span data-en="Accounts & Setup" data-nl="Accounts & Setup">{{ 'Accounts & Setup' if current_language == 'nl' else 'Accounts & Setup' }}</span>
         </a>
     </div>
 
@@ -1161,13 +1223,13 @@
         {% if not account.last_synced_at %}
         <div class="waiting-ea">
             <div class="icon-circle"><i class="fas fa-sync-alt"></i></div>
-            <h3 style="font-weight: 700; margin-bottom: 0.5rem;">Waiting for Sync Service</h3>
-            <p style="font-size: 0.85rem; color: var(--j-muted); max-width: 450px; margin: 0 auto 1rem;">
-                Your trades will appear here automatically once the MT5 Journal Sync Service connects.
-                Make sure you've installed and started the service with account <strong>#{{ account.mt5_login }}</strong>.
+            <h3 style="font-weight: 700; margin-bottom: 0.5rem;" data-en="Waiting for Sync Service" data-nl="Wachten op Sync Service">{{ 'Wachten op Sync Service' if current_language == 'nl' else 'Waiting for Sync Service' }}</h3>
+            <p style="font-size: 0.85rem; color: var(--j-muted); max-width: 450px; margin: 0 auto 1rem;" data-en="Your trades will appear here automatically once the MT5 Journal Sync Service connects. Make sure you've installed and started the service with account" data-nl="Je trades verschijnen hier automatisch zodra de MT5 Journal Sync Service verbinding maakt. Zorg dat je de service hebt geïnstalleerd en gestart met account">
+                {{ 'Je trades verschijnen hier automatisch zodra de MT5 Journal Sync Service verbinding maakt. Zorg dat je de service hebt geïnstalleerd en gestart met account' if current_language == 'nl' else 'Your trades will appear here automatically once the MT5 Journal Sync Service connects. Make sure you\'ve installed and started the service with account' }}
+                <strong>#{{ account.mt5_login }}</strong>.
             </p>
             <a href="{{ url_for('journal_page', account_id=account.id, tab='accounts') }}" class="btn btn-primary" style="margin-top: 0.5rem;">
-                <i class="fas fa-cog"></i> Setup Instructions
+                <i class="fas fa-cog"></i> <span data-en="Setup Instructions" data-nl="Setup Instructies">{{ 'Setup Instructies' if current_language == 'nl' else 'Setup Instructions' }}</span>
             </a>
         </div>
         {% endif %}
@@ -1175,35 +1237,35 @@
         {% if account.last_synced_at %}
         <div class="panel" style="margin-bottom: 1.5rem;">
             <div class="panel-head">
-                <div class="t"><i class="fas fa-id-card"></i> Account Details — {{ account.name }}</div>
+                <div class="t"><i class="fas fa-id-card"></i> <span data-en="Account Details" data-nl="Accountgegevens">{{ 'Accountgegevens' if current_language == 'nl' else 'Account Details' }}</span> — {{ account.name }}</div>
                 <span style="font-size:0.72rem; color: var(--j-soft);">
-                    Last sync: {{ account.last_synced_at.strftime('%d %b %Y %H:%M') }}
+                    <span data-en="Last sync:" data-nl="Laatste sync:">{{ 'Laatste sync:' if current_language == 'nl' else 'Last sync:' }}</span> {{ account.last_synced_at.strftime('%d %b %Y %H:%M') }}
                 </span>
             </div>
             <div class="panel-body">
                 <div class="detail-grid">
                     <div class="detail-item">
-                        <span class="detail-label">Account Name</span>
+                        <span class="detail-label" data-en="Account Name" data-nl="Accountnaam">{{ 'Accountnaam' if current_language == 'nl' else 'Account Name' }}</span>
                         <span class="detail-value">{{ account.name }}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-label">Broker</span>
+                        <span class="detail-label" data-en="Broker" data-nl="Broker">{{ 'Broker' if current_language == 'nl' else 'Broker' }}</span>
                         <span class="detail-value">{{ account.broker or '—' }}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-label">Prop Firm</span>
+                        <span class="detail-label" data-en="Prop Firm" data-nl="Prop Firm">{{ 'Prop Firm' if current_language == 'nl' else 'Prop Firm' }}</span>
                         <span class="detail-value">{{ account.prop_firm or '—' }}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-label">MT5 Login</span>
+                        <span class="detail-label" data-en="MT5 Login" data-nl="MT5 Login">{{ 'MT5 Login' if current_language == 'nl' else 'MT5 Login' }}</span>
                         <span class="detail-value mono">{{ account.mt5_login }}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-label">MT5 Server</span>
+                        <span class="detail-label" data-en="MT5 Server" data-nl="MT5 Server">{{ 'MT5 Server' if current_language == 'nl' else 'MT5 Server' }}</span>
                         <span class="detail-value mono">{{ account.mt5_server or '—' }}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-label">Currency</span>
+                        <span class="detail-label" data-en="Currency" data-nl="Valuta">{{ 'Valuta' if current_language == 'nl' else 'Currency' }}</span>
                         <span class="detail-value">{{ account.currency or '—' }}</span>
                     </div>
                 </div>
@@ -1213,107 +1275,109 @@
 
         <div class="kpi-grid">
             <div class="kpi-card color-1">
-                <div class="lbl">Balance</div>
+                <div class="lbl" data-en="Balance" data-nl="Saldo">{{ 'Saldo' if current_language == 'nl' else 'Balance' }}</div>
                 <div class="val">${{ '%.2f'|format(current_balance) }}</div>
             </div>
             <div class="kpi-card color-2">
-                <div class="lbl">Equity</div>
+                <div class="lbl" data-en="Equity" data-nl="Vermogen">{{ 'Vermogen' if current_language == 'nl' else 'Equity' }}</div>
                 <div class="val">${{ '%.2f'|format(current_equity) }}</div>
             </div>
             <div class="kpi-card color-3 {{ 'pos' if overall.net_profit >= 0 else 'neg' }}">
-                <div class="lbl">Net Profit</div>
+                <div class="lbl" data-en="Net Profit" data-nl="Nettowinst">{{ 'Nettowinst' if current_language == 'nl' else 'Net Profit' }}</div>
                 <div class="val">{{ '+' if overall.net_profit >= 0 else '' }}${{ '%.2f'|format(overall.net_profit) }}</div>
-                <div class="sub">{{ total_return_pct }}% return</div>
+                <div class="sub">{{ total_return_pct }}% <span data-en="return" data-nl="rendement">{{ 'rendement' if current_language == 'nl' else 'return' }}</span></div>
             </div>
             <div class="kpi-card color-4">
-                <div class="lbl">Total Trades</div>
+                <div class="lbl" data-en="Total Trades" data-nl="Totaal Trades">{{ 'Totaal Trades' if current_language == 'nl' else 'Total Trades' }}</div>
                 <div class="val">{{ overall.total_trades }}</div>
-                <div class="sub">{{ active_days }} active days</div>
+                <div class="sub">{{ active_days }} <span data-en="active days" data-nl="actieve dagen">{{ 'actieve dagen' if current_language == 'nl' else 'active days' }}</span></div>
             </div>
             <div class="kpi-card color-5">
-                <div class="lbl">Win Rate</div>
+                <div class="lbl" data-en="Win Rate" data-nl="Win Ratio">{{ 'Win Ratio' if current_language == 'nl' else 'Win Rate' }}</div>
                 <div class="val">{{ overall.win_rate }}%</div>
                 <div class="sub">{{ overall.wins }}W / {{ overall.losses }}L</div>
             </div>
             <div class="kpi-card color-6">
-                <div class="lbl">Profit Factor</div>
+                <div class="lbl" data-en="Profit Factor" data-nl="Winstfactor">{{ 'Winstfactor' if current_language == 'nl' else 'Profit Factor' }}</div>
                 <div class="val">{{ overall.profit_factor }}</div>
             </div>
         </div>
 
         <div class="charts-row">
             <div class="chart-card">
-                <div class="chart-head"><i class="fas fa-chart-bar"></i> Weekly P/L</div>
+                <div class="chart-head"><i class="fas fa-chart-bar"></i> <span data-en="Weekly P/L" data-nl="Wekelijkse W/V">{{ 'Wekelijkse W/V' if current_language == 'nl' else 'Weekly P/L' }}</span></div>
                 <div class="chart-body"><canvas id="weeklyChart" height="160"></canvas></div>
             </div>
             <div class="chart-card">
-                <div class="chart-head"><i class="fas fa-chart-pie"></i> Win/Loss</div>
+                <div class="chart-head"><i class="fas fa-chart-pie"></i> <span data-en="Win/Loss" data-nl="Win/Verlies">{{ 'Win/Verlies' if current_language == 'nl' else 'Win/Loss' }}</span></div>
                 <div class="chart-body"><canvas id="winLossChart" height="160"></canvas></div>
             </div>
             <div class="chart-card">
-                <div class="chart-head"><i class="fas fa-chart-pie"></i> Buy/Sell</div>
+                <div class="chart-head"><i class="fas fa-chart-pie"></i> <span data-en="Buy/Sell" data-nl="Koop/Verkoop">{{ 'Koop/Verkoop' if current_language == 'nl' else 'Buy/Sell' }}</span></div>
                 <div class="chart-body"><canvas id="buySellChart" height="160"></canvas></div>
             </div>
             <div class="chart-card">
-                <div class="chart-head"><i class="fas fa-chart-pie"></i> Symbols</div>
+                <div class="chart-head"><i class="fas fa-chart-pie"></i> <span data-en="Symbols" data-nl="Symbolen">{{ 'Symbolen' if current_language == 'nl' else 'Symbols' }}</span></div>
                 <div class="chart-body"><canvas id="symbolChart" height="160"></canvas></div>
             </div>
         </div>
 
         <div class="grid-3col">
             <div class="panel">
-                <div class="panel-head"><div class="t"><i class="fas fa-list-check"></i> Weekly</div></div>
+                <div class="panel-head"><div class="t"><i class="fas fa-list-check"></i> <span data-en="Weekly" data-nl="Wekelijks">{{ 'Wekelijks' if current_language == 'nl' else 'Weekly' }}</span></div></div>
                 <div class="panel-body">
-                    <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if week_stats.net_profit >= 0 else 'neg' }}">{{ '+' if week_stats.net_profit >= 0 else '' }}${{ '%.2f'|format(week_stats.net_profit) }}</span></div>
-                    <div class="stat-row"><span class="k">Trades</span><span class="v">{{ week_stats.total_trades }}</span></div>
-                    <div class="stat-row"><span class="k">Win Rate</span><span class="v">{{ week_stats.win_rate }}%</span></div>
-                    <div class="stat-row"><span class="k">Profit Factor</span><span class="v">{{ week_stats.profit_factor }}</span></div>
-                    <div class="stat-row"><span class="k">Expectancy</span><span class="v">${{ week_stats.expectancy }}</span></div>
-                    <div class="stat-row"><span class="k">Avg Win/Loss</span><span class="v">${{ overall.avg_win }} / ${{ overall.avg_loss }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Net Profit" data-nl="Nettowinst">{{ 'Nettowinst' if current_language == 'nl' else 'Net Profit' }}</span><span class="v {{ 'pos' if week_stats.net_profit >= 0 else 'neg' }}">{{ '+' if week_stats.net_profit >= 0 else '' }}${{ '%.2f'|format(week_stats.net_profit) }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Trades" data-nl="Trades">{{ 'Trades' if current_language == 'nl' else 'Trades' }}</span><span class="v">{{ week_stats.total_trades }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Win Rate" data-nl="Win Ratio">{{ 'Win Ratio' if current_language == 'nl' else 'Win Rate' }}</span><span class="v">{{ week_stats.win_rate }}%</span></div>
+                    <div class="stat-row"><span class="k" data-en="Profit Factor" data-nl="Winstfactor">{{ 'Winstfactor' if current_language == 'nl' else 'Profit Factor' }}</span><span class="v">{{ week_stats.profit_factor }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Expectancy" data-nl="Verwachting">{{ 'Verwachting' if current_language == 'nl' else 'Expectancy' }}</span><span class="v">${{ week_stats.expectancy }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Avg Win/Loss" data-nl="Gem Win/Verlies">{{ 'Gem Win/Verlies' if current_language == 'nl' else 'Avg Win/Loss' }}</span><span class="v">${{ overall.avg_win }} / ${{ overall.avg_loss }}</span></div>
                 </div>
             </div>
             <div class="panel">
-                <div class="panel-head"><div class="t"><i class="fas fa-calendar-check"></i> Monthly</div></div>
+                <div class="panel-head"><div class="t"><i class="fas fa-calendar-check"></i> <span data-en="Monthly" data-nl="Maandelijks">{{ 'Maandelijks' if current_language == 'nl' else 'Monthly' }}</span></div></div>
                 <div class="panel-body">
-                    <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_stats.net_profit >= 0 else 'neg' }}">{{ '+' if month_stats.net_profit >= 0 else '' }}${{ '%.2f'|format(month_stats.net_profit) }}</span></div>
-                    <div class="stat-row"><span class="k">Trades</span><span class="v">{{ month_stats.total_trades }}</span></div>
-                    <div class="stat-row"><span class="k">Win Rate</span><span class="v">{{ month_stats.win_rate }}%</span></div>
-                    <div class="stat-row"><span class="k">Profit Factor</span><span class="v">{{ month_stats.profit_factor }}</span></div>
-                    <div class="stat-row"><span class="k">Wins</span><span class="v pos">{{ month_stats.wins }}</span></div>
-                    <div class="stat-row"><span class="k">Losses</span><span class="v neg">{{ month_stats.losses }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Net Profit" data-nl="Nettowinst">{{ 'Nettowinst' if current_language == 'nl' else 'Net Profit' }}</span><span class="v {{ 'pos' if month_stats.net_profit >= 0 else 'neg' }}">{{ '+' if month_stats.net_profit >= 0 else '' }}${{ '%.2f'|format(month_stats.net_profit) }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Trades" data-nl="Trades">{{ 'Trades' if current_language == 'nl' else 'Trades' }}</span><span class="v">{{ month_stats.total_trades }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Win Rate" data-nl="Win Ratio">{{ 'Win Ratio' if current_language == 'nl' else 'Win Rate' }}</span><span class="v">{{ month_stats.win_rate }}%</span></div>
+                    <div class="stat-row"><span class="k" data-en="Profit Factor" data-nl="Winstfactor">{{ 'Winstfactor' if current_language == 'nl' else 'Profit Factor' }}</span><span class="v">{{ month_stats.profit_factor }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Wins" data-nl="Winsten">{{ 'Winsten' if current_language == 'nl' else 'Wins' }}</span><span class="v pos">{{ month_stats.wins }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Losses" data-nl="Verliezen">{{ 'Verliezen' if current_language == 'nl' else 'Losses' }}</span><span class="v neg">{{ month_stats.losses }}</span></div>
                 </div>
             </div>
             <div class="panel">
-                <div class="panel-head"><div class="t"><i class="fas fa-chart-pie"></i> Overall</div></div>
+                <div class="panel-head"><div class="t"><i class="fas fa-chart-pie"></i> <span data-en="Overall" data-nl="Algemeen">{{ 'Algemeen' if current_language == 'nl' else 'Overall' }}</span></div></div>
                 <div class="panel-body">
-                    <div class="stat-row"><span class="k">Largest Win</span><span class="v pos">${{ overall.largest_win }}</span></div>
-                    <div class="stat-row"><span class="k">Largest Loss</span><span class="v neg">${{ overall.largest_loss }}</span></div>
-                    <div class="stat-row"><span class="k">Max Drawdown</span><span class="v neg">${{ max_dd }} ({{ max_dd_pct }}%)</span></div>
-                    <div class="stat-row"><span class="k">Win Streak</span><span class="v">{{ overall.longest_win_streak }}</span></div>
-                    <div class="stat-row"><span class="k">Loss Streak</span><span class="v">{{ overall.longest_loss_streak }}</span></div>
-                    <div class="stat-row"><span class="k">Avg Duration</span><span class="v">{{ overall.avg_duration_seconds // 3600 }}h {{ (overall.avg_duration_seconds % 3600) // 60 }}m</span></div>
+                    <div class="stat-row"><span class="k" data-en="Largest Win" data-nl="Grootste Winst">{{ 'Grootste Winst' if current_language == 'nl' else 'Largest Win' }}</span><span class="v pos">${{ overall.largest_win }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Largest Loss" data-nl="Grootste Verlies">{{ 'Grootste Verlies' if current_language == 'nl' else 'Largest Loss' }}</span><span class="v neg">${{ overall.largest_loss }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Max Drawdown" data-nl="Max Drawdown">{{ 'Max Drawdown' if current_language == 'nl' else 'Max Drawdown' }}</span><span class="v neg">${{ max_dd }} ({{ max_dd_pct }}%)</span></div>
+                    <div class="stat-row"><span class="k" data-en="Win Streak" data-nl="Win Reeks">{{ 'Win Reeks' if current_language == 'nl' else 'Win Streak' }}</span><span class="v">{{ overall.longest_win_streak }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Loss Streak" data-nl="Verlies Reeks">{{ 'Verlies Reeks' if current_language == 'nl' else 'Loss Streak' }}</span><span class="v">{{ overall.longest_loss_streak }}</span></div>
+                    <div class="stat-row"><span class="k" data-en="Avg Duration" data-nl="Gem Duur">{{ 'Gem Duur' if current_language == 'nl' else 'Avg Duration' }}</span><span class="v">{{ overall.avg_duration_seconds // 3600 }}u {{ (overall.avg_duration_seconds % 3600) // 60 }}m</span></div>
                 </div>
             </div>
         </div>
 
         <div class="panel">
             <div class="panel-head">
-                <div class="t"><i class="fas fa-clock-rotate-left"></i> Recent Trades</div>
-                <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" style="font-size:0.78rem; font-weight:600; color:var(--j-accent); text-decoration:none;">View all →</a>
+                <div class="t"><i class="fas fa-clock-rotate-left"></i> <span data-en="Recent Trades" data-nl="Recente Trades">{{ 'Recente Trades' if current_language == 'nl' else 'Recent Trades' }}</span></div>
+                <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" style="font-size:0.78rem; font-weight:600; color:var(--j-accent); text-decoration:none;">
+                    <span data-en="View all →" data-nl="Bekijk alles →">{{ 'Bekijk alles →' if current_language == 'nl' else 'View all →' }}</span>
+                </a>
             </div>
             {% if recent_trades %}
             <div style="overflow-x: auto;">
             <table class="jr-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
-                        <th>Symbol</th>
-                        <th>Type</th>
-                        <th>Vol</th>
-                        <th>Entry</th>
-                        <th>Exit</th>
-                        <th>Profit</th>
-                        <th>Duration</th>
+                        <th data-en="Date" data-nl="Datum">{{ 'Datum' if current_language == 'nl' else 'Date' }}</th>
+                        <th data-en="Symbol" data-nl="Symbool">{{ 'Symbool' if current_language == 'nl' else 'Symbol' }}</th>
+                        <th data-en="Type" data-nl="Type">{{ 'Type' if current_language == 'nl' else 'Type' }}</th>
+                        <th data-en="Vol" data-nl="Vol">{{ 'Vol' if current_language == 'nl' else 'Vol' }}</th>
+                        <th data-en="Entry" data-nl="Entry">{{ 'Entry' if current_language == 'nl' else 'Entry' }}</th>
+                        <th data-en="Exit" data-nl="Exit">{{ 'Exit' if current_language == 'nl' else 'Exit' }}</th>
+                        <th data-en="Profit" data-nl="Winst">{{ 'Winst' if current_language == 'nl' else 'Profit' }}</th>
+                        <th data-en="Duration" data-nl="Duur">{{ 'Duur' if current_language == 'nl' else 'Duration' }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1335,8 +1399,8 @@
             {% else %}
             <div class="empty-state">
                 <div class="icon-wrap"><i class="fas fa-inbox"></i></div>
-                <h3>No trades yet</h3>
-                <p>They'll appear here automatically when your sync service connects.</p>
+                <h3 data-en="No trades yet" data-nl="Nog geen trades">{{ 'Nog geen trades' if current_language == 'nl' else 'No trades yet' }}</h3>
+                <p data-en="They'll appear here automatically when your sync service connects." data-nl="Ze verschijnen hier automatisch wanneer je sync-service verbinding maakt.">{{ 'Ze verschijnen hier automatisch wanneer je sync-service verbinding maakt.' if current_language == 'nl' else 'They\'ll appear here automatically when your sync service connects.' }}</p>
             </div>
             {% endif %}
         </div>
@@ -1345,34 +1409,34 @@
     {% elif active_tab == 'trades' %}
     <div class="panel">
         <div class="panel-head">
-            <div class="t"><i class="fas fa-list"></i> Trade History — {{ trades|length }} trades</div>
+            <div class="t"><i class="fas fa-list"></i> <span data-en="Trade History" data-nl="Handelsgeschiedenis">{{ 'Handelsgeschiedenis' if current_language == 'nl' else 'Trade History' }}</span> — {{ trades|length }} <span data-en="trades" data-nl="trades">{{ 'trades' if current_language == 'nl' else 'trades' }}</span></div>
         </div>
         <div class="panel-body">
             <form class="filter-bar" method="GET">
                 <input type="hidden" name="account_id" value="{{ account.id }}">
                 <input type="hidden" name="tab" value="trades">
                 <div class="f-group">
-                    <label>Symbol</label>
+                    <label data-en="Symbol" data-nl="Symbool">{{ 'Symbool' if current_language == 'nl' else 'Symbol' }}</label>
                     <select name="jsymbol">
-                        <option value="">All</option>
+                        <option value="" data-en="All" data-nl="Alle">{{ 'Alle' if current_language == 'nl' else 'All' }}</option>
                         {% for s in symbols %}
                         <option value="{{ s }}" {{ 'selected' if filters.symbol == s else '' }}>{{ s }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="f-group">
-                    <label>Type</label>
+                    <label data-en="Type" data-nl="Type">{{ 'Type' if current_language == 'nl' else 'Type' }}</label>
                     <select name="jtype">
-                        <option value="">All</option>
+                        <option value="" data-en="All" data-nl="Alle">{{ 'Alle' if current_language == 'nl' else 'All' }}</option>
                         <option value="buy" {{ 'selected' if filters.type == 'buy' else '' }}>Buy</option>
                         <option value="sell" {{ 'selected' if filters.type == 'sell' else '' }}>Sell</option>
                     </select>
                 </div>
-                <div class="f-group"><label>From</label><input type="date" name="jstart" value="{{ filters.start }}"></div>
-                <div class="f-group"><label>To</label><input type="date" name="jend" value="{{ filters.end }}"></div>
-                <div class="f-group"><label>Search</label><input type="text" name="jq" placeholder="Symbol contains..." value="{{ filters.q }}"></div>
-                <button type="submit" class="btn-filter">Apply</button>
-                <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="btn-clear">Clear</a>
+                <div class="f-group"><label data-en="From" data-nl="Van">{{ 'Van' if current_language == 'nl' else 'From' }}</label><input type="date" name="jstart" value="{{ filters.start }}"></div>
+                <div class="f-group"><label data-en="To" data-nl="Tot">{{ 'Tot' if current_language == 'nl' else 'To' }}</label><input type="date" name="jend" value="{{ filters.end }}"></div>
+                <div class="f-group"><label data-en="Search" data-nl="Zoeken">{{ 'Zoeken' if current_language == 'nl' else 'Search' }}</label><input type="text" name="jq" placeholder="{{ 'Symbool bevat...' if current_language == 'nl' else 'Symbol contains...' }}" value="{{ filters.q }}"></div>
+                <button type="submit" class="btn-filter" data-en="Apply" data-nl="Toepassen">{{ 'Toepassen' if current_language == 'nl' else 'Apply' }}</button>
+                <a href="{{ url_for('journal_page', account_id=account.id, tab='trades') }}" class="btn-clear" data-en="Clear" data-nl="Wissen">{{ 'Wissen' if current_language == 'nl' else 'Clear' }}</a>
             </form>
 
             {% if trades %}
@@ -1380,14 +1444,14 @@
             <table class="jr-table">
                 <thead>
                     <tr>
-                        {% for col, label in [('close_time','Date'),('symbol','Symbol'),('trade_type','Type'),('volume','Vol'),('entry_price','Entry'),('sl','SL'),('tp','TP'),('exit_price','Exit'),('profit','Profit'),('magic_number','Magic')] %}
+                        {% for col, label_en, label_nl in [('close_time','Date','Datum'),('symbol','Symbol','Symbool'),('trade_type','Type','Type'),('volume','Vol','Vol'),('entry_price','Entry','Entry'),('sl','SL','SL'),('tp','TP','TP'),('exit_price','Exit','Exit'),('profit','Profit','Winst'),('magic_number','Magic','Magic')] %}
                         <th>
                             <a href="{{ url_for('journal_page', account_id=account.id, tab='trades', jsort=col, jdir='asc' if sort==col and direction=='desc' else 'desc', jsymbol=filters.symbol, jtype=filters.type, jstart=filters.start, jend=filters.end, jq=filters.q) }}">
-                                {{ label }} {% if sort == col %}{{ '↓' if direction=='desc' else '↑' }}{% endif %}
+                                {{ label_nl if current_language == 'nl' else label_en }} {% if sort == col %}{{ '↓' if direction=='desc' else '↑' }}{% endif %}
                             </a>
                         </th>
                         {% endfor %}
-                        <th>Duration</th>
+                        <th data-en="Duration" data-nl="Duur">{{ 'Duur' if current_language == 'nl' else 'Duration' }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1412,8 +1476,8 @@
             {% else %}
             <div class="empty-state">
                 <div class="icon-wrap"><i class="fas fa-search"></i></div>
-                <h3>No trades found</h3>
-                <p>No trades match these filters. Try adjusting your search criteria.</p>
+                <h3 data-en="No trades found" data-nl="Geen trades gevonden">{{ 'Geen trades gevonden' if current_language == 'nl' else 'No trades found' }}</h3>
+                <p data-en="No trades match these filters. Try adjusting your search criteria." data-nl="Geen trades voldoen aan deze filters. Probeer je zoekcriteria aan te passen.">{{ 'Geen trades voldoen aan deze filters. Probeer je zoekcriteria aan te passen.' if current_language == 'nl' else 'No trades match these filters. Try adjusting your search criteria.' }}</p>
             </div>
             {% endif %}
         </div>
@@ -1433,7 +1497,7 @@
             </div>
             <div class="panel-body">
                 <div class="cal-grid">
-                    {% for dow in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<div class="cal-dow">{{ dow }}</div>{% endfor %}
+                    {% for dow_en, dow_nl in [('Mon','Ma'),('Tue','Di'),('Wed','Wo'),('Thu','Do'),('Fri','Vr'),('Sat','Za'),('Sun','Zo') %}<div class="cal-dow">{{ dow_nl if current_language == 'nl' else dow_en }}</div>{% endfor %}
                     {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
                     {% for day_num in range(1, cal_days_in_month + 1) %}
                         {% set key = '%04d-%02d-%02d'|format(cal_year, cal_month, day_num) %}
@@ -1447,16 +1511,16 @@
             </div>
         </div>
         <div class="panel">
-            <div class="panel-head"><div class="t"><i class="fas fa-chart-line"></i> Monthly Summary</div></div>
+            <div class="panel-head"><div class="t"><i class="fas fa-chart-line"></i> <span data-en="Monthly Summary" data-nl="Maandelijkse Samenvatting">{{ 'Maandelijkse Samenvatting' if current_language == 'nl' else 'Monthly Summary' }}</span></div></div>
             <div class="panel-body">
                 {% set month_net = cal_daily_pl.values()|sum %}
                 {% set trading_days = cal_daily_pl|length %}
                 {% set best_day = cal_daily_pl.values()|max if cal_daily_pl else 0 %}
                 {% set worst_day = cal_daily_pl.values()|min if cal_daily_pl else 0 %}
-                <div class="stat-row"><span class="k">Net Profit</span><span class="v {{ 'pos' if month_net >= 0 else 'neg' }}">${{ '%.2f'|format(month_net) }}</span></div>
-                <div class="stat-row"><span class="k">Trading Days</span><span class="v">{{ trading_days }}</span></div>
-                <div class="stat-row"><span class="k">Best Day</span><span class="v pos">${{ '%.2f'|format(best_day) }}</span></div>
-                <div class="stat-row"><span class="k">Worst Day</span><span class="v neg">${{ '%.2f'|format(worst_day) }}</span></div>
+                <div class="stat-row"><span class="k" data-en="Net Profit" data-nl="Nettowinst">{{ 'Nettowinst' if current_language == 'nl' else 'Net Profit' }}</span><span class="v {{ 'pos' if month_net >= 0 else 'neg' }}">${{ '%.2f'|format(month_net) }}</span></div>
+                <div class="stat-row"><span class="k" data-en="Trading Days" data-nl="Handelsdagen">{{ 'Handelsdagen' if current_language == 'nl' else 'Trading Days' }}</span><span class="v">{{ trading_days }}</span></div>
+                <div class="stat-row"><span class="k" data-en="Best Day" data-nl="Beste Dag">{{ 'Beste Dag' if current_language == 'nl' else 'Best Day' }}</span><span class="v pos">${{ '%.2f'|format(best_day) }}</span></div>
+                <div class="stat-row"><span class="k" data-en="Worst Day" data-nl="Slechtste Dag">{{ 'Slechtste Dag' if current_language == 'nl' else 'Worst Day' }}</span><span class="v neg">${{ '%.2f'|format(worst_day) }}</span></div>
             </div>
         </div>
     </div>
@@ -1467,10 +1531,9 @@
 
         {# Setup Guide (shown even when accounts exist) #}
         <div class="setup-guide" style="margin-bottom: 1.5rem; max-width: 900px;">
-            <h3><i class="fas fa-sync-alt"></i> MT5 Journal Sync Service</h3>
-            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;">
-                The sync service runs in MT5 background and automatically sends your trades to the journal every 5 minutes.
-                Scroll down for the download and install instructions.
+            <h3><i class="fas fa-sync-alt"></i> <span data-en="MT5 Journal Sync Service" data-nl="MT5 Journal Sync Service">{{ 'MT5 Journal Sync Service' if current_language == 'nl' else 'MT5 Journal Sync Service' }}</span></h3>
+            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;" data-en="The sync service runs in MT5 background and automatically sends your trades to the journal every 5 minutes. Scroll down for the download and install instructions." data-nl="De sync-service draait op de achtergrond in MT5 en stuurt je trades automatisch elke 5 minuten naar het journaal. Scroll naar beneden voor de download- en installatie-instructies.">
+                {{ 'De sync-service draait op de achtergrond in MT5 en stuurt je trades automatisch elke 5 minuten naar het journaal. Scroll naar beneden voor de download- en installatie-instructies.' if current_language == 'nl' else 'The sync service runs in MT5 background and automatically sends your trades to the journal every 5 minutes. Scroll down for the download and install instructions.' }}
             </p>
         </div>
 
@@ -1482,30 +1545,30 @@
                     <div>
                         <h3>
                             {{ a.name }}
-                            {% if a.id == account.id %}<span class="badge neutral" style="font-size:0.65rem;">CURRENT</span>{% endif %}
+                            {% if a.id == account.id %}<span class="badge neutral" style="font-size:0.65rem;" data-en="CURRENT" data-nl="HUIDIG">{{ 'HUIDIG' if current_language == 'nl' else 'CURRENT' }}</span>{% endif %}
                         </h3>
                         <div class="meta">
-                            MT5 Login: <strong>{{ a.mt5_login }}</strong>
+                            <span data-en="MT5 Login:" data-nl="MT5 Login:">{{ 'MT5 Login:' if current_language == 'nl' else 'MT5 Login:' }}</span> <strong>{{ a.mt5_login }}</strong>
                             {% if a.broker %} · {{ a.broker }}{% endif %}
                             {% if a.mt5_server %} · {{ a.mt5_server }}{% endif %}
                             {% if a.currency %} · {{ a.currency }}{% endif %}
                         </div>
                         <div class="meta">
-                            Starting: ${{ '%.2f'|format(a.starting_balance or 0) }} ·
-                            Current: ${{ '%.2f'|format(a.current_balance or 0) }} ·
-                            Trades: <strong>{{ a.trades.count() }}</strong>
+                            <span data-en="Starting:" data-nl="Start:">{{ 'Start:' if current_language == 'nl' else 'Starting:' }}</span> ${{ '%.2f'|format(a.starting_balance or 0) }} ·
+                            <span data-en="Current:" data-nl="Huidig:">{{ 'Huidig:' if current_language == 'nl' else 'Current:' }}</span> ${{ '%.2f'|format(a.current_balance or 0) }} ·
+                            <span data-en="Trades:" data-nl="Trades:">{{ 'Trades:' if current_language == 'nl' else 'Trades:' }}</span> <strong>{{ a.trades.count() }}</strong>
                         </div>
                         <div class="meta">
-                            Created: {{ a.created_at.strftime('%d %b %Y') }} ·
-                            Last sync: {{ a.last_synced_at.strftime('%d %b %Y %H:%M') if a.last_synced_at else 'never' }}
+                            <span data-en="Created:" data-nl="Aangemaakt:">{{ 'Aangemaakt:' if current_language == 'nl' else 'Created:' }}</span> {{ a.created_at.strftime('%d %b %Y') }} ·
+                            <span data-en="Last sync:" data-nl="Laatste sync:">{{ 'Laatste sync:' if current_language == 'nl' else 'Last sync:' }}</span> {{ a.last_synced_at.strftime('%d %b %Y %H:%M') if a.last_synced_at else ('nooit' if current_language == 'nl' else 'never') }}
                         </div>
                     </div>
                     <div class="acc-actions">
                         <a class="acc-btn primary" href="{{ url_for('journal_page', account_id=a.id) }}">
-                            <i class="fas fa-folder-open"></i> Open
+                            <i class="fas fa-folder-open"></i> <span data-en="Open" data-nl="Openen">{{ 'Openen' if current_language == 'nl' else 'Open' }}</span>
                         </a>
-                        <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ a.name }} and all its trade history? This cannot be undone.');">
-                            <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> Delete</button>
+                        <form method="POST" action="{{ url_for('journal_account_delete', account_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ 'Verwijder ' + a.name + ' en alle handelsgeschiedenis? Dit kan niet ongedaan worden gemaakt.' if current_language == 'nl' else 'Delete ' + a.name + ' and all its trade history? This cannot be undone.' }}');">
+                            <button class="acc-btn danger" type="submit"><i class="fas fa-trash"></i> <span data-en="Delete" data-nl="Verwijderen">{{ 'Verwijderen' if current_language == 'nl' else 'Delete' }}</span></button>
                         </form>
                     </div>
                 </div>
@@ -1513,17 +1576,17 @@
             </div>
 
             <div class="new-form">
-                <h3><i class="fas fa-plus-circle"></i> Connect Another MT5 Account</h3>
-                <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;">
-                    Enter your MT5 login number. The sync service will auto-detect broker, server, currency, and balance.
+                <h3><i class="fas fa-plus-circle"></i> <span data-en="Connect Another MT5 Account" data-nl="Verbind Nog Een MT5 Account">{{ 'Verbind Nog Een MT5 Account' if current_language == 'nl' else 'Connect Another MT5 Account' }}</span></h3>
+                <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;" data-en="Enter your MT5 login number. The sync service will auto-detect broker, server, currency, and balance." data-nl="Voer je MT5-login in. De sync-service detecteert automatisch broker, server, valuta en saldo.">
+                    {{ 'Voer je MT5-login in. De sync-service detecteert automatisch broker, server, valuta en saldo.' if current_language == 'nl' else 'Enter your MT5 login number. The sync service will auto-detect broker, server, currency, and balance.' }}
                 </p>
                 <form method="POST" action="{{ url_for('journal_account_new') }}">
                     <div class="form-grid">
-                        <div><label>Account Name (optional)</label><input name="name" placeholder="e.g. FTMO 100K"></div>
-                        <div><label>MT5 Login Number *</label><input name="mt5_login" placeholder="52601220" required></div>
+                        <div><label data-en="Account Name (optional)" data-nl="Accountnaam (optioneel)">{{ 'Accountnaam (optioneel)' if current_language == 'nl' else 'Account Name (optional)' }}</label><input name="name" placeholder="{{ 'bijv. FTMO 100K' if current_language == 'nl' else 'e.g. FTMO 100K' }}"></div>
+                        <div><label data-en="MT5 Login Number *" data-nl="MT5 Login Nummer *">{{ 'MT5 Login Nummer *' if current_language == 'nl' else 'MT5 Login Number *' }}</label><input name="mt5_login" placeholder="52601220" required></div>
                     </div>
                     <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                        <i class="fas fa-plug"></i> Connect Account
+                        <i class="fas fa-plug"></i> <span data-en="Connect Account" data-nl="Account Verbinden">{{ 'Account Verbinden' if current_language == 'nl' else 'Connect Account' }}</span>
                     </button>
                 </form>
             </div>
@@ -1533,35 +1596,33 @@
         <div class="indicator-card" style="max-width: 900px;">
             <div class="ind-head">
                 <div class="ind-head-text">
-                    <h3><i class="fas fa-sync-alt"></i> How to Install the MT5 Sync Service</h3>
-                    <p>
-                        Follow these steps to install the service that auto-syncs your trades.
+                    <h3><i class="fas fa-sync-alt"></i> <span data-en="How to Install the MT5 Sync Service" data-nl="Hoe de MT5 Sync Service te Installeren">{{ 'Hoe de MT5 Sync Service te Installeren' if current_language == 'nl' else 'How to Install the MT5 Sync Service' }}</span></h3>
+                    <p data-en="Follow these steps to install the service that auto-syncs your trades." data-nl="Volg deze stappen om de service te installeren die je trades automatisch synchroniseert.">
+                        {{ 'Volg deze stappen om de service te installeren die je trades automatisch synchroniseert.' if current_language == 'nl' else 'Follow these steps to install the service that auto-syncs your trades.' }}
                     </p>
                 </div>
                 <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSync.ex5') }}" download>
-                    <i class="fas fa-download"></i> Download Service
+                    <i class="fas fa-download"></i> <span data-en="Download Service" data-nl="Download Service">{{ 'Download Service' if current_language == 'nl' else 'Download Service' }}</span>
                     <span class="ver">{{ indicator_version or 'v1.0' }}</span>
                 </a>
             </div>
 
             <ol class="steps-list">
-                <li><span class="step-text"><strong>Download</strong> the service file using the button above.</span></li>
-                <li><span class="step-text">Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br>
-                    <small style="color: var(--j-muted);">File → Open Data Folder → MQL5 → Services</small></span></li>
-                <li><span class="step-text">In Navigator (Ctrl+N), right-click <strong>Services</strong> → <strong>Refresh</strong>.</span></li>
-                <li><span class="step-text">Go to <strong>Tools → Options → Expert Advisors</strong>, enable <strong>WebRequest</strong>, add:<br>
-                    <code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code></span></li>
-                <li><span class="step-text">In Navigator, <strong>double-click</strong> <strong>MT5JournalSync</strong> → <strong>OK</strong>.</span></li>
-                <li><span class="step-text">Verify in Experts tab (Ctrl+T): look for the green success message.</span></li>
-                <li><span class="step-text">Right-click service → <strong>Add to Favorites</strong> for auto-start with MT5.</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Download</strong> het servicebestand met de knop hierboven.{% else %}<strong>Download</strong> the service file using the button above.{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}Kopieer het <code>.ex5</code> bestand naar je MT5 <code>MQL5/Services</code> map.<br><small style="color: var(--j-muted);">Bestand → Gegevensmap openen → MQL5 → Services</small>{% else %}Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br><small style="color: var(--j-muted);">File → Open Data Folder → MQL5 → Services</small>{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}In Navigator (Ctrl+N), rechtsklik op <strong>Services</strong> → <strong>Vernieuwen</strong>.{% else %}In Navigator (Ctrl+N), right-click <strong>Services</strong> → <strong>Refresh</strong>.{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}Ga naar <strong>Tools → Opties → Expert Advisors</strong>, schakel <strong>WebRequest</strong> in, voeg toe:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% else %}Go to <strong>Tools → Options → Expert Advisors</strong>, enable <strong>WebRequest</strong>, add:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}In Navigator, <strong>dubbelklik</strong> op <strong>MT5JournalSync</strong> → <strong>OK</strong>.{% else %}In Navigator, <strong>double-click</strong> <strong>MT5JournalSync</strong> → <strong>OK</strong>.{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}Controleer in Experts tab (Ctrl+T): zoek naar het groene succesbericht.{% else %}Verify in Experts tab (Ctrl+T): look for the green success message.{% endif %}</span></li>
+                <li><span class="step-text">{% if current_language == 'nl' %}Rechtsklik service → <strong>Toevoegen aan Favorieten</strong> voor automatisch starten met MT5.{% else %}Right-click service → <strong>Add to Favorites</strong> for auto-start with MT5.{% endif %}</span></li>
             </ol>
 
             <div class="troubleshoot-box">
-                <strong><i class="fas fa-exclamation-triangle"></i> Troubleshooting:</strong>
+                <strong><i class="fas fa-exclamation-triangle"></i> <span data-en="Troubleshooting:" data-nl="Probleemoplossing:">{{ 'Probleemoplossing:' if current_language == 'nl' else 'Troubleshooting:' }}</span></strong>
                 <ul>
-                    <li><strong>HTTP -1 error?</strong> Check WebRequest URL is added exactly as shown.</li>
-                    <li><strong>Service not found?</strong> Make sure file is in <code>MQL5/Services</code> and you refreshed.</li>
-                    <li><strong>No sync?</strong> Make sure you added your MT5 login above first.</li>
+                    <li data-en="<strong>HTTP -1 error?</strong> Check WebRequest URL is added exactly as shown." data-nl="<strong>HTTP -1 fout?</strong> Controleer of WebRequest URL exact is toegevoegd zoals getoond.">{% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer of WebRequest URL exact is toegevoegd zoals getoond.{% else %}<strong>HTTP -1 error?</strong> Check WebRequest URL is added exactly as shown.{% endif %}</li>
+                    <li data-en="<strong>Service not found?</strong> Make sure file is in <code>MQL5/Services</code> and you refreshed." data-nl="<strong>Service niet gevonden?</strong> Zorg dat het bestand in <code>MQL5/Services</code> staat en je hebt vernieuwd.">{% if current_language == 'nl' %}<strong>Service niet gevonden?</strong> Zorg dat het bestand in <code>MQL5/Services</code> staat en je hebt vernieuwd.{% else %}<strong>Service not found?</strong> Make sure file is in <code>MQL5/Services</code> and you refreshed.{% endif %}</li>
+                    <li data-en="<strong>No sync?</strong> Make sure you added your MT5 login above first." data-nl="<strong>Geen sync?</strong> Zorg dat je eerst je MT5-login hierboven hebt toegevoegd.">{% if current_language == 'nl' %}<strong>Geen sync?</strong> Zorg dat je eerst je MT5-login hierboven hebt toegevoegd.{% else %}<strong>No sync?</strong> Make sure you added your MT5 login above first.{% endif %}</li>
                 </ul>
             </div>
         </div>
@@ -1575,10 +1636,10 @@
 <div class="modal-overlay" id="dayModal">
     <div class="modal-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <h3 id="dayModalTitle">Day Details</h3>
+            <h3 id="dayModalTitle" data-en="Day Details" data-nl="Dagdetails">{{ 'Dagdetails' if current_language == 'nl' else 'Day Details' }}</h3>
             <span style="cursor:pointer; color:var(--j-soft); font-size:1.1rem;" onclick="closeDayModal()">&times;</span>
         </div>
-        <div id="dayModalBody">Loading...</div>
+        <div id="dayModalBody">{{ 'Laden...' if current_language == 'nl' else 'Loading...' }}</div>
     </div>
 </div>
 
@@ -1616,6 +1677,8 @@
         });
     })();
 
+    var currentLanguage = '{{ current_language }}';
+
     // WEEKLY P/L CHART
     {% if active_tab == 'dashboard' and weekly_bars %}
     (function() {
@@ -1651,10 +1714,13 @@
     (function() {
         var canvas = document.getElementById('winLossChart');
         if (!canvas) return;
+        var winsLabel = currentLanguage === 'nl' ? 'Winsten' : 'Wins';
+        var lossesLabel = currentLanguage === 'nl' ? 'Verliezen' : 'Losses';
+        var beLabel = 'BE';
         new Chart(canvas, {
             type: 'doughnut',
             data: {
-                labels: ['Wins', 'Losses', 'BE'],
+                labels: [winsLabel, lossesLabel, beLabel],
                 datasets: [{
                     data: [{{ overall.wins }} || 0, {{ overall.losses }} || 0, {{ overall.breakeven }} || 0],
                     backgroundColor: ['rgba(12, 139, 81, 0.85)', 'rgba(200, 49, 30, 0.85)', 'rgba(150, 166, 181, 0.7)'],
@@ -1682,10 +1748,12 @@
                 if (type === 'BUY') buys++; else if (type === 'SELL') sells++;
             }
         });
+        var buyLabel = currentLanguage === 'nl' ? 'Koop' : 'Buy';
+        var sellLabel = currentLanguage === 'nl' ? 'Verkoop' : 'Sell';
         new Chart(canvas, {
             type: 'doughnut',
             data: {
-                labels: ['Buy', 'Sell'],
+                labels: [buyLabel, sellLabel],
                 datasets: [{
                     data: [buys || 1, sells || 1],
                     backgroundColor: ['rgba(12, 139, 81, 0.85)', 'rgba(200, 49, 30, 0.85)'],
@@ -1715,7 +1783,7 @@
         var labels = Object.keys(symbolCounts);
         var data = labels.map(function(s) { return symbolCounts[s]; });
         var colors = ['rgba(30, 84, 229, 0.85)', 'rgba(109, 60, 224, 0.85)', 'rgba(12, 139, 81, 0.85)', 'rgba(230, 126, 34, 0.85)', 'rgba(200, 49, 30, 0.85)', 'rgba(0, 180, 255, 0.85)', 'rgba(255, 200, 0, 0.85)'];
-        if (labels.length === 0) { labels.push('No trades'); data.push(1); }
+        if (labels.length === 0) { labels.push(currentLanguage === 'nl' ? 'Geen trades' : 'No trades'); data.push(1); }
         new Chart(canvas, {
             type: 'doughnut',
             data: {
@@ -1737,20 +1805,23 @@
         var body = document.getElementById('dayModalBody');
         modal.classList.add('show');
         title.textContent = dateStr;
-        body.innerHTML = '<p style="color:var(--j-muted);">Loading...</p>';
+        body.innerHTML = '<p style="color:var(--j-muted);">' + (currentLanguage === 'nl' ? 'Laden...' : 'Loading...') + '</p>';
         fetch('/journal/api/day/' + accountId + '/' + dateStr)
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (!data.trades || !data.trades.length) {
-                    body.innerHTML = '<p style="color:var(--j-muted); text-align:center; padding:1rem;">No trades on this day.</p>';
+                    body.innerHTML = '<p style="color:var(--j-muted); text-align:center; padding:1rem;">' + (currentLanguage === 'nl' ? 'Geen trades op deze dag.' : 'No trades on this day.') + '</p>';
                     return;
                 }
                 var rows = data.trades.map(function(t) {
                     return '<div class="stat-row"><span class="k">' + t.symbol + ' · ' + t.type.toUpperCase() + ' · ' + t.volume + ' lots · ' + t.duration + '</span><span class="v ' + (t.profit >= 0 ? 'pos' : 'neg') + '">' + (t.profit >= 0 ? '+' : '') + '$' + t.profit.toFixed(2) + '</span></div>';
                 }).join('');
-                body.innerHTML = '<div class="stat-row"><span class="k">Net P/L</span><span class="v ' + (data.stats.net_profit >= 0 ? 'pos' : 'neg') + '">$' + data.stats.net_profit.toFixed(2) + '</span></div><div class="stat-row"><span class="k">Trades</span><span class="v">' + data.stats.total_trades + '</span></div><div class="stat-row"><span class="k">Win Rate</span><span class="v">' + data.stats.win_rate + '%</span></div><div style="margin-top:0.75rem; border-top:1px solid var(--j-border); padding-top:0.5rem;">' + rows + '</div>';
+                var netLabel = currentLanguage === 'nl' ? 'Netto W/V' : 'Net P/L';
+                var tradesLabel = currentLanguage === 'nl' ? 'Trades' : 'Trades';
+                var winRateLabel = currentLanguage === 'nl' ? 'Win Ratio' : 'Win Rate';
+                body.innerHTML = '<div class="stat-row"><span class="k">' + netLabel + '</span><span class="v ' + (data.stats.net_profit >= 0 ? 'pos' : 'neg') + '">$' + data.stats.net_profit.toFixed(2) + '</span></div><div class="stat-row"><span class="k">' + tradesLabel + '</span><span class="v">' + data.stats.total_trades + '</span></div><div class="stat-row"><span class="k">' + winRateLabel + '</span><span class="v">' + data.stats.win_rate + '%</span></div><div style="margin-top:0.75rem; border-top:1px solid var(--j-border); padding-top:0.5rem;">' + rows + '</div>';
             })
-            .catch(function() { body.innerHTML = '<p style="color:var(--j-red); text-align:center; padding:1rem;">Failed to load day data.</p>'; });
+            .catch(function() { body.innerHTML = '<p style="color:var(--j-red); text-align:center; padding:1rem;">' + (currentLanguage === 'nl' ? 'Fout bij laden van daggegevens.' : 'Failed to load day data.') + '</p>'; });
     }
     function closeDayModal() { document.getElementById('dayModal').classList.remove('show'); }
     document.getElementById('dayModal').addEventListener('click', function(e) { if (e.target === e.currentTarget) closeDayModal(); });
@@ -1815,7 +1886,8 @@
                 }
                 var syncInfo = document.querySelector('.sync-info');
                 if (syncInfo && data.last_synced_at) {
-                    syncInfo.innerHTML = '<span class="dot" style="background: var(--j-green);"></span> Service Running';
+                    var runningText = currentLanguage === 'nl' ? 'Service Actief' : 'Service Running';
+                    syncInfo.innerHTML = '<span class="dot" style="background: var(--j-green);"></span> ' + runningText;
                 }
             }).catch(function() {});
     }
