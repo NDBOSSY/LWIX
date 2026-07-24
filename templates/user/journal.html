@@ -1407,8 +1407,7 @@
             </div>
             <div class="panel-body">
                 <div class="cal-grid">
-                    {% for dow_pair in [('Mon','Ma'),('Tue','Di'),('Wed','Wo'),('Thu','Do'),('Fri','Vr'),('Sat','Za'),('Sun','Zo') %}{% set dow_en = dow_pair[0] %}{% set dow_nl = dow_pair[1] %}<div class="cal-dow">{{ dow_nl if current_language == 'nl' else dow_en }}</div>{% endfor %}
-                    {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
+                    {% for i in range(7) %}{% set dow_en = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i] %}{% set dow_nl = ['Ma','Di','Wo','Do','Vr','Za','Zo'][i] %}<div class="cal-dow">{{ dow_nl if current_language == 'nl' else dow_en }}</div>{% endfor %}                    {% for _ in range(cal_first_weekday) %}<div class="cal-day empty"></div>{% endfor %}
                     {% for day_num in range(1, cal_days_in_month + 1) %}
                         {% set key = '%04d-%02d-%02d'|format(cal_year, cal_month, day_num) %}
                         {% set pl = cal_daily_pl.get(key) %}
