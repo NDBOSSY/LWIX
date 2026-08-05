@@ -362,7 +362,13 @@
         gap: 0.5rem;
     }
     .ea-list-row:last-child { border-bottom: none; }
-    .ea-list-row .file-cell { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+    .ea-list-row .file-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-width: 0;
+        flex: 1;
+    }
     .ea-list-row .file-icon {
         width: 24px; height: 24px;
         border-radius: 6px;
@@ -372,8 +378,21 @@
         flex-shrink: 0;
         font-size: 0.7rem;
     }
-    .ea-list-row .fname { font-weight: 600; font-size: 0.72rem; color: var(--ink-secondary); }
-    .ea-list-row .fver { font-size: 0.65rem; color: var(--ink-soft); font-family: var(--mono); }
+    .ea-list-row .fname {
+        font-weight: 600;
+        font-size: 0.72rem;
+        color: var(--ink-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .ea-list-row .fver {
+        font-size: 0.65rem;
+        color: var(--ink-soft);
+        font-family: var(--mono);
+        flex: 0 0 42px;
+        text-align: right;
+    }
 
     .table-btn {
         display: inline-flex; align-items: center; gap: 0.25rem;
@@ -473,11 +492,17 @@
         align-items: center;
         gap: 0.3rem;
         min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .license-accounts .account-date {
         font-size: 0.66rem;
         color: var(--ink-soft);
         font-family: var(--mono);
+        flex: 0 0 72px;
+        text-align: right;
         flex-shrink: 0;
     }
     .license-accounts .account-badge {
