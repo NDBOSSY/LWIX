@@ -3776,7 +3776,6 @@ def wix_payment_webhook():
 # ============================================================================
 # STRIPE WEBHOOK
 # ============================================================================
-
 @app.route("/webhook/stripe/payment", methods=["POST"])
 @limiter.limit("60 per minute")
 def stripe_payment_webhook():
@@ -3896,6 +3895,64 @@ def stripe_payment_webhook():
                     request.remote_addr
                 )
 
+        elif event_type == "invoice.paid":
+            invoice = event["data"]["object"]._to_dict_recursive()
+            billing_reason = invoice.get("billing_reason")
+
+            # "subscription_create" = the very first invoice, already handled
+            # by checkout.session.completed above. Only "subscription_cycle"
+            # is a genuine recurring renewal that needs extending here.
+            if billing_reason != "subscription_cycle":
+                logger.info(f"[STRIPE] Ignoring invoice.paid (billing_reason={billing_reason})")
+            else:
+                sub_id = invoice.get("subscription")
+                invoice_id = invoice.get("id")
+                user = User.query.filter_by(stripe_subscription_id=sub_id).first()
+
+                if not user:
+                    logger.warning(f"[STRIPE] invoice.paid for unknown subscription {sub_id}")
+                else:
+                    # Idempotency guard - Stripe can redeliver the same webhook
+                    already_processed = AuditLog.query.filter(
+                        AuditLog.user_id == user.id,
+                        AuditLog.action == "stripe_renewal",
+                        AuditLog.details.like(f"%{invoice_id}%")
+                    ).first()
+
+                    if already_processed:
+                        logger.info(f"[STRIPE] Invoice {invoice_id} already processed for {user.email}, skipping")
+                    else:
+                        days = user.subscription_duration_days or 30
+
+                        # Extend membership - seamless whether still active or already lapsed
+                        if user.membership_end and user.membership_end > datetime.utcnow():
+                            user.membership_end += timedelta(days=days)
+                        else:
+                            user.membership_end = datetime.utcnow() + timedelta(days=days)
+                        user.membership_status = "active"
+
+                        # Extend/reactivate the license key the same way
+                        license = user.licenses.filter(
+                            License.status != "revoked"
+                        ).order_by(License.created_at.desc()).first()
+
+                        if license:
+                            if license.expires_at and license.expires_at > datetime.utcnow():
+                                license.expires_at += timedelta(days=days)
+                            else:
+                                license.expires_at = datetime.utcnow() + timedelta(days=days)
+                            license.status = "active"
+
+                        db.session.commit()
+
+                        log_audit(
+                            user.id,
+                            "stripe_renewal",
+                            f"+{days}d | invoice={invoice_id} | license={license.mask_license_key() if license else 'none'}",
+                            request.remote_addr
+                        )
+                        logger.info(f"[STRIPE] Renewed {user.email}: +{days}d, membership_end={user.membership_end}")
+
         elif event_type == "customer.subscription.deleted":
             sub = event["data"]["object"]._to_dict_recursive()
             sub_id = sub.get("id")
@@ -3921,7 +3978,6 @@ def stripe_payment_webhook():
         logger.error(f"[STRIPE] Error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
 
 # ============================================================================
 # DISCORD INTEGRATION
