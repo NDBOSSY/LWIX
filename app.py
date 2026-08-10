@@ -4151,6 +4151,9 @@ def reconcile_stripe_subscriptions():
     for an unknown period, so local state may be stale even though Stripe
     kept billing (or already cancelled) in the background.
 
+    NOTE: current_period_end lives on the subscription ITEM, not the
+    subscription object itself, as of API version 2026-XX-XX.dahlia.
+
     REMOVE THIS ROUTE (or re-add @admin_required-only POST) once you've
     run it and confirmed the results - it mutates data on every visit.
     """
@@ -4178,7 +4181,18 @@ def reconcile_stripe_subscriptions():
             continue
 
         stripe_status = sub.status
-        current_period_end = datetime.utcfromtimestamp(sub.current_period_end)
+
+        # current_period_end moved from the subscription object to the
+        # first subscription item in newer API versions.
+        items = sub.get("items", {}).get("data", [])
+        period_end_ts = items[0].get("current_period_end") if items else None
+
+        if not period_end_ts:
+            results["errors"] += 1
+            details.append(f"{user.email}: could not find current_period_end on subscription item")
+            continue
+
+        current_period_end = datetime.utcfromtimestamp(period_end_ts)
 
         if stripe_status in ("canceled", "unpaid", "incomplete_expired"):
             if user.membership_status not in ("cancelled", "expired", "revoked"):
@@ -4228,7 +4242,6 @@ def reconcile_stripe_subscriptions():
         "summary": results,
         "details": details
     })
-
 
 # ============================================================================
 # APPLICATION STARTUP
