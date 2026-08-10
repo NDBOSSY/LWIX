@@ -4152,7 +4152,9 @@ def reconcile_stripe_subscriptions():
     kept billing (or already cancelled) in the background.
 
     NOTE: current_period_end lives on the subscription ITEM, not the
-    subscription object itself, as of API version 2026-XX-XX.dahlia.
+    subscription object itself, as of API version 2026-07-29.dahlia.
+    Stripe's SDK objects don't support .get() directly - convert to a
+    plain dict first via _to_dict_recursive() before using dict methods.
 
     REMOVE THIS ROUTE (or re-add @admin_required-only POST) once you've
     run it and confirmed the results - it mutates data on every visit.
@@ -4170,7 +4172,8 @@ def reconcile_stripe_subscriptions():
 
     for user in users:
         try:
-            sub = stripe.Subscription.retrieve(user.stripe_subscription_id)
+            sub_obj = stripe.Subscription.retrieve(user.stripe_subscription_id)
+            sub = sub_obj._to_dict_recursive()
         except stripe.error.InvalidRequestError:
             results["errors"] += 1
             details.append(f"{user.email}: subscription not found at Stripe")
@@ -4180,11 +4183,9 @@ def reconcile_stripe_subscriptions():
             details.append(f"{user.email}: {e}")
             continue
 
-        stripe_status = sub.status
+        stripe_status = sub.get("status")
 
-        # current_period_end moved from the subscription object to the
-        # first subscription item in newer API versions.
-        items = sub.get("items", {}).get("data", [])
+        items = (sub.get("items") or {}).get("data") or []
         period_end_ts = items[0].get("current_period_end") if items else None
 
         if not period_end_ts:
@@ -4242,7 +4243,6 @@ def reconcile_stripe_subscriptions():
         "summary": results,
         "details": details
     })
-
 # ============================================================================
 # APPLICATION STARTUP
 # ============================================================================
