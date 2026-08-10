@@ -923,6 +923,7 @@
                         <i class="fas fa-eye icon-btn" id="vpsPassEye" onclick="toggleVpsPassword()" title="{{ 'Toon wachtwoord' if current_language == 'nl' else 'Show password' }}"></i>
                         <i class="fas fa-eye-slash icon-btn" id="vpsPassEyeSlash" onclick="toggleVpsPassword()" style="display:none;" title="{{ 'Verberg wachtwoord' if current_language == 'nl' else 'Hide password' }}"></i>
                         <i class="fas fa-copy icon-btn" onclick="copyVpsPassword()" title="{{ 'Kopiëren' if current_language == 'nl' else 'Copy' }}"></i>
+                        <i class="fas fa-rotate icon-btn" onclick="showResetVpsPasswordModal()" title="{{ 'Wachtwoord resetten' if current_language == 'nl' else 'Reset password' }}"></i>
                     </div>
                 </div>
             </div>
@@ -1331,6 +1332,28 @@
     </div>
 </div>
 
+<!-- Reset VPS Password modal -->
+<div class="modal-overlay" id="resetVpsPasswordModal">
+    <div class="modal-box">
+        <h3 data-en="Reset VPS Password" data-nl="VPS Wachtwoord Resetten">
+            {{ 'VPS Wachtwoord Resetten' if current_language == 'nl' else 'Reset VPS Password' }}
+        </h3>
+        <p data-en="This generates a brand new password for your VPS. Your current password will stop working immediately."
+           data-nl="Dit genereert een gloednieuw wachtwoord voor je VPS. Je huidige wachtwoord werkt hierna niet meer.">
+            {{ 'Dit genereert een gloednieuw wachtwoord voor je VPS. Je huidige wachtwoord werkt hierna niet meer.' if current_language == 'nl' else 'This generates a brand new password for your VPS. Your current password will stop working immediately.' }}
+        </p>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeResetVpsPasswordModal()">
+                <span data-en="Cancel" data-nl="Annuleren">{{ 'Annuleren' if current_language == 'nl' else 'Cancel' }}</span>
+            </button>
+            <button class="btn btn-danger" id="resetVpsPasswordBtn" onclick="confirmDoResetVpsPassword()">
+                <i class="fas fa-rotate"></i>
+                <span data-en="Reset Password" data-nl="Wachtwoord Resetten">{{ 'Wachtwoord Resetten' if current_language == 'nl' else 'Reset Password' }}</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
@@ -1404,7 +1427,6 @@
     function copyEmail(email, buttonElement) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(email).then(() => {
-                // Visual feedback on button
                 const originalHTML = buttonElement.innerHTML;
                 buttonElement.classList.add('copied');
                 buttonElement.innerHTML = '<i class="fas fa-check"></i> <span data-en="Copied!" data-nl="Gekopieerd!">' + (currentLanguage === 'nl' ? 'Gekopieerd!' : 'Copied!') + '</span>';
@@ -1412,7 +1434,6 @@
                 const msg = currentLanguage === 'nl' ? 'E-mailadres gekopieerd! ✓' : 'Email copied! ✓';
                 showToast(msg, 'success');
                 
-                // Reset button after 2 seconds
                 setTimeout(() => {
                     buttonElement.classList.remove('copied');
                     buttonElement.innerHTML = originalHTML;
@@ -1534,6 +1555,8 @@
     function closeDownloadAllModal() { document.getElementById('downloadAllModal').classList.remove('show'); }
     function showCancelModal() { document.getElementById('cancelModal').classList.add('show'); }
     function closeCancelModal() { document.getElementById('cancelModal').classList.remove('show'); }
+    function showResetVpsPasswordModal() { document.getElementById('resetVpsPasswordModal').classList.add('show'); }
+    function closeResetVpsPasswordModal() { document.getElementById('resetVpsPasswordModal').classList.remove('show'); }
 
     // ==========================================
     // LICENSE GENERATION
@@ -1632,6 +1655,62 @@
     }
 
     // ==========================================
+    // VPS PASSWORD RESET
+    // ==========================================
+    function confirmDoResetVpsPassword() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const resetBtn = document.getElementById('resetVpsPasswordBtn');
+
+        closeResetVpsPasswordModal();
+        loadingOverlay.style.display = 'flex';
+        loadingMessage.textContent = currentLanguage === 'nl' ? 'Wachtwoord resetten…' : 'Resetting password…';
+
+        if (resetBtn) {
+            resetBtn.disabled = true;
+            resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (currentLanguage === 'nl' ? 'Bezig...' : 'Resetting...');
+        }
+
+        fetch('/vps/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => { throw new Error(data.error || `Server error (${response.status})`); })
+                    .catch(err => { if (err.message && !err.message.includes('Unexpected')) throw err; throw new Error(`Server error (${response.status})`); });
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadingOverlay.style.display = 'none';
+            if (data.success) {
+                const display = document.getElementById('vpsPasswordDisplay');
+                if (display) {
+                    display.dataset.password = data.password;
+                    display.textContent = data.password;
+                    display.classList.add('vps-password-hidden');
+                    display.classList.remove('vps-password-visible');
+                    vpsPasswordVisible = false;
+                    const eye = document.getElementById('vpsPassEye');
+                    const eyeSlash = document.getElementById('vpsPassEyeSlash');
+                    if (eye) eye.style.display = 'inline';
+                    if (eyeSlash) eyeSlash.style.display = 'none';
+                }
+                showToast(currentLanguage === 'nl' ? 'Nieuw VPS wachtwoord ingesteld! 🔑' : 'New VPS password set! 🔑', 'success');
+            } else {
+                showToast(data.error || (currentLanguage === 'nl' ? 'Kon wachtwoord niet resetten' : 'Failed to reset password'), 'error');
+            }
+            if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Wachtwoord Resetten' : 'Reset Password'); }
+        })
+        .catch(error => {
+            loadingOverlay.style.display = 'none';
+            showToast(error.message || (currentLanguage === 'nl' ? 'Netwerkfout. Probeer opnieuw.' : 'Network error. Please try again.'), 'error');
+            if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Wachtwoord Resetten' : 'Reset Password'); }
+        });
+    }
+
+    // ==========================================
     // DOWNLOAD ALL
     // ==========================================
     function confirmDownloadAll() {
@@ -1675,9 +1754,15 @@
     document.getElementById('licenseModal')?.addEventListener('click', function(e) { if (e.target === this) closeLicenseModal(); });
     document.getElementById('downloadAllModal')?.addEventListener('click', function(e) { if (e.target === this) closeDownloadAllModal(); });
     document.getElementById('cancelModal')?.addEventListener('click', function(e) { if (e.target === this) closeCancelModal(); });
+    document.getElementById('resetVpsPasswordModal')?.addEventListener('click', function(e) { if (e.target === this) closeResetVpsPasswordModal(); });
 
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') { closeLicenseModal(); closeDownloadAllModal(); closeCancelModal(); }
+        if (e.key === 'Escape') { 
+            closeLicenseModal(); 
+            closeDownloadAllModal(); 
+            closeCancelModal(); 
+            closeResetVpsPasswordModal(); 
+        }
     });
 
     document.addEventListener('keydown', function(e) {
@@ -1691,6 +1776,8 @@
                 if (generateBtn) { generateBtn.disabled = false; generateBtn.textContent = currentLanguage === 'nl' ? 'Genereer' : 'Generate'; }
                 const cancelBtn = document.getElementById('cancelBtn');
                 if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + (currentLanguage === 'nl' ? 'Membership Opzeggen' : 'Cancel Membership'); }
+                const resetBtn = document.getElementById('resetVpsPasswordBtn');
+                if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Wachtwoord Resetten' : 'Reset Password'); }
             }
         }
     });
