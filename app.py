@@ -4139,6 +4139,96 @@ def auto_init_db():
         except Exception as e:
             logger.error(f"DB init failed: {e}")
 
+@app.route("/admin/reconcile-stripe-subscriptions", methods=["GET"])
+@admin_required
+def reconcile_stripe_subscriptions():
+    """
+    TEMPORARY: One-time reconciliation endpoint. Visit this URL directly
+    while logged in as admin to pull real subscription status from Stripe
+    for every user and fix membership_end / license.expires_at to match.
+
+    Needed because the webhook was missing invoice.paid / customer.subscription.*
+    for an unknown period, so local state may be stale even though Stripe
+    kept billing (or already cancelled) in the background.
+
+    REMOVE THIS ROUTE (or re-add @admin_required-only POST) once you've
+    run it and confirmed the results - it mutates data on every visit.
+    """
+    if stripe is None:
+        return jsonify({"error": "Stripe library niet geïnstalleerd."}), 500
+
+    users = User.query.filter(
+        User.stripe_subscription_id.isnot(None),
+        User.is_admin == False
+    ).all()
+
+    results = {"synced": 0, "already_ok": 0, "cancelled_at_stripe": 0, "errors": 0}
+    details = []
+
+    for user in users:
+        try:
+            sub = stripe.Subscription.retrieve(user.stripe_subscription_id)
+        except stripe.error.InvalidRequestError:
+            results["errors"] += 1
+            details.append(f"{user.email}: subscription not found at Stripe")
+            continue
+        except Exception as e:
+            results["errors"] += 1
+            details.append(f"{user.email}: {e}")
+            continue
+
+        stripe_status = sub.status
+        current_period_end = datetime.utcfromtimestamp(sub.current_period_end)
+
+        if stripe_status in ("canceled", "unpaid", "incomplete_expired"):
+            if user.membership_status not in ("cancelled", "expired", "revoked"):
+                user.membership_status = "expired"
+                db.session.commit()
+            results["cancelled_at_stripe"] += 1
+            details.append(f"{user.email}: Stripe status={stripe_status} - needs manual review")
+            continue
+
+        needs_sync = (
+            not user.membership_end
+            or abs((user.membership_end - current_period_end).total_seconds()) > 3600
+            or user.membership_status not in ("active", "cancelled")
+        )
+
+        if not needs_sync:
+            results["already_ok"] += 1
+            continue
+
+        user.membership_end = current_period_end
+        user.membership_status = "active"
+
+        license = user.licenses.filter(
+            License.status != "revoked"
+        ).order_by(License.created_at.desc()).first()
+
+        if license:
+            license.expires_at = current_period_end
+            license.status = "active"
+
+        db.session.commit()
+        results["synced"] += 1
+        details.append(f"{user.email}: synced membership_end -> {current_period_end.date()}")
+
+        log_audit(
+            user.id,
+            "stripe_reconciliation",
+            f"Synced to Stripe period_end={current_period_end.date()} (status={stripe_status})",
+            request.remote_addr
+        )
+
+    logger.info(f"[RECONCILE] {results}")
+    for line in details:
+        logger.info(f"[RECONCILE] {line}")
+
+    return jsonify({
+        "summary": results,
+        "details": details
+    })
+
 
 # ============================================================================
 # APPLICATION STARTUP
