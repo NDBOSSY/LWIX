@@ -45,16 +45,12 @@ ADDED: Background retry/backfill sweep that automatically re-attempts VPS
        provisioning for any paid, active user who doesn't yet have a VPS
        (e.g. because a previous provisioning attempt failed).
 ADDED: Debug VPS endpoint for admins to diagnose VPS issues
-REMOVED: Automatic VPS "credentials ready" / "VPS terminated" emails. VPS
-       login details are already visible on the user dashboard and in the
-       admin user-detail page, so no email is sent for VPS lifecycle events
-       anymore. (License key emails and welcome/cancellation emails are
-       unaffected.)
-ADDED: Admin can reactivate a CANCELLED membership (not just a revoked one).
-       Reactivating a cancelled membership resumes auto-renewal at Stripe
-       (cancel_at_period_end=False) and keeps the existing paid period intact.
-       Reactivating a revoked membership still grants a fresh paid period,
-       same as before.
+ADDED (again): Automatic "VPS ready" email sent to the user as soon as their
+       VPS transitions to active (IP + credentials assigned), whether that
+       happens instantly during provisioning or later via the polling/retry
+       sweep or an admin-triggered retry. VPS termination emails remain
+       intentionally disabled - login details stay visible on the user
+       dashboard and in the admin user-detail page.
 ADDED: Trading Journal with MT5 Sync Agent integration
 ADDED: Journal account management with auto-detection of broker/server/currency
 ADDED: One-click sync agent download with pre-embedded token
@@ -65,6 +61,9 @@ ADDED: Weekly P/L chart
 ADDED: Comprehensive trade statistics (win rate, profit factor, drawdown, etc.)
 ADDED: MT5 Connector Indicator management for admin dashboard
 ADDED: MT5 Connector Indicator download on journal page for manual traders
+ADDED: Self-service "Reset VPS Password" endpoint (/vps/reset-password) so a
+       logged-in user can rotate their own VPS password on demand, in
+       addition to the existing admin-only reset endpoint.
 """
 
 import os
@@ -1367,6 +1366,84 @@ def get_selected_journal_account(requested_id=None):
 # VPS PROVISIONING FUNCTIONS
 # ============================================================================
 
+def send_vps_ready_email(user):
+    """
+    Notify the user their VPS is ready, with login details included.
+
+    This can be called from a background thread (polling/retry sweep) as
+    well as from a normal request, so it deliberately avoids anything that
+    depends on Flask's request/session context (e.g. get_user_language())
+    and uses the persisted user.language_preference instead.
+    """
+    try:
+        lang = (user.language_preference or 'en')
+        port = user.vps_port or Config.FOREXVPS_DEFAULT_RDP_PORT
+        password = decrypt_data(user.vps_password) if user.vps_password else None
+
+        if not user.vps_ip or not password:
+            logger.warning(
+                f"[ThinkHuge] Skipping VPS ready email for {user.email} - "
+                f"missing IP or password (ip={user.vps_ip}, has_password={bool(password)})"
+            )
+            return
+
+        if lang == 'nl':
+            subject = "Je Forex VPS is klaar! 🎉"
+            body = (
+                f"Hoi {user.first_name or 'daar'},\n\n"
+                f"Je Forex VPS is klaar voor gebruik. Hieronder vind je de inloggegevens:\n\n"
+                f"RDP-adres: {user.vps_ip}:{port}\n"
+                f"Gebruikersnaam: {user.vps_username}\n"
+                f"Wachtwoord: {password}\n\n"
+                f"Je kunt deze gegevens ook altijd terugvinden op je dashboard: {Config.APP_URL}/dashboard\n\n"
+                f"Veel succes met traden!"
+            )
+            html_body = (
+                f"<h3>Je Forex VPS is klaar! 🎉</h3>"
+                f"<p>Hoi {user.first_name or 'daar'},</p>"
+                f"<p>Je Forex VPS is klaar voor gebruik. Hieronder vind je de inloggegevens:</p>"
+                f"<p>"
+                f"<strong>RDP-adres:</strong> {user.vps_ip}:{port}<br>"
+                f"<strong>Gebruikersnaam:</strong> {user.vps_username}<br>"
+                f"<strong>Wachtwoord:</strong> {password}"
+                f"</p>"
+                f"<p>Je kunt deze gegevens ook altijd terugvinden op je "
+                f"<a href=\"{Config.APP_URL}/dashboard\">dashboard</a>.</p>"
+                f"<p>Veel succes met traden!</p>"
+            )
+        else:
+            subject = "Your Forex VPS is ready! 🎉"
+            body = (
+                f"Hi {user.first_name or 'there'},\n\n"
+                f"Your Forex VPS is ready to use. Here are your login details:\n\n"
+                f"RDP Address: {user.vps_ip}:{port}\n"
+                f"Username: {user.vps_username}\n"
+                f"Password: {password}\n\n"
+                f"You can always find these details again on your dashboard: {Config.APP_URL}/dashboard\n\n"
+                f"Happy trading!"
+            )
+            html_body = (
+                f"<h3>Your Forex VPS is ready! 🎉</h3>"
+                f"<p>Hi {user.first_name or 'there'},</p>"
+                f"<p>Your Forex VPS is ready to use. Here are your login details:</p>"
+                f"<p>"
+                f"<strong>RDP Address:</strong> {user.vps_ip}:{port}<br>"
+                f"<strong>Username:</strong> {user.vps_username}<br>"
+                f"<strong>Password:</strong> {password}"
+                f"</p>"
+                f"<p>You can always find these details again on your "
+                f"<a href=\"{Config.APP_URL}/dashboard\">dashboard</a>.</p>"
+                f"<p>Happy trading!</p>"
+            )
+
+        send_email_async(subject, [user.email], body, html_body)
+        logger.info(f"[ThinkHuge] VPS ready email queued for {user.email}")
+
+    except Exception as e:
+        # Never let an email failure break VPS provisioning
+        logger.error(f"[ThinkHuge] Failed to queue VPS ready email for {user.email}: {e}")
+
+
 def try_complete_pending_vps(user):
     """
     Check if a provisioning VPS has become ready and update user record.
@@ -1400,6 +1477,7 @@ def try_complete_pending_vps(user):
         db.session.commit()
 
         logger.info(f"[ThinkHuge] VPS now ready for {user.email}: {user.vps_id} | IP: {ip}:{rdp_port}")
+        send_vps_ready_email(user)
         return True
 
     except urllib.error.HTTPError as e:
@@ -1476,6 +1554,7 @@ def provision_vps_for_user(user, plan_level):
         user.vps_password = encrypt_data(result.get('password', ''))
         db.session.commit()
         logger.info(f"[ThinkHuge] VPS provisioned and ready for {user.email}: {user.vps_id} | IP: {user.vps_ip}:{user.vps_port}")
+        send_vps_ready_email(user)
         return True
     else:
         user.vps_status = 'provisioning'
@@ -2424,6 +2503,54 @@ def cancel_membership():
         logger.error(f"[CANCEL] Error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"error": "Failed to cancel membership"}), 500
+
+
+# ============================================================================
+# VPS SELF-SERVICE ROUTES
+# ============================================================================
+
+@app.route("/vps/reset-password", methods=["POST"])
+@login_required
+@limiter.limit("5 per day")
+def user_reset_vps_password():
+    """Let a user reset their own VPS password on demand."""
+    lang = get_user_language()
+    user = current_user
+
+    if user.is_admin:
+        msg = "Admin accounts hebben geen zelfbedienings-VPS." if lang == 'nl' else "Admin accounts don't use the self-service VPS."
+        return jsonify({"success": False, "error": msg}), 400
+
+    if not user.vps_id or user.vps_status != 'active':
+        msg = "Je hebt nog geen actieve VPS." if lang == 'nl' else "You don't have an active VPS yet."
+        return jsonify({"success": False, "error": msg}), 400
+
+    try:
+        password = forexvps_client.reset_password(user.vps_id)
+        user.vps_password = encrypt_data(password)
+        user.vps_last_error = None
+        db.session.commit()
+
+        log_audit(user.id, "vps_password_reset", f"vps_id={user.vps_id}", request.remote_addr)
+        logger.info(f"[ThinkHuge] User-initiated password reset for {user.email} ({user.vps_id})")
+
+        return jsonify({
+            "success": True,
+            "password": password,
+            "message": "Nieuw wachtwoord ingesteld." if lang == 'nl' else "New password set."
+        })
+    except urllib.error.HTTPError as e:
+        detail = forexvps_client._error_detail(e)
+        logger.error(f"[ThinkHuge] User password reset failed for {user.email}: {e.code} - {detail}")
+        user.vps_last_error = f"{e.code} - {detail}"[:300]
+        db.session.commit()
+        msg = "Wachtwoord resetten mislukt. Probeer later opnieuw." if lang == 'nl' else "Password reset failed. Please try again later."
+        return jsonify({"success": False, "error": msg}), 502
+    except Exception as e:
+        logger.error(f"[ThinkHuge] User password reset error for {user.email}: {e}")
+        db.session.rollback()
+        msg = "Wachtwoord resetten mislukt." if lang == 'nl' else "Password reset failed."
+        return jsonify({"success": False, "error": msg}), 500
 
 
 # ============================================================================
