@@ -3217,18 +3217,37 @@ def reactivate_membership(user_id):
 @app.route("/admin/extend-membership/<int:user_id>", methods=["POST"])
 @admin_required
 def extend_membership(user_id):
-    """Extend a user's membership by a number of days."""
+    """Extend a user's membership AND their license key, seamlessly."""
     user = db.session.get(User, user_id)
     if user:
         days = int(request.form.get("days", 30))
+
+        # Extend membership
         if user.membership_end and user.membership_end > datetime.utcnow():
             user.membership_end += timedelta(days=days)
         else:
             user.membership_start = datetime.utcnow()
             user.membership_end = datetime.utcnow() + timedelta(days=days)
         user.membership_status = "active"
+
+        # Extend the license key too - regardless of whether it's
+        # currently active or already expired. Skip only if it was
+        # deliberately revoked by an admin.
+        license = user.licenses.filter(
+            License.status != "revoked"
+        ).order_by(License.created_at.desc()).first()
+
+        if license:
+            if license.expires_at and license.expires_at > datetime.utcnow():
+                license.expires_at += timedelta(days=days)
+            else:
+                license.expires_at = datetime.utcnow() + timedelta(days=days)
+            license.status = "active"
+            flash(f"Verlengd met {days} dagen. Licentie {license.mask_license_key()} bijgewerkt.", "success")
+        else:
+            flash(f"Verlengd met {days} dagen. Geen licentie gevonden om te synchroniseren.", "warning")
+
         db.session.commit()
-        flash(f"Verlengd met {days} dagen.", "success")
     return redirect(url_for("admin_user_detail", user_id=user_id))
 
 
