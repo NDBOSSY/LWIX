@@ -1501,8 +1501,14 @@ def send_vps_ready_email(user):
         port = user.vps_port or Config.FOREXVPS_DEFAULT_RDP_PORT
         password = decrypt_data(user.vps_password) if user.vps_password else None
         first_name = user.first_name or ('daar' if lang == 'nl' else 'there')
+
+        members_platform_url = "https://members.tradingengine.nl/dashboard"
         academy_url = "https://www.tradingengine.nl/academy"
-        dashboard_url = f"{Config.APP_URL}/dashboard"
+        # Fall back to the app-wide configured invite if set, so this stays
+        # in sync with the Discord button elsewhere on the dashboard; the
+        # client-supplied URL is used as the default otherwise.
+        discord_url = Config.DISCORD_INVITE_LINK or "https://discord.com/invite/RRpN2Am8xj"
+        support_email = "support@thinkhuge.net"
 
         if not user.vps_ip or not password:
             logger.warning(
@@ -1515,16 +1521,21 @@ def send_vps_ready_email(user):
             subject = "Je Forex VPS is klaar! 🎉"
             body = (
                 f"Hi {first_name},\n\n"
-                f"Goed nieuws! Je Forex VPS is klaar voor gebruik. 🎉\n\n"
-                f"Hieronder vind je jouw inloggegevens:\n\n"
+                f"Goed nieuws! Je Forex VPS is aangemaakt en klaar voor gebruik.\n\n"
+                f"Jouw VPS-gegevens\n"
                 f"RDP-adres: {user.vps_ip}:{port}\n"
                 f"Gebruikersnaam: {user.vps_username}\n"
                 f"Wachtwoord: {password}\n\n"
-                f"Bewaar deze gegevens goed. Je kunt je VPS-gegevens ook altijd "
-                f"terugvinden in je Trading Engine dashboard.\n\n"
+                f"Je kunt je VPS-gegevens ook altijd terugvinden in je Members Platform: "
+                f"{members_platform_url}\n\n"
                 f"Hoe nu verder?\n"
-                f"Ga naar de Trading Engine Academy. Bekijk de Tutorials en volg de "
-                f"Setup Guide stap voor stap.\n\n"
+                f"Ga naar de Trading Engine Academy: {academy_url}\n"
+                f"Bekijk daar de Tutorials en volg daarna de Setup Guide stap voor stap "
+                f"om alles correct in te stellen.\n\n"
+                f"Heb je een technische vraag rondom je VPS? Dan kun je mailen naar "
+                f"{support_email}\n\n"
+                f"Heb je andere vragen of loop je ergens tegenaan? Stel je vraag binnen "
+                f"de Discord Community: {discord_url}\n\n"
                 f"Let's get the Engine Started 🚀\n\n"
                 f"Dave & Josefien\n"
                 f"Team Trading Engine"
@@ -1532,41 +1543,50 @@ def send_vps_ready_email(user):
             html_body = (
                 f"<h3>Je Forex VPS is klaar! 🎉</h3>"
                 f"<p>Hi {first_name},</p>"
-                f"<p>Goed nieuws! Je Forex VPS is klaar voor gebruik. 🎉</p>"
-                f"<p>Hieronder vind je jouw inloggegevens:</p>"
-                f"<p>"
-                f"<strong>RDP-adres:</strong> {user.vps_ip}:{port}<br>"
-                f"<strong>Gebruikersnaam:</strong> {user.vps_username}<br>"
-                f"<strong>Wachtwoord:</strong> {password}"
-                f"</p>"
-                f"<p>Bewaar deze gegevens goed. Je kunt je VPS-gegevens ook altijd "
-                f"terugvinden in je Trading Engine dashboard.</p>"
+                f"<p>Goed nieuws! Je Forex VPS is aangemaakt en klaar voor gebruik.</p>"
+                f"<p><strong>Jouw VPS-gegevens</strong><br>"
+                f"RDP-adres: {user.vps_ip}:{port}<br>"
+                f"Gebruikersnaam: {user.vps_username}<br>"
+                f"Wachtwoord: {password}</p>"
+                f"<p>Je kunt je VPS-gegevens ook altijd terugvinden in je "
+                f"<a href=\"{members_platform_url}\">Members Platform</a>.</p>"
                 f"<p><strong>Hoe nu verder?</strong><br>"
-                f"Ga naar de <a href=\"{academy_url}\">Trading Engine Academy</a>. "
-                f"Bekijk de Tutorials en volg de Setup Guide stap voor stap.</p>"
+                f"Ga naar de <a href=\"{academy_url}\">Trading Engine Academy</a>.<br>"
+                f"Bekijk daar de Tutorials en volg daarna de Setup Guide stap voor stap "
+                f"om alles correct in te stellen.</p>"
+                f"<p>Heb je een technische vraag rondom je VPS? Dan kun je mailen naar "
+                f"<a href=\"mailto:{support_email}\">{support_email}</a></p>"
+                f"<p>Heb je andere vragen of loop je ergens tegenaan? Stel je vraag binnen "
+                f"de <a href=\"{discord_url}\">Discord Community</a>.</p>"
                 f"<p>Let's get the Engine Started 🚀</p>"
                 f"<p>Dave &amp; Josefien<br>Team Trading Engine</p>"
             )
         else:
             # NOTE: the client only supplied Dutch copy for this email. This
             # English version is our own translation of the exact Dutch text
-            # above (same structure, same lines) so English-preference users
-            # get an equivalent message - it has not been separately
-            # approved by the client. Confirm wording with them before
-            # relying on it, or ask them to supply English copy directly.
+            # above (same structure, same lines, same links) so English-
+            # preference users get an equivalent message - it has not been
+            # separately approved by the client. Confirm wording with them
+            # before relying on it, or ask them to supply English copy
+            # directly.
             subject = "Your Forex VPS is ready! 🎉"
             body = (
                 f"Hi {first_name},\n\n"
-                f"Good news! Your Forex VPS is ready to use. 🎉\n\n"
-                f"Here are your login details:\n\n"
+                f"Good news! Your Forex VPS has been created and is ready to use.\n\n"
+                f"Your VPS Details\n"
                 f"RDP Address: {user.vps_ip}:{port}\n"
                 f"Username: {user.vps_username}\n"
                 f"Password: {password}\n\n"
-                f"Keep these details safe. You can always find your VPS details "
-                f"again in your Trading Engine dashboard.\n\n"
+                f"You can always find your VPS details again in your Members Platform: "
+                f"{members_platform_url}\n\n"
                 f"What's next?\n"
-                f"Head over to the Trading Engine Academy. Check out the Tutorials "
-                f"and follow the Setup Guide step by step.\n\n"
+                f"Head over to the Trading Engine Academy: {academy_url}\n"
+                f"Check out the Tutorials there and then follow the Setup Guide step by "
+                f"step to set everything up correctly.\n\n"
+                f"Have a technical question about your VPS? You can email "
+                f"{support_email}\n\n"
+                f"Have other questions or run into something? Ask your question in the "
+                f"Discord Community: {discord_url}\n\n"
                 f"Let's get the Engine Started 🚀\n\n"
                 f"Dave & Josefien\n"
                 f"Team Trading Engine"
@@ -1574,18 +1594,21 @@ def send_vps_ready_email(user):
             html_body = (
                 f"<h3>Your Forex VPS is ready! 🎉</h3>"
                 f"<p>Hi {first_name},</p>"
-                f"<p>Good news! Your Forex VPS is ready to use. 🎉</p>"
-                f"<p>Here are your login details:</p>"
-                f"<p>"
-                f"<strong>RDP Address:</strong> {user.vps_ip}:{port}<br>"
-                f"<strong>Username:</strong> {user.vps_username}<br>"
-                f"<strong>Password:</strong> {password}"
-                f"</p>"
-                f"<p>Keep these details safe. You can always find your VPS details "
-                f"again in your Trading Engine dashboard.</p>"
+                f"<p>Good news! Your Forex VPS has been created and is ready to use.</p>"
+                f"<p><strong>Your VPS Details</strong><br>"
+                f"RDP Address: {user.vps_ip}:{port}<br>"
+                f"Username: {user.vps_username}<br>"
+                f"Password: {password}</p>"
+                f"<p>You can always find your VPS details again in your "
+                f"<a href=\"{members_platform_url}\">Members Platform</a>.</p>"
                 f"<p><strong>What's next?</strong><br>"
-                f"Head over to the <a href=\"{academy_url}\">Trading Engine Academy</a>. "
-                f"Check out the Tutorials and follow the Setup Guide step by step.</p>"
+                f"Head over to the <a href=\"{academy_url}\">Trading Engine Academy</a>.<br>"
+                f"Check out the Tutorials there and then follow the Setup Guide step by "
+                f"step to set everything up correctly.</p>"
+                f"<p>Have a technical question about your VPS? You can email "
+                f"<a href=\"mailto:{support_email}\">{support_email}</a></p>"
+                f"<p>Have other questions or run into something? Ask your question in the "
+                f"<a href=\"{discord_url}\">Discord Community</a>.</p>"
                 f"<p>Let's get the Engine Started 🚀</p>"
                 f"<p>Dave &amp; Josefien<br>Team Trading Engine</p>"
             )
