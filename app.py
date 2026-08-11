@@ -382,6 +382,10 @@ class User(UserMixin, db.Model):
     vps_last_attempt_at = db.Column(db.DateTime, nullable=True)
     vps_last_error = db.Column(db.String(300), nullable=True)
     thinkhuge_user_id = db.Column(db.String(100), nullable=True)
+    # Set the first (and only) time the "VPS ready" email is actually sent for
+    # the CURRENT vps_id. Used as an atomic claim to prevent duplicate emails
+    # when multiple worker processes/threads notice readiness at once.
+    vps_ready_email_sent_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
     otp_tokens = db.relationship("OTPToken", backref="user", lazy="dynamic", cascade="all, delete-orphan")
@@ -1111,6 +1115,74 @@ def send_email_async(subject, recipients, body, html_body=None):
     threading.Thread(target=send).start()
 
 
+def send_members_platform_ready_email(user):
+    """
+    Send the dedicated 'your Members Platform account is ready' email with
+    a clickable login button.
+
+    This is separate and in addition to the general welcome email - the
+    welcome email confirms the purchase/plan, this one is a focused
+    invitation to actually log in, with a real button rather than a plain
+    text URL buried in the welcome copy.
+    """
+    try:
+        lang = (user.language_preference or 'en')
+        login_url = f"{Config.APP_URL}/login"
+        first_name = user.first_name or ('daar' if lang == 'nl' else 'there')
+
+        button_style = (
+            "display:inline-block;padding:12px 28px;background:#12182B;"
+            "color:#ffffff;text-decoration:none;border-radius:8px;"
+            "font-weight:700;font-size:14px;letter-spacing:0.02em;"
+        )
+
+        if lang == 'nl':
+            subject = "Je Trading Engine Members Platform is klaar 🚀"
+            body = (
+                f"Hi {first_name},\n\n"
+                f"Je account voor het Trading Engine Members Platform is aangemaakt "
+                f"en klaar voor gebruik.\n\n"
+                f"Via onderstaande link kun je direct inloggen:\n"
+                f"{login_url}\n\n"
+                f"Tot snel!"
+            )
+            html_body = (
+                f"<h3>Je Trading Engine Members Platform is klaar 🚀</h3>"
+                f"<p>Hi {first_name},</p>"
+                f"<p>Je account voor het Trading Engine Members Platform is aangemaakt "
+                f"en klaar voor gebruik.</p>"
+                f"<p>Via onderstaande link kun je direct inloggen:</p>"
+                f"<p><a href=\"{login_url}\" style=\"{button_style}\">"
+                f"INLOGGEN OP HET MEMBERS PLATFORM</a></p>"
+            )
+        else:
+            subject = "Your Trading Engine Members Platform is ready 🚀"
+            body = (
+                f"Hi {first_name},\n\n"
+                f"Your Trading Engine Members Platform account has been created "
+                f"and is ready to use.\n\n"
+                f"Use the link below to log in directly:\n"
+                f"{login_url}\n\n"
+                f"See you there!"
+            )
+            html_body = (
+                f"<h3>Your Trading Engine Members Platform is ready 🚀</h3>"
+                f"<p>Hi {first_name},</p>"
+                f"<p>Your Trading Engine Members Platform account has been created "
+                f"and is ready to use.</p>"
+                f"<p>Use the link below to log in directly:</p>"
+                f"<p><a href=\"{login_url}\" style=\"{button_style}\">"
+                f"LOG IN TO THE MEMBERS PLATFORM</a></p>"
+            )
+
+        send_email_async(subject, [user.email], body, html_body)
+        logger.info(f"[EMAIL] Members Platform login email queued for {user.email}")
+
+    except Exception as e:
+        # Never let an email failure break the payment/membership flow
+        logger.error(f"[EMAIL] Failed to queue Members Platform login email for {user.email}: {e}")
+
+
 def log_audit(user_id, action, details=None, ip_address=None):
     """Log an audit event to the database."""
     try:
@@ -1366,6 +1438,52 @@ def get_selected_journal_account(requested_id=None):
 # VPS PROVISIONING FUNCTIONS
 # ============================================================================
 
+def claim_vps_ready_email_slot(user):
+    """
+    Atomically claim the right to send the "VPS ready" email for the user's
+    CURRENT vps_id, using a single conditional UPDATE.
+
+    Multiple worker processes/threads (the background poller, a direct
+    provisioning call, an admin retry, etc.) can all notice a VPS became
+    ready at nearly the same moment. A plain Python if-check on
+    user.vps_ready_email_sent_at is NOT safe against that race, because two
+    processes can both read "not sent yet" before either writes back.
+
+    A single UPDATE ... WHERE vps_ready_email_sent_at IS NULL is atomic at
+    the database level: only one caller's UPDATE can match the WHERE clause
+    and affect a row, so only one caller gets rowcount == 1 back. That
+    caller - and only that caller - should send the email.
+
+    Returns True if this call won the race (send the email), False if
+    someone else already claimed it (skip sending).
+    """
+    try:
+        result = db.session.execute(
+            db.text("""
+                UPDATE users
+                SET vps_ready_email_sent_at = :now
+                WHERE id = :uid
+                  AND vps_id = :vps_id
+                  AND vps_ready_email_sent_at IS NULL
+            """),
+            {"now": datetime.utcnow(), "uid": user.id, "vps_id": user.vps_id}
+        )
+        db.session.commit()
+        won = result.rowcount == 1
+        if not won:
+            logger.info(
+                f"[ThinkHuge] VPS ready email for {user.email} already claimed "
+                f"by another process/thread - skipping duplicate send"
+            )
+        return won
+    except Exception as e:
+        logger.error(f"[ThinkHuge] Failed to claim VPS ready email slot for {user.email}: {e}")
+        db.session.rollback()
+        # Fail safe: if the claim itself errors, don't send - better to miss
+        # a rare edge case than to spam a duplicate email.
+        return False
+
+
 def send_vps_ready_email(user):
     """
     Notify the user their VPS is ready, with login details included.
@@ -1374,11 +1492,17 @@ def send_vps_ready_email(user):
     well as from a normal request, so it deliberately avoids anything that
     depends on Flask's request/session context (e.g. get_user_language())
     and uses the persisted user.language_preference instead.
+
+    Callers should call claim_vps_ready_email_slot(user) first and only
+    call this function if that returns True, to avoid duplicate emails.
     """
     try:
         lang = (user.language_preference or 'en')
         port = user.vps_port or Config.FOREXVPS_DEFAULT_RDP_PORT
         password = decrypt_data(user.vps_password) if user.vps_password else None
+        first_name = user.first_name or ('daar' if lang == 'nl' else 'there')
+        academy_url = "https://www.tradingengine.nl/academy"
+        dashboard_url = f"{Config.APP_URL}/dashboard"
 
         if not user.vps_ip or not password:
             logger.warning(
@@ -1390,50 +1514,80 @@ def send_vps_ready_email(user):
         if lang == 'nl':
             subject = "Je Forex VPS is klaar! 🎉"
             body = (
-                f"Hoi {user.first_name or 'daar'},\n\n"
-                f"Je Forex VPS is klaar voor gebruik. Hieronder vind je de inloggegevens:\n\n"
+                f"Hi {first_name},\n\n"
+                f"Goed nieuws! Je Forex VPS is klaar voor gebruik. 🎉\n\n"
+                f"Hieronder vind je jouw inloggegevens:\n\n"
                 f"RDP-adres: {user.vps_ip}:{port}\n"
                 f"Gebruikersnaam: {user.vps_username}\n"
                 f"Wachtwoord: {password}\n\n"
-                f"Je kunt deze gegevens ook altijd terugvinden op je dashboard: {Config.APP_URL}/dashboard\n\n"
-                f"Veel succes met traden!"
+                f"Bewaar deze gegevens goed. Je kunt je VPS-gegevens ook altijd "
+                f"terugvinden in je Trading Engine dashboard.\n\n"
+                f"Hoe nu verder?\n"
+                f"Ga naar de Trading Engine Academy. Bekijk de Tutorials en volg de "
+                f"Setup Guide stap voor stap.\n\n"
+                f"Let's get the Engine Started 🚀\n\n"
+                f"Dave & Josefien\n"
+                f"Team Trading Engine"
             )
             html_body = (
                 f"<h3>Je Forex VPS is klaar! 🎉</h3>"
-                f"<p>Hoi {user.first_name or 'daar'},</p>"
-                f"<p>Je Forex VPS is klaar voor gebruik. Hieronder vind je de inloggegevens:</p>"
+                f"<p>Hi {first_name},</p>"
+                f"<p>Goed nieuws! Je Forex VPS is klaar voor gebruik. 🎉</p>"
+                f"<p>Hieronder vind je jouw inloggegevens:</p>"
                 f"<p>"
                 f"<strong>RDP-adres:</strong> {user.vps_ip}:{port}<br>"
                 f"<strong>Gebruikersnaam:</strong> {user.vps_username}<br>"
                 f"<strong>Wachtwoord:</strong> {password}"
                 f"</p>"
-                f"<p>Je kunt deze gegevens ook altijd terugvinden op je "
-                f"<a href=\"{Config.APP_URL}/dashboard\">dashboard</a>.</p>"
-                f"<p>Veel succes met traden!</p>"
+                f"<p>Bewaar deze gegevens goed. Je kunt je VPS-gegevens ook altijd "
+                f"terugvinden in je Trading Engine dashboard.</p>"
+                f"<p><strong>Hoe nu verder?</strong><br>"
+                f"Ga naar de <a href=\"{academy_url}\">Trading Engine Academy</a>. "
+                f"Bekijk de Tutorials en volg de Setup Guide stap voor stap.</p>"
+                f"<p>Let's get the Engine Started 🚀</p>"
+                f"<p>Dave &amp; Josefien<br>Team Trading Engine</p>"
             )
         else:
+            # NOTE: the client only supplied Dutch copy for this email. This
+            # English version is our own translation of the exact Dutch text
+            # above (same structure, same lines) so English-preference users
+            # get an equivalent message - it has not been separately
+            # approved by the client. Confirm wording with them before
+            # relying on it, or ask them to supply English copy directly.
             subject = "Your Forex VPS is ready! 🎉"
             body = (
-                f"Hi {user.first_name or 'there'},\n\n"
-                f"Your Forex VPS is ready to use. Here are your login details:\n\n"
+                f"Hi {first_name},\n\n"
+                f"Good news! Your Forex VPS is ready to use. 🎉\n\n"
+                f"Here are your login details:\n\n"
                 f"RDP Address: {user.vps_ip}:{port}\n"
                 f"Username: {user.vps_username}\n"
                 f"Password: {password}\n\n"
-                f"You can always find these details again on your dashboard: {Config.APP_URL}/dashboard\n\n"
-                f"Happy trading!"
+                f"Keep these details safe. You can always find your VPS details "
+                f"again in your Trading Engine dashboard.\n\n"
+                f"What's next?\n"
+                f"Head over to the Trading Engine Academy. Check out the Tutorials "
+                f"and follow the Setup Guide step by step.\n\n"
+                f"Let's get the Engine Started 🚀\n\n"
+                f"Dave & Josefien\n"
+                f"Team Trading Engine"
             )
             html_body = (
                 f"<h3>Your Forex VPS is ready! 🎉</h3>"
-                f"<p>Hi {user.first_name or 'there'},</p>"
-                f"<p>Your Forex VPS is ready to use. Here are your login details:</p>"
+                f"<p>Hi {first_name},</p>"
+                f"<p>Good news! Your Forex VPS is ready to use. 🎉</p>"
+                f"<p>Here are your login details:</p>"
                 f"<p>"
                 f"<strong>RDP Address:</strong> {user.vps_ip}:{port}<br>"
                 f"<strong>Username:</strong> {user.vps_username}<br>"
                 f"<strong>Password:</strong> {password}"
                 f"</p>"
-                f"<p>You can always find these details again on your "
-                f"<a href=\"{Config.APP_URL}/dashboard\">dashboard</a>.</p>"
-                f"<p>Happy trading!</p>"
+                f"<p>Keep these details safe. You can always find your VPS details "
+                f"again in your Trading Engine dashboard.</p>"
+                f"<p><strong>What's next?</strong><br>"
+                f"Head over to the <a href=\"{academy_url}\">Trading Engine Academy</a>. "
+                f"Check out the Tutorials and follow the Setup Guide step by step.</p>"
+                f"<p>Let's get the Engine Started 🚀</p>"
+                f"<p>Dave &amp; Josefien<br>Team Trading Engine</p>"
             )
 
         send_email_async(subject, [user.email], body, html_body)
@@ -1477,7 +1631,8 @@ def try_complete_pending_vps(user):
         db.session.commit()
 
         logger.info(f"[ThinkHuge] VPS now ready for {user.email}: {user.vps_id} | IP: {ip}:{rdp_port}")
-        send_vps_ready_email(user)
+        if claim_vps_ready_email_slot(user):
+            send_vps_ready_email(user)
         return True
 
     except urllib.error.HTTPError as e:
@@ -1545,6 +1700,9 @@ def provision_vps_for_user(user, plan_level):
     user.vps_plan = vps_plan_name
     user.vps_created_at = datetime.utcnow()
     user.vps_last_error = None
+    # New server -> reset the "ready email sent" claim so this new VPS gets
+    # its own notification instead of being blocked by a prior VPS's claim.
+    user.vps_ready_email_sent_at = None
 
     if result.get('ready'):
         user.vps_status = 'active'
@@ -1554,7 +1712,8 @@ def provision_vps_for_user(user, plan_level):
         user.vps_password = encrypt_data(result.get('password', ''))
         db.session.commit()
         logger.info(f"[ThinkHuge] VPS provisioned and ready for {user.email}: {user.vps_id} | IP: {user.vps_ip}:{user.vps_port}")
-        send_vps_ready_email(user)
+        if claim_vps_ready_email_slot(user):
+            send_vps_ready_email(user)
         return True
     else:
         user.vps_status = 'provisioning'
@@ -1847,6 +2006,7 @@ def run_migrations():
                 'vps_id', 'vps_status', 'vps_ip', 'vps_port', 'vps_username', 'vps_password',
                 'vps_plan', 'vps_created_at', 'vps_terminated_at',
                 'vps_last_attempt_at', 'vps_last_error', 'thinkhuge_user_id',
+                'vps_ready_email_sent_at',
             ]
             for col_name in vps_columns:
                 if col_name not in columns:
@@ -3884,6 +4044,7 @@ def wix_payment_webhook():
             f"Je {plan_name} abonnement is nu actief. Log in op {Config.APP_URL}/login",
             f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p><p>Log in op {Config.APP_URL}/login</p>"
         )
+        send_members_platform_ready_email(user)
 
         log_audit(
             user.id,
@@ -4014,6 +4175,7 @@ def stripe_payment_webhook():
                     f"Je {plan_name} abonnement is nu actief.",
                     f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p>"
                 )
+                send_members_platform_ready_email(user)
 
                 log_audit(
                     user.id,
