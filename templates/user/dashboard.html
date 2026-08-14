@@ -916,14 +916,16 @@
                     </div>
                 </div>
                 <div class="vps-field">
-                    <div class="f-label" data-en="Password" data-nl="Wachtwoord">{{ 'Wachtwoord' if current_language == 'nl' else 'Password' }}</div>
+                    <div class="f-label" data-en="One-Time Password" data-nl="Eenmalig Wachtwoord">
+                        {{ 'Eenmalig Wachtwoord' if current_language == 'nl' else 'One-Time Password' }}
+                    </div>
                     <div class="f-value">
                         {% set display_password = vps_password_decrypted if vps_password_decrypted else '••••••••' %}
                         <span id="vpsPasswordDisplay" class="vps-password-hidden" data-password="{{ vps_password_decrypted or '' }}">{{ display_password }}</span>
                         <i class="fas fa-eye icon-btn" id="vpsPassEye" onclick="toggleVpsPassword()" title="{{ 'Toon wachtwoord' if current_language == 'nl' else 'Show password' }}"></i>
                         <i class="fas fa-eye-slash icon-btn" id="vpsPassEyeSlash" onclick="toggleVpsPassword()" style="display:none;" title="{{ 'Verberg wachtwoord' if current_language == 'nl' else 'Hide password' }}"></i>
                         <i class="fas fa-copy icon-btn" onclick="copyVpsPassword()" title="{{ 'Kopiëren' if current_language == 'nl' else 'Copy' }}"></i>
-                        <i class="fas fa-rotate icon-btn" onclick="showResetVpsPasswordModal()" title="{{ 'Wachtwoord resetten' if current_language == 'nl' else 'Reset password' }}"></i>
+                        <i class="fas fa-rotate icon-btn" onclick="showResetVpsPasswordModal()" title="{{ 'Nieuw eenmalig wachtwoord' if current_language == 'nl' else 'New one-time password' }}"></i>
                     </div>
                 </div>
             </div>
@@ -1335,20 +1337,36 @@
 <!-- Reset VPS Password modal -->
 <div class="modal-overlay" id="resetVpsPasswordModal">
     <div class="modal-box">
-        <h3 data-en="Reset VPS Password" data-nl="VPS Wachtwoord Resetten">
-            {{ 'VPS Wachtwoord Resetten' if current_language == 'nl' else 'Reset VPS Password' }}
+        <h3 data-en="Generate New One-Time Password" data-nl="Genereer Nieuw Eenmalig Wachtwoord">
+            {{ 'Genereer Nieuw Eenmalig Wachtwoord' if current_language == 'nl' else 'Generate New One-Time Password' }}
         </h3>
-        <p data-en="This generates a brand new password for your VPS. Your current password will stop working immediately."
-           data-nl="Dit genereert een gloednieuw wachtwoord voor je VPS. Je huidige wachtwoord werkt hierna niet meer.">
-            {{ 'Dit genereert een gloednieuw wachtwoord voor je VPS. Je huidige wachtwoord werkt hierna niet meer.' if current_language == 'nl' else 'This generates a brand new password for your VPS. Your current password will stop working immediately.' }}
+        <p data-en="This generates a brand new one-time password for your VPS. Your current password will stop working."
+           data-nl="Dit genereert een gloednieuw eenmalig wachtwoord voor je VPS. Je huidige wachtwoord werkt hierna niet meer.">
+            {{ 'Dit genereert een gloednieuw eenmalig wachtwoord voor je VPS. Je huidige wachtwoord werkt hierna niet meer.' if current_language == 'nl' else 'This generates a brand new one-time password for your VPS. Your current password will stop working.' }}
         </p>
+        <div class="warning-box" style="background: var(--amber-light); border-color: #f0c36d;">
+            <div class="warning-title" style="color: var(--amber);">
+                <i class="fas fa-clock"></i>
+                <span data-en="Important Note" data-nl="Belangrijke Opmerking">
+                    {{ 'Belangrijke Opmerking' if current_language == 'nl' else 'Important Note' }}
+                </span>
+            </div>
+            <p style="font-size:0.78rem; color: var(--ink-secondary); margin:0;">
+                <span data-en="Your new one-time password will take approximately 5-10 minutes to be ready. Please wait before attempting to log in with it."
+                      data-nl="Je nieuwe eenmalige wachtwoord is over ongeveer 5-10 minuten klaar. Wacht even voordat je ermee probeert in te loggen.">
+                    {{ 'Je nieuwe eenmalige wachtwoord is over ongeveer 5-10 minuten klaar. Wacht even voordat je ermee probeert in te loggen.' if current_language == 'nl' else 'Your new one-time password will take approximately 5-10 minutes to be ready. Please wait before attempting to log in with it.' }}
+                </span>
+            </p>
+        </div>
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="closeResetVpsPasswordModal()">
                 <span data-en="Cancel" data-nl="Annuleren">{{ 'Annuleren' if current_language == 'nl' else 'Cancel' }}</span>
             </button>
             <button class="btn btn-danger" id="resetVpsPasswordBtn" onclick="confirmDoResetVpsPassword()">
                 <i class="fas fa-rotate"></i>
-                <span data-en="Reset Password" data-nl="Wachtwoord Resetten">{{ 'Wachtwoord Resetten' if current_language == 'nl' else 'Reset Password' }}</span>
+                <span data-en="Generate New Password" data-nl="Genereer Nieuw Wachtwoord">
+                    {{ 'Genereer Nieuw Wachtwoord' if current_language == 'nl' else 'Generate New Password' }}
+                </span>
             </button>
         </div>
     </div>
@@ -1482,7 +1500,7 @@
     }
 
     // ==========================================
-    // VPS PASSWORD TOGGLE & COPY
+    // VPS ONE-TIME PASSWORD TOGGLE & COPY
     // ==========================================
     let vpsPasswordVisible = false;
     function toggleVpsPassword() {
@@ -1655,7 +1673,7 @@
     }
 
     // ==========================================
-    // VPS PASSWORD RESET
+    // VPS ONE-TIME PASSWORD RESET
     // ==========================================
     function confirmDoResetVpsPassword() {
         const loadingOverlay = document.getElementById('loadingOverlay');
@@ -1664,11 +1682,11 @@
 
         closeResetVpsPasswordModal();
         loadingOverlay.style.display = 'flex';
-        loadingMessage.textContent = currentLanguage === 'nl' ? 'Wachtwoord resetten…' : 'Resetting password…';
+        loadingMessage.textContent = currentLanguage === 'nl' ? 'Nieuw eenmalig wachtwoord genereren…' : 'Generating new one-time password…';
 
         if (resetBtn) {
             resetBtn.disabled = true;
-            resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (currentLanguage === 'nl' ? 'Bezig...' : 'Resetting...');
+            resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (currentLanguage === 'nl' ? 'Bezig...' : 'Generating...');
         }
 
         fetch('/vps/reset-password', {
@@ -1697,16 +1715,34 @@
                     if (eye) eye.style.display = 'inline';
                     if (eyeSlash) eyeSlash.style.display = 'none';
                 }
-                showToast(currentLanguage === 'nl' ? 'Nieuw VPS wachtwoord ingesteld! 🔑' : 'New VPS password set! 🔑', 'success');
+                
+                const msg = currentLanguage === 'nl' 
+                    ? 'Nieuw eenmalig wachtwoord gegenereerd! 🔑 Het is over ongeveer 5-10 minuten klaar.' 
+                    : 'New one-time password generated! 🔑 It will be ready in approximately 5-10 minutes.';
+                showToast(msg, 'success');
+                
+                // Show additional info about the wait time
+                setTimeout(() => {
+                    const waitMsg = currentLanguage === 'nl' 
+                        ? '⏳ Wacht 5-10 minuten voordat je het nieuwe wachtwoord gebruikt.' 
+                        : '⏳ Wait 5-10 minutes before using the new password.';
+                    showToast(waitMsg, 'warning');
+                }, 3000);
             } else {
                 showToast(data.error || (currentLanguage === 'nl' ? 'Kon wachtwoord niet resetten' : 'Failed to reset password'), 'error');
             }
-            if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Wachtwoord Resetten' : 'Reset Password'); }
+            if (resetBtn) { 
+                resetBtn.disabled = false; 
+                resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Genereer Nieuw Wachtwoord' : 'Generate New Password'); 
+            }
         })
         .catch(error => {
             loadingOverlay.style.display = 'none';
             showToast(error.message || (currentLanguage === 'nl' ? 'Netwerkfout. Probeer opnieuw.' : 'Network error. Please try again.'), 'error');
-            if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Wachtwoord Resetten' : 'Reset Password'); }
+            if (resetBtn) { 
+                resetBtn.disabled = false; 
+                resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Genereer Nieuw Wachtwoord' : 'Generate New Password'); 
+            }
         });
     }
 
@@ -1745,7 +1781,7 @@
         else if (type === 'warning') t.classList.add('warning');
         t.classList.add('show');
         if (t._hideTimeout) clearTimeout(t._hideTimeout);
-        t._hideTimeout = setTimeout(() => { t.classList.remove('show'); }, 4000);
+        t._hideTimeout = setTimeout(() => { t.classList.remove('show'); }, 6000);
     }
 
     // ==========================================
@@ -1777,7 +1813,7 @@
                 const cancelBtn = document.getElementById('cancelBtn');
                 if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> ' + (currentLanguage === 'nl' ? 'Membership Opzeggen' : 'Cancel Membership'); }
                 const resetBtn = document.getElementById('resetVpsPasswordBtn');
-                if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Wachtwoord Resetten' : 'Reset Password'); }
+                if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = '<i class="fas fa-rotate"></i> ' + (currentLanguage === 'nl' ? 'Genereer Nieuw Wachtwoord' : 'Generate New Password'); }
             }
         }
     });
