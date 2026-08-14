@@ -3978,13 +3978,6 @@ def wix_payment_webhook():
 
         plan_level = user.get_plan_level()
         provision_vps_for_user(user, plan_level)
-
-        send_email_async(
-            "Welkom bij Trading Engine! 🎉",
-            [email],
-            f"Je {plan_name} abonnement is nu actief. Log in op {Config.APP_URL}/login",
-            f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p><p>Log in op {Config.APP_URL}/login</p>"
-        )
         send_members_platform_ready_email(user)
 
         log_audit(
@@ -4109,13 +4102,6 @@ def stripe_payment_webhook():
 
                 plan_level = user.get_plan_level()
                 provision_vps_for_user(user, plan_level)
-
-                send_email_async(
-                    "Welkom bij Trading Engine! 🎉",
-                    [email],
-                    f"Je {plan_name} abonnement is nu actief.",
-                    f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p>"
-                )
                 send_members_platform_ready_email(user)
 
                 log_audit(
