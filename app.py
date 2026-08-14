@@ -45,25 +45,16 @@ ADDED: Background retry/backfill sweep that automatically re-attempts VPS
        provisioning for any paid, active user who doesn't yet have a VPS
        (e.g. because a previous provisioning attempt failed).
 ADDED: Debug VPS endpoint for admins to diagnose VPS issues
-ADDED (again): Automatic "VPS ready" email sent to the user as soon as their
-       VPS transitions to active (IP + credentials assigned), whether that
-       happens instantly during provisioning or later via the polling/retry
-       sweep or an admin-triggered retry. VPS termination emails remain
-       intentionally disabled - login details stay visible on the user
-       dashboard and in the admin user-detail page.
-ADDED: Trading Journal with MT5 Sync Agent integration
-ADDED: Journal account management with auto-detection of broker/server/currency
-ADDED: One-click sync agent download with pre-embedded token
-ADDED: Live dashboard auto-refresh every 60 seconds
-ADDED: Calendar view with daily P/L
-ADDED: Trade filtering, sorting, and search
-ADDED: Weekly P/L chart
-ADDED: Comprehensive trade statistics (win rate, profit factor, drawdown, etc.)
-ADDED: MT5 Connector Indicator management for admin dashboard
-ADDED: MT5 Connector Indicator download on journal page for manual traders
 ADDED: Self-service "Reset VPS Password" endpoint (/vps/reset-password) so a
        logged-in user can rotate their own VPS password on demand, in
        addition to the existing admin-only reset endpoint.
+UPDATED: All outgoing emails are now written in Dutch only (single-language
+       copy, no more English branches), to keep tone and wording consistent
+       across every notification the platform sends.
+REMOVED: The separate "Members Platform is ready" login-invite email. It was
+       redundant with the welcome/purchase-confirmation email that already
+       goes out on the same event (Wix plan-order and Stripe checkout), so
+       users no longer receive two emails for the same signup event.
 """
 
 import os
@@ -1115,74 +1106,6 @@ def send_email_async(subject, recipients, body, html_body=None):
     threading.Thread(target=send).start()
 
 
-def send_members_platform_ready_email(user):
-    """
-    Send the dedicated 'your Members Platform account is ready' email with
-    a clickable login button.
-
-    This is separate and in addition to the general welcome email - the
-    welcome email confirms the purchase/plan, this one is a focused
-    invitation to actually log in, with a real button rather than a plain
-    text URL buried in the welcome copy.
-    """
-    try:
-        lang = (user.language_preference or 'en')
-        login_url = f"{Config.APP_URL}/login"
-        first_name = user.first_name or ('daar' if lang == 'nl' else 'there')
-
-        button_style = (
-            "display:inline-block;padding:12px 28px;background:#12182B;"
-            "color:#ffffff;text-decoration:none;border-radius:8px;"
-            "font-weight:700;font-size:14px;letter-spacing:0.02em;"
-        )
-
-        if lang == 'nl':
-            subject = "Je Trading Engine Members Platform is klaar 🚀"
-            body = (
-                f"Hi {first_name},\n\n"
-                f"Je account voor het Trading Engine Members Platform is aangemaakt "
-                f"en klaar voor gebruik.\n\n"
-                f"Via onderstaande link kun je direct inloggen:\n"
-                f"{login_url}\n\n"
-                f"Tot snel!"
-            )
-            html_body = (
-                f"<h3>Je Trading Engine Members Platform is klaar 🚀</h3>"
-                f"<p>Hi {first_name},</p>"
-                f"<p>Je account voor het Trading Engine Members Platform is aangemaakt "
-                f"en klaar voor gebruik.</p>"
-                f"<p>Via onderstaande link kun je direct inloggen:</p>"
-                f"<p><a href=\"{login_url}\" style=\"{button_style}\">"
-                f"INLOGGEN OP HET MEMBERS PLATFORM</a></p>"
-            )
-        else:
-            subject = "Your Trading Engine Members Platform is ready 🚀"
-            body = (
-                f"Hi {first_name},\n\n"
-                f"Your Trading Engine Members Platform account has been created "
-                f"and is ready to use.\n\n"
-                f"Use the link below to log in directly:\n"
-                f"{login_url}\n\n"
-                f"See you there!"
-            )
-            html_body = (
-                f"<h3>Your Trading Engine Members Platform is ready 🚀</h3>"
-                f"<p>Hi {first_name},</p>"
-                f"<p>Your Trading Engine Members Platform account has been created "
-                f"and is ready to use.</p>"
-                f"<p>Use the link below to log in directly:</p>"
-                f"<p><a href=\"{login_url}\" style=\"{button_style}\">"
-                f"LOG IN TO THE MEMBERS PLATFORM</a></p>"
-            )
-
-        send_email_async(subject, [user.email], body, html_body)
-        logger.info(f"[EMAIL] Members Platform login email queued for {user.email}")
-
-    except Exception as e:
-        # Never let an email failure break the payment/membership flow
-        logger.error(f"[EMAIL] Failed to queue Members Platform login email for {user.email}: {e}")
-
-
 def log_audit(user_id, action, details=None, ip_address=None):
     """Log an audit event to the database."""
     try:
@@ -1490,17 +1413,19 @@ def send_vps_ready_email(user):
 
     This can be called from a background thread (polling/retry sweep) as
     well as from a normal request, so it deliberately avoids anything that
-    depends on Flask's request/session context (e.g. get_user_language())
-    and uses the persisted user.language_preference instead.
+    depends on Flask's request/session context (e.g. get_user_language()).
+
+    All copy is Dutch only, regardless of the user's stored language
+    preference - the platform now sends a single, consistent language for
+    every email.
 
     Callers should call claim_vps_ready_email_slot(user) first and only
     call this function if that returns True, to avoid duplicate emails.
     """
     try:
-        lang = (user.language_preference or 'en')
         port = user.vps_port or Config.FOREXVPS_DEFAULT_RDP_PORT
         password = decrypt_data(user.vps_password) if user.vps_password else None
-        first_name = user.first_name or ('daar' if lang == 'nl' else 'there')
+        first_name = user.first_name or 'daar'
 
         members_platform_url = "https://members.tradingengine.nl/dashboard"
         academy_url = "https://www.tradingengine.nl/academy"
@@ -1517,101 +1442,49 @@ def send_vps_ready_email(user):
             )
             return
 
-        if lang == 'nl':
-            subject = "Je Forex VPS is klaar! 🎉"
-            body = (
-                f"Hi {first_name},\n\n"
-                f"Goed nieuws! Je Forex VPS is aangemaakt en klaar voor gebruik.\n\n"
-                f"Jouw VPS-gegevens\n"
-                f"RDP-adres: {user.vps_ip}:{port}\n"
-                f"Gebruikersnaam: {user.vps_username}\n"
-                f"Wachtwoord: {password}\n\n"
-                f"Je kunt je VPS-gegevens ook altijd terugvinden in je Members Platform: "
-                f"{members_platform_url}\n\n"
-                f"Hoe nu verder?\n"
-                f"Ga naar de Trading Engine Academy: {academy_url}\n"
-                f"Bekijk daar de Tutorials en volg daarna de Setup Guide stap voor stap "
-                f"om alles correct in te stellen.\n\n"
-                f"Heb je een technische vraag rondom je VPS? Dan kun je mailen naar "
-                f"{support_email}\n\n"
-                f"Heb je andere vragen of loop je ergens tegenaan? Stel je vraag binnen "
-                f"de Discord Community: {discord_url}\n\n"
-                f"Let's get the Engine Started 🚀\n\n"
-                f"Dave & Josefien\n"
-                f"Team Trading Engine"
-            )
-            html_body = (
-                f"<h3>Je Forex VPS is klaar! 🎉</h3>"
-                f"<p>Hi {first_name},</p>"
-                f"<p>Goed nieuws! Je Forex VPS is aangemaakt en klaar voor gebruik.</p>"
-                f"<p><strong>Jouw VPS-gegevens</strong><br>"
-                f"RDP-adres: {user.vps_ip}:{port}<br>"
-                f"Gebruikersnaam: {user.vps_username}<br>"
-                f"Wachtwoord: {password}</p>"
-                f"<p>Je kunt je VPS-gegevens ook altijd terugvinden in je "
-                f"<a href=\"{members_platform_url}\">Members Platform</a>.</p>"
-                f"<p><strong>Hoe nu verder?</strong><br>"
-                f"Ga naar de <a href=\"{academy_url}\">Trading Engine Academy</a>.<br>"
-                f"Bekijk daar de Tutorials en volg daarna de Setup Guide stap voor stap "
-                f"om alles correct in te stellen.</p>"
-                f"<p>Heb je een technische vraag rondom je VPS? Dan kun je mailen naar "
-                f"<a href=\"mailto:{support_email}\">{support_email}</a></p>"
-                f"<p>Heb je andere vragen of loop je ergens tegenaan? Stel je vraag binnen "
-                f"de <a href=\"{discord_url}\">Discord Community</a>.</p>"
-                f"<p>Let's get the Engine Started 🚀</p>"
-                f"<p>Dave &amp; Josefien<br>Team Trading Engine</p>"
-            )
-        else:
-            # NOTE: the client only supplied Dutch copy for this email. This
-            # English version is our own translation of the exact Dutch text
-            # above (same structure, same lines, same links) so English-
-            # preference users get an equivalent message - it has not been
-            # separately approved by the client. Confirm wording with them
-            # before relying on it, or ask them to supply English copy
-            # directly.
-            subject = "Your Forex VPS is ready! 🎉"
-            body = (
-                f"Hi {first_name},\n\n"
-                f"Good news! Your Forex VPS has been created and is ready to use.\n\n"
-                f"Your VPS Details\n"
-                f"RDP Address: {user.vps_ip}:{port}\n"
-                f"Username: {user.vps_username}\n"
-                f"Password: {password}\n\n"
-                f"You can always find your VPS details again in your Members Platform: "
-                f"{members_platform_url}\n\n"
-                f"What's next?\n"
-                f"Head over to the Trading Engine Academy: {academy_url}\n"
-                f"Check out the Tutorials there and then follow the Setup Guide step by "
-                f"step to set everything up correctly.\n\n"
-                f"Have a technical question about your VPS? You can email "
-                f"{support_email}\n\n"
-                f"Have other questions or run into something? Ask your question in the "
-                f"Discord Community: {discord_url}\n\n"
-                f"Let's get the Engine Started 🚀\n\n"
-                f"Dave & Josefien\n"
-                f"Team Trading Engine"
-            )
-            html_body = (
-                f"<h3>Your Forex VPS is ready! 🎉</h3>"
-                f"<p>Hi {first_name},</p>"
-                f"<p>Good news! Your Forex VPS has been created and is ready to use.</p>"
-                f"<p><strong>Your VPS Details</strong><br>"
-                f"RDP Address: {user.vps_ip}:{port}<br>"
-                f"Username: {user.vps_username}<br>"
-                f"Password: {password}</p>"
-                f"<p>You can always find your VPS details again in your "
-                f"<a href=\"{members_platform_url}\">Members Platform</a>.</p>"
-                f"<p><strong>What's next?</strong><br>"
-                f"Head over to the <a href=\"{academy_url}\">Trading Engine Academy</a>.<br>"
-                f"Check out the Tutorials there and then follow the Setup Guide step by "
-                f"step to set everything up correctly.</p>"
-                f"<p>Have a technical question about your VPS? You can email "
-                f"<a href=\"mailto:{support_email}\">{support_email}</a></p>"
-                f"<p>Have other questions or run into something? Ask your question in the "
-                f"<a href=\"{discord_url}\">Discord Community</a>.</p>"
-                f"<p>Let's get the Engine Started 🚀</p>"
-                f"<p>Dave &amp; Josefien<br>Team Trading Engine</p>"
-            )
+        subject = "Je Forex VPS is klaar! 🎉"
+        body = (
+            f"Hi {first_name},\n\n"
+            f"Goed nieuws! Je Forex VPS is aangemaakt en klaar voor gebruik.\n\n"
+            f"Jouw VPS-gegevens\n"
+            f"RDP-adres: {user.vps_ip}:{port}\n"
+            f"Gebruikersnaam: {user.vps_username}\n"
+            f"Wachtwoord: {password}\n\n"
+            f"Je kunt je VPS-gegevens ook altijd terugvinden in je Members Platform: "
+            f"{members_platform_url}\n\n"
+            f"Hoe nu verder?\n"
+            f"Ga naar de Trading Engine Academy: {academy_url}\n"
+            f"Bekijk daar de Tutorials en volg daarna de Setup Guide stap voor stap "
+            f"om alles correct in te stellen.\n\n"
+            f"Heb je een technische vraag rondom je VPS? Dan kun je mailen naar "
+            f"{support_email}\n\n"
+            f"Heb je andere vragen of loop je ergens tegenaan? Stel je vraag binnen "
+            f"de Discord Community: {discord_url}\n\n"
+            f"Let's get the Engine Started 🚀\n\n"
+            f"Dave & Josefien\n"
+            f"Team Trading Engine"
+        )
+        html_body = (
+            f"<h3>Je Forex VPS is klaar! 🎉</h3>"
+            f"<p>Hi {first_name},</p>"
+            f"<p>Goed nieuws! Je Forex VPS is aangemaakt en klaar voor gebruik.</p>"
+            f"<p><strong>Jouw VPS-gegevens</strong><br>"
+            f"RDP-adres: {user.vps_ip}:{port}<br>"
+            f"Gebruikersnaam: {user.vps_username}<br>"
+            f"Wachtwoord: {password}</p>"
+            f"<p>Je kunt je VPS-gegevens ook altijd terugvinden in je "
+            f"<a href=\"{members_platform_url}\">Members Platform</a>.</p>"
+            f"<p><strong>Hoe nu verder?</strong><br>"
+            f"Ga naar de <a href=\"{academy_url}\">Trading Engine Academy</a>.<br>"
+            f"Bekijk daar de Tutorials en volg daarna de Setup Guide stap voor stap "
+            f"om alles correct in te stellen.</p>"
+            f"<p>Heb je een technische vraag rondom je VPS? Dan kun je mailen naar "
+            f"<a href=\"mailto:{support_email}\">{support_email}</a></p>"
+            f"<p>Heb je andere vragen of loop je ergens tegenaan? Stel je vraag binnen "
+            f"de <a href=\"{discord_url}\">Discord Community</a>.</p>"
+            f"<p>Let's get the Engine Started 🚀</p>"
+            f"<p>Dave &amp; Josefien<br>Team Trading Engine</p>"
+        )
 
         send_email_async(subject, [user.email], body, html_body)
         logger.info(f"[ThinkHuge] VPS ready email queued for {user.email}")
@@ -2321,7 +2194,12 @@ def admin_password():
             )
             db.session.add(otp_token)
             db.session.commit()
-            send_email_async("Admin OTP Code", [admin_email], f"Jouw admin OTP code is: {otp}")
+            send_email_async(
+                "Admin OTP-code - Trading Engine",
+                [admin_email],
+                f"Jouw admin OTP code is: {otp}\n\nDeze code is {Config.ADMIN_OTP_EXPIRY_MINUTES} minuten geldig.",
+                f"<h3>Admin OTP-code</h3><p><strong>{otp}</strong></p><p>Deze code is {Config.ADMIN_OTP_EXPIRY_MINUTES} minuten geldig.</p>"
+            )
 
             session["pending_email"] = admin_email
             session["is_admin_login"] = True
@@ -2574,21 +2452,13 @@ def generate_license():
             request.remote_addr
         )
 
-        # Send license email
-        if lang == 'nl':
-            send_email_async(
-                "Jouw Licentiesleutel - Trading Engine",
-                [current_user.email],
-                f"Licentiesleutel: {key}\nVerloopt: {format_date_dutch(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}",
-                f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {format_date_dutch(lic.expires_at)}</p>"
-            )
-        else:
-            send_email_async(
-                "Your License Key - Trading Engine",
-                [current_user.email],
-                f"License Key: {key}\nExpires: {format_date_english(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}",
-                f"<h3>Your License Key</h3><p><strong>{key}</strong></p><p>Expires: {format_date_english(lic.expires_at)}</p>"
-            )
+        # Send license email (Dutch only)
+        send_email_async(
+            "Jouw Licentiesleutel - Trading Engine",
+            [current_user.email],
+            f"Licentiesleutel: {key}\nVerloopt: {format_date_dutch(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}",
+            f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {format_date_dutch(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p>"
+        )
 
         # Provision VPS if needed
         if not (current_user.vps_id and current_user.vps_status == 'active'):
@@ -2660,7 +2530,7 @@ def cancel_membership():
         user.membership_status = "cancelled"
         db.session.commit()
 
-        # Send confirmation email
+        # Send confirmation email (Dutch only)
         formatted_date_nl = format_date_dutch(membership_end_date) if membership_end_date else "de eerstvolgende verlengdatum"
         formatted_date_en = format_date_english(membership_end_date) if membership_end_date else "the next renewal date"
 
@@ -4061,13 +3931,15 @@ def wix_payment_webhook():
         plan_level = user.get_plan_level()
         provision_vps_for_user(user, plan_level)
 
+        # Single welcome/purchase-confirmation email (Dutch). The separate
+        # "Members Platform is ready" login-invite email has been removed -
+        # it duplicated this message for the same signup event.
         send_email_async(
             "Welkom bij Trading Engine! 🎉",
             [email],
             f"Je {plan_name} abonnement is nu actief. Log in op {Config.APP_URL}/login",
             f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p><p>Log in op {Config.APP_URL}/login</p>"
         )
-        send_members_platform_ready_email(user)
 
         log_audit(
             user.id,
@@ -4192,13 +4064,15 @@ def stripe_payment_webhook():
                 plan_level = user.get_plan_level()
                 provision_vps_for_user(user, plan_level)
 
+                # Single welcome/purchase-confirmation email (Dutch). The
+                # separate "Members Platform is ready" login-invite email
+                # has been removed - it duplicated this same-event message.
                 send_email_async(
                     "Welkom bij Trading Engine! 🎉",
                     [email],
                     f"Je {plan_name} abonnement is nu actief.",
                     f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p>"
                 )
-                send_members_platform_ready_email(user)
 
                 log_audit(
                     user.id,
