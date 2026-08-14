@@ -50,11 +50,10 @@ ADDED: Self-service "Reset VPS Password" endpoint (/vps/reset-password) so a
        addition to the existing admin-only reset endpoint.
 UPDATED: All outgoing emails are now written in Dutch only (single-language
        copy, no more English branches), to keep tone and wording consistent
-       across every notification the platform sends.
-REMOVED: The separate "Members Platform is ready" login-invite email. It was
-       redundant with the welcome/purchase-confirmation email that already
-       goes out on the same event (Wix plan-order and Stripe checkout), so
-       users no longer receive two emails for the same signup event.
+       across every notification the platform sends. This includes the
+       "Members Platform is ready" login-invite email, which is kept and
+       still sent alongside the welcome/purchase-confirmation email on
+       every Wix plan-order and Stripe checkout.
 """
 
 import os
@@ -1104,6 +1103,55 @@ def send_email_async(subject, recipients, body, html_body=None):
             logger.error(f"[EMAIL] Failed: {e}")
     
     threading.Thread(target=send).start()
+
+
+def send_members_platform_ready_email(user):
+    """
+    Send the dedicated 'your Members Platform account is ready' email with
+    a clickable login button.
+
+    This is separate and in addition to the general welcome email - the
+    welcome email confirms the purchase/plan, this one is a focused
+    invitation to actually log in, with a real button rather than a plain
+    text URL buried in the welcome copy.
+
+    Copy is Dutch only, in line with every other outgoing email.
+    """
+    try:
+        login_url = f"{Config.APP_URL}/login"
+        first_name = user.first_name or 'daar'
+
+        button_style = (
+            "display:inline-block;padding:12px 28px;background:#12182B;"
+            "color:#ffffff;text-decoration:none;border-radius:8px;"
+            "font-weight:700;font-size:14px;letter-spacing:0.02em;"
+        )
+
+        subject = "Je Trading Engine Members Platform is klaar 🚀"
+        body = (
+            f"Hi {first_name},\n\n"
+            f"Je account voor het Trading Engine Members Platform is aangemaakt "
+            f"en klaar voor gebruik.\n\n"
+            f"Via onderstaande link kun je direct inloggen:\n"
+            f"{login_url}\n\n"
+            f"Tot snel!"
+        )
+        html_body = (
+            f"<h3>Je Trading Engine Members Platform is klaar 🚀</h3>"
+            f"<p>Hi {first_name},</p>"
+            f"<p>Je account voor het Trading Engine Members Platform is aangemaakt "
+            f"en klaar voor gebruik.</p>"
+            f"<p>Via onderstaande link kun je direct inloggen:</p>"
+            f"<p><a href=\"{login_url}\" style=\"{button_style}\">"
+            f"INLOGGEN OP HET MEMBERS PLATFORM</a></p>"
+        )
+
+        send_email_async(subject, [user.email], body, html_body)
+        logger.info(f"[EMAIL] Members Platform login email queued for {user.email}")
+
+    except Exception as e:
+        # Never let an email failure break the payment/membership flow
+        logger.error(f"[EMAIL] Failed to queue Members Platform login email for {user.email}: {e}")
 
 
 def log_audit(user_id, action, details=None, ip_address=None):
@@ -3931,15 +3979,13 @@ def wix_payment_webhook():
         plan_level = user.get_plan_level()
         provision_vps_for_user(user, plan_level)
 
-        # Single welcome/purchase-confirmation email (Dutch). The separate
-        # "Members Platform is ready" login-invite email has been removed -
-        # it duplicated this message for the same signup event.
         send_email_async(
             "Welkom bij Trading Engine! 🎉",
             [email],
             f"Je {plan_name} abonnement is nu actief. Log in op {Config.APP_URL}/login",
             f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p><p>Log in op {Config.APP_URL}/login</p>"
         )
+        send_members_platform_ready_email(user)
 
         log_audit(
             user.id,
@@ -4064,15 +4110,13 @@ def stripe_payment_webhook():
                 plan_level = user.get_plan_level()
                 provision_vps_for_user(user, plan_level)
 
-                # Single welcome/purchase-confirmation email (Dutch). The
-                # separate "Members Platform is ready" login-invite email
-                # has been removed - it duplicated this same-event message.
                 send_email_async(
                     "Welkom bij Trading Engine! 🎉",
                     [email],
                     f"Je {plan_name} abonnement is nu actief.",
                     f"<h3>Hoi {first_name or 'daar'}!</h3><p>Je {plan_name} abonnement is actief.</p>"
                 )
+                send_members_platform_ready_email(user)
 
                 log_audit(
                     user.id,
