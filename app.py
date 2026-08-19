@@ -1142,7 +1142,7 @@ def send_members_platform_ready_email(user):
             f"<p>Je account voor het Trading Engine Members Platform is aangemaakt "
             f"en klaar voor gebruik.</p>"
             f"<p>Via onderstaande link kun je direct inloggen:</p>"
-            f"<p><a href=\"{login_url}\" style=\"{button_style}\">"
+            f"<p><a href=\"{login_url}\" style=\"background-color: #3FBFB3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">"
             f"INLOGGEN OP HET MEMBERS PLATFORM</a></p>"
         )
 
