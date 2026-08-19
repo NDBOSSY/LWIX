@@ -2504,9 +2504,9 @@ def generate_license():
         send_email_async(
             "Jouw Licentiesleutel - Trading Engine",
             [current_user.email],
-            f"Licentiesleutel: {key}\nVerloopt: {format_date_dutch(lic.expires_at)}\nMax MT5 Accounts: {max_accounts}",
-            f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>Verloopt: {format_date_dutch(lic.expires_at)}</p><p>Max MT5 Accounts: {max_accounts}</p>"
-        )
+            f"Licentiesleutel: {key}\nEA Portfolio: Actief\nMax MT5 Accounts: {max_accounts}",
+            f"<h3>Jouw Licentiesleutel</h3><p><strong>{key}</strong></p><p>EA Portfolio: Actief</p><p>Max MT5 Accounts: {max_accounts}</p>"
+         )
 
         # Provision VPS if needed
         if not (current_user.vps_id and current_user.vps_status == 'active'):
