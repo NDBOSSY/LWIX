@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Broker Tracker - Trading Engine{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bt-container { max-width: 1400px; margin: 0 auto; padding: 2rem 1rem; }
+
+    .bt-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .bt-header h2 { font-weight: 700; color: #2D2D2D; margin-bottom: 0.2rem; }
+    .bt-header p { color: #807F80; margin: 0; font-size: 0.9rem; }
+    .btn-export { background: white; border: 1.5px solid #E5E7EB; border-radius: 10px; padding: 0.55rem 1.1rem; font-weight: 600; font-size: 0.85rem; color: #2D2D2D; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-export:hover { border-color: #6FDFDF; }
+
+    .bt-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .bt-stat-card { background: white; border-radius: 16px; padding: 1rem 1.2rem; border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+    .bt-stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+    .bt-stat-icon.purple { background: rgba(168,92,249,0.12); color: #A85CF9; }
+    .bt-stat-icon.green { background: rgba(63,191,179,0.12); color: #3FBFB3; }
+    .bt-stat-icon.blue { background: rgba(75,123,229,0.12); color: #4B7BE5; }
+    .bt-stat-icon.gold { background: rgba(245,158,11,0.12); color: #F59E0B; }
+    .bt-stat-icon.pink { background: rgba(236,72,153,0.12); color: #EC4899; }
+    .bt-stat-value { font-size: 1.4rem; font-weight: 700; color: #2D2D2D; line-height: 1.2; }
+    .bt-stat-label { font-size: 0.78rem; color: #2D2D2D; font-weight: 600; }
+    .bt-stat-sub { font-size: 0.72rem; color: #807F80; }
+
+    .bt-filters { background: white; border: 1px solid #E5E7EB; border-radius: 14px; padding: 1rem; margin-bottom: 1.2rem; display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; }
+    .bt-search { flex: 1; min-width: 220px; position: relative; }
+    .bt-search input { width: 100%; padding: 0.55rem 0.9rem 0.55rem 2.2rem; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 0.85rem; }
+    .bt-search i { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: #807F80; font-size: 0.85rem; }
+    .bt-filters select { border: 1.5px solid #E5E7EB; border-radius: 10px; padding: 0.55rem 0.9rem; font-size: 0.85rem; background: white; min-width: 150px; }
+    .bt-clear { color: #807F80; font-size: 0.85rem; background: none; border: none; display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+    .bt-clear:hover { color: #EF4444; }
+
+    .bt-table-card { background: white; border-radius: 16px; border: 1px solid #E5E7EB; overflow: hidden; }
+    .bt-table { width: 100%; border-collapse: collapse; margin: 0; }
+    .bt-table thead th { background: linear-gradient(135deg,#4B7BE5 0%,#5534A5 100%); color: white; padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; text-align: left; }
+    .bt-table tbody td { padding: 0.8rem 1rem; vertical-align: middle; font-size: 0.85rem; border-bottom: 1px solid #F1F1F1; }
+    .bt-table tbody tr:hover td { background: #FFF8ED; }
+
+    .bt-member strong { display: block; color: #2D2D2D; font-size: 0.88rem; }
+    .bt-member small { color: #807F80; font-size: 0.75rem; }
+    .bt-broker { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.83rem; color: #2D2D2D; }
+    .bt-broker-dot { width: 22px; height: 22px; border-radius: 6px; background: #E5E7EB; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: white; font-weight: 700; flex-shrink: 0; }
+
+    .bt-badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.65rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+    .bt-badge.confirmed { background: rgba(63,191,179,0.12); color: #3FBFB3; }
+    .bt-badge.not_attributed { background: rgba(245,158,11,0.12); color: #F59E0B; }
+    .bt-badge.pending { background: rgba(128,127,128,0.12); color: #807F80; }
+    .bt-badge.qualified { background: rgba(63,191,179,0.12); color: #3FBFB3; }
+    .bt-badge.in_progress { background: rgba(245,158,11,0.12); color: #F59E0B; }
+
+    .bt-date { font-size: 0.72rem; color: #807F80; display: block; margin-top: 0.1rem; }
+    .bt-amount { font-weight: 700; color: #2D2D2D; }
+
+    .bt-progress-wrap { display: flex; flex-direction: column; gap: 0.3rem; min-width: 130px; }
+    .bt-progress-label { font-size: 0.75rem; color: #2D2D2D; font-weight: 600; }
+    .bt-progress-bar { background: #E5E7EB; border-radius: 20px; height: 8px; overflow: hidden; display: flex; align-items: center; }
+    .bt-progress-fill { background: linear-gradient(135deg,#3FBFB3 0%,#6FDFDF 100%); height: 100%; border-radius: 20px; }
+    .bt-progress-pct { font-size: 0.72rem; color: #807F80; }
+
+    .bt-view-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid #E5E7EB; background: white; color: #4B7BE5; display: inline-flex; align-items: center; justify-content: center; }
+    .bt-view-btn:hover { background: #4B7BE5; color: white; border-color: #4B7BE5; }
+
+    .bt-empty { text-align: center; padding: 3rem 1rem; color: #807F80; }
+
+    .bt-pagination { display: flex; justify-content: space-between; align-items: center; padding: 1rem; font-size: 0.8rem; color: #807F80; }
+    .bt-pagination .pages { display: flex; gap: 0.3rem; }
+    .bt-pagination .pages a, .bt-pagination .pages span { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E5E7EB; color: #2D2D2D; text-decoration: none; font-size: 0.8rem; }
+    .bt-pagination .pages .active { background: #4B7BE5; color: white; border-color: #4B7BE5; }
+
+    @media (max-width: 1300px) { .bt-stats { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 600px) { .bt-stats { grid-template-columns: 1fr 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bt-container">
+
+    {# HEADER #}
+    <div class="bt-header">
+        <div>
+            <h2><i class="fas fa-building me-2" style="color:#A85CF9;"></i>Broker Tracker</h2>
+            <p>Track member broker accounts, attribution status, deposits, trading volume and CPA commissions.</p>
+        </div>
+        <a href="#" class="btn-export" onclick="window.print(); return false;">
+            <i class="fas fa-download"></i> Export
+        </a>
+    </div>
+
+    {# STATS #}
+    <div class="bt-stats">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon purple"><i class="fas fa-users"></i></div>
+            <div>
+                <div class="bt-stat-value">{{ total_accounts }}</div>
+                <div class="bt-stat-label">Total Accounts</div>
+                <div class="bt-stat-sub">All broker accounts</div>
+            </div>
+        </div>
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon green"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <div class="bt-stat-value">{{ attributed_count }}</div>
+                <div class="bt-stat-label">Attributed</div>
+                <div class="bt-stat-sub">{{ "%.0f"|format((attributed_count / total_accounts * 100) if total_accounts else 0) }}% of total</div>
+            </div>
+        </div>
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon blue"><i class="fas fa-dollar-sign"></i></div>
+            <div>
+                <div class="bt-stat-value">{{ ftd_count }}</div>
+                <div class="bt-stat-label">FTD Received</div>
+                <div class="bt-stat-sub">{{ "%.0f"|format((ftd_count / total_accounts * 100) if total_accounts else 0) }}% of total</div>
+            </div>
+        </div>
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon gold"><i class="fas fa-chart-bar"></i></div>
+            <div>
+                <div class="bt-stat-value">{{ cpa_qualified_count }}</div>
+                <div class="bt-stat-label">CPA Qualified</div>
+                <div class="bt-stat-sub">{{ "%.0f"|format((cpa_qualified_count / total_accounts * 100) if total_accounts else 0) }}% of total</div>
+            </div>
+        </div>
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon pink"><i class="fas fa-wallet"></i></div>
+            <div>
+                <div class="bt-stat-value">€{{ "%.0f"|format(total_commission) }}</div>
+                <div class="bt-stat-label">Total Commission</div>
+                <div class="bt-stat-sub">Pending + Paid</div>
+            </div>
+        </div>
+    </div>
+
+    {# FILTERS #}
+    <form method="GET" action="{{ url_for('admin_broker_tracker') }}" class="bt-filters">
+        <div class="bt-search">
+            <i class="fas fa-search"></i>
+            <input type="text" name="q" value="{{ search }}" placeholder="Search member, email or UID...">
+        </div>
+        <select name="broker" onchange="this.form.submit()">
+            <option value="">All Brokers</option>
+            {% for b in brokers %}
+            <option value="{{ b }}" {% if broker_filter == b %}selected{% endif %}>{{ b }}</option>
+            {% endfor %}
+        </select>
+        <select name="attribution" onchange="this.form.submit()">
+            <option value="">All Attribution</option>
+            <option value="confirmed" {% if attribution_filter == 'confirmed' %}selected{% endif %}>Confirmed</option>
+            <option value="not_attributed" {% if attribution_filter == 'not_attributed' %}selected{% endif %}>Not attributed</option>
+            <option value="pending" {% if attribution_filter == 'pending' %}selected{% endif %}>Pending</option>
+        </select>
+        <select name="cpa" onchange="this.form.submit()">
+            <option value="">All CPA Status</option>
+            <option value="qualified" {% if cpa_filter == 'qualified' %}selected{% endif %}>Qualified</option>
+            <option value="in_progress" {% if cpa_filter == 'in_progress' %}selected{% endif %}>In progress</option>
+            <option value="pending" {% if cpa_filter == 'pending' %}selected{% endif %}>Pending</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm" style="border-radius:10px;">
+            <i class="fas fa-filter"></i>
+        </button>
+        {% if search or broker_filter or attribution_filter or cpa_filter %}
+        <a href="{{ url_for('admin_broker_tracker') }}" class="bt-clear"><i class="fas fa-times"></i> Clear filters</a>
+        {% endif %}
+    </form>
+
+    {# TABLE #}
+    <div class="bt-table-card">
+        <div class="table-responsive">
+            <table class="bt-table">
+                <thead>
+                    <tr>
+                        <th>Member</th>
+                        <th>Broker</th>
+                        <th>UID</th>
+                        <th>Attribution</th>
+                        <th>Deposit</th>
+                        <th>Volume (Lots)</th>
+                        <th>CPA Status</th>
+                        <th>Commission</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in accounts %}
+                    <tr>
+                        <td class="bt-member">
+                            <strong>{{ a.user.get_full_name() }}</strong>
+                            <small>{{ a.user.email }}</small>
+                            {% if a.country %}<small><i class="fas fa-globe me-1"></i>{{ a.country }}</small>{% endif %}
+                        </td>
+                        <td>
+                            <div class="bt-broker">
+                                <span class="bt-broker-dot">{{ a.broker[:1]|upper }}</span>
+                                {{ a.broker }}
+                            </div>
+                        </td>
+                        <td>
+                            <code>{{ a.uid }}</code>
+                        </td>
+                        <td>
+                            {% if a.attribution_status == 'confirmed' %}
+                            <span class="bt-badge confirmed"><i class="fas fa-check-circle"></i> Confirmed</span>
+                            {% elif a.attribution_status == 'not_attributed' %}
+                            <span class="bt-badge not_attributed"><i class="fas fa-exclamation-triangle"></i> Not attributed</span>
+                            {% else %}
+                            <span class="bt-badge pending"><i class="fas fa-clock"></i> Pending</span>
+                            {% endif %}
+                            {% if a.last_checked_at %}
+                            <span class="bt-date">{{ a.last_checked_at.strftime('%b %d, %Y') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="bt-amount">${{ "%.0f"|format(a.deposit_amount or 0) }}</span>
+                            {% if a.deposit_date %}
+                            <span class="bt-date">{{ a.deposit_date.strftime('%b %d, %Y') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="bt-progress-wrap">
+                                <span class="bt-progress-label">{{ "%.2f"|format(a.volume_lots or 0) }} / {{ "%.2f"|format(a.required_volume_lots or 0) }} lot</span>
+                                <div class="bt-progress-bar">
+                                    <div class="bt-progress-fill" style="width: {{ a.progress_pct() }}%;"></div>
+                                </div>
+                                <span class="bt-progress-pct">{{ a.progress_pct() }}%</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if a.cpa_status == 'qualified' %}
+                            <span class="bt-badge qualified"><i class="fas fa-check-circle"></i> Qualified</span>
+                            {% elif a.cpa_status == 'in_progress' %}
+                            <span class="bt-badge in_progress"><i class="fas fa-exclamation-circle"></i> In progress</span>
+                            {% else %}
+                            <span class="bt-badge pending"><i class="fas fa-clock"></i> Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if a.commission_amount %}
+                            <span class="bt-amount">${{ "%.0f"|format(a.commission_amount) }}</span>
+                            <span class="bt-date">{{ a.commission_status|title }}</span>
+                            {% else %}
+                            <span style="color:#807F80;">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('admin_user_detail', user_id=a.user_id) }}" class="bt-view-btn" title="View member">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('admin_broker_tracker_refresh', account_id=a.id) }}">
+                                    <button type="submit" class="bt-view-btn" title="Refresh from WWA">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not accounts %}
+                    <tr><td colspan="9">
+                        <div class="bt-empty">
+                            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                            No broker accounts match these filters.
+                        </div>
+                    </td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if total_pages > 1 %}
+        <div class="bt-pagination">
+            <span>Showing {{ accounts|length }} of {{ total }} results</span>
+            <div class="pages">
+                <a href="{{ url_for('admin_broker_tracker', page=page-1 if page > 1 else 1, q=search, broker=broker_filter, attribution=attribution_filter, cpa=cpa_filter) }}"><i class="fas fa-chevron-left"></i></a>
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}<span class="active">{{ p }}</span>
+                    {% else %}<a href="{{ url_for('admin_broker_tracker', page=p, q=search, broker=broker_filter, attribution=attribution_filter, cpa=cpa_filter) }}">{{ p }}</a>{% endif %}
+                {% endfor %}
+                <a href="{{ url_for('admin_broker_tracker', page=page+1 if page < total_pages else total_pages, q=search, broker=broker_filter, attribution=attribution_filter, cpa=cpa_filter) }}"><i class="fas fa-chevron-right"></i></a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
