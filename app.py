@@ -54,6 +54,10 @@ UPDATED: All outgoing emails are now written in Dutch only (single-language
        "Members Platform is ready" login-invite email, which is kept and
        still sent alongside the welcome/purchase-confirmation email on
        every Wix plan-order and Stripe checkout.
+ADDED: WWA (WealthWave Affiliation / Cellxpert) broker tracking integration
+       - BrokerAccount model, WWA API client, member UID-check endpoint,
+       postback receivers for registration/FTD/qualified-CPA/commission/lead
+       events, and an admin Broker Tracker dashboard.
 """
 
 import os
@@ -190,6 +194,15 @@ class Config:
 
     FOREXVPS_RETRY_INTERVAL_SECONDS = int(os.getenv("FOREXVPS_RETRY_INTERVAL_SECONDS", 600))
     FOREXVPS_RETRY_MAX_AGE_MINUTES = int(os.getenv("FOREXVPS_RETRY_MAX_AGE_MINUTES", 1440))
+
+    # WWA (WealthWave Affiliation / Cellxpert) API configuration
+    WWA_API_URL = os.getenv("WWA_API_URL", "https://go.wealthwaveaffiliation.com/api/")
+    WWA_AFFILIATE_ID = os.getenv("WWA_AFFILIATE_ID", "")
+    WWA_API_KEY = os.getenv("WWA_API_KEY", "")
+    # Optional shared secret you invent yourself and append as a query param
+    # (&secret=xxxx) on every postback URL registered in WWA's dashboard, so
+    # postback requests can be verified as genuinely coming from WWA.
+    WWA_POSTBACK_SECRET = os.getenv("WWA_POSTBACK_SECRET", "")
 
     @staticmethod
     def is_railway():
@@ -744,6 +757,59 @@ class JournalTrade(db.Model):
         return f"{h}h {m}m" if h else f"{m}m"
 
 
+class BrokerAccount(db.Model):
+    """A member's broker/UID entry, tracked for WWA attribution + CPA."""
+
+    __tablename__ = "broker_accounts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+
+    broker = db.Column(db.String(100), nullable=False)
+    uid = db.Column(db.String(100), nullable=False, index=True)
+
+    # Attribution: whether WWA's `registrations` lookup found this UID
+    # attributed to our affiliate account.
+    attribution_status = db.Column(db.String(20), default="pending")  # pending | confirmed | not_attributed
+    registration_status = db.Column(db.String(50), nullable=True)     # raw WWA "Status" field, e.g. "New"
+    registration_date = db.Column(db.DateTime, nullable=True)
+    country = db.Column(db.String(10), nullable=True)
+
+    # Deposit / volume (populated from registrations lookup and/or FTD postback)
+    deposit_amount = db.Column(db.Float, default=0.0)
+    deposit_date = db.Column(db.DateTime, nullable=True)
+    required_deposit = db.Column(db.Float, default=1000.0)   # your own CPA terms per broker
+
+    volume_lots = db.Column(db.Float, default=0.0)
+    required_volume_lots = db.Column(db.Float, default=1.0)  # your own CPA terms per broker
+
+    # CPA / commission - populated primarily via postbacks
+    cpa_status = db.Column(db.String(20), default="pending")       # pending | in_progress | qualified
+    commission_amount = db.Column(db.Float, default=0.0)
+    commission_status = db.Column(db.String(20), default="pending")  # pending | paid
+
+    # Bookkeeping
+    last_checked_at = db.Column(db.DateTime, nullable=True)
+    last_check_error = db.Column(db.String(300), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref=db.backref("broker_accounts", lazy="dynamic"))
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "broker", "uid", name="uq_user_broker_uid"),
+    )
+
+    def progress_pct(self):
+        """Volume progress toward the CPA volume requirement, capped at 100."""
+        if not self.required_volume_lots:
+            return 0
+        pct = (self.volume_lots / self.required_volume_lots) * 100
+        return min(100, round(pct))
+
+    def deposit_met(self):
+        return (self.deposit_amount or 0) >= (self.required_deposit or 0)
+
+
 # ============================================================================
 # THINKHUGE VPS API CLIENT
 # ============================================================================
@@ -1015,6 +1081,66 @@ class ForexVPSClient:
 
 # Initialize the VPS client
 forexvps_client = ForexVPSClient()
+
+
+# ============================================================================
+# WWA (WEALTHWAVE AFFILIATION / CELLXPERT) API CLIENT
+# ============================================================================
+
+class WWAClient:
+    """
+    Client for the WWA / Cellxpert Affiliate API (pull side).
+    Postbacks (push side) are handled separately by the webhook routes
+    below - this client is only for on-demand lookups, e.g. checking a
+    UID's attribution/registration status when a member submits it.
+    """
+
+    def __init__(self, base_url, affiliate_id, api_key, user_agent):
+        self.base_url = base_url
+        self.affiliate_id = affiliate_id
+        self.api_key = api_key
+        self.user_agent = user_agent
+
+    def is_configured(self):
+        return bool(self.affiliate_id and self.api_key)
+
+    def _get(self, params, timeout=30):
+        query = urllib.parse.urlencode(params)
+        url = f"{self.base_url}?{query}"
+        req = urllib.request.Request(url, method="GET")
+        req.add_header("affiliateid", str(self.affiliate_id))
+        req.add_header("x-api-key", self.api_key)
+        req.add_header("User-Agent", self.user_agent)
+        return urllib.request.urlopen(req, timeout=timeout)
+
+    def get_registration(self, uid):
+        """
+        Look up a single UID via the `registrations` command.
+        Returns the registration dict if found, or None if the UID isn't
+        attributed to this affiliate account (or doesn't exist yet).
+
+        Raises urllib.error.HTTPError / URLError / ValueError on failure -
+        callers should catch these and treat as "couldn't verify right now"
+        rather than "not attributed", since a network/API failure is not
+        the same as a confirmed non-match.
+        """
+        params = {"command": "registrations", "userid": uid, "json": 1}
+        response = self._get(params)
+        raw = response.read().decode("utf-8", errors="replace")
+        data = json.loads(raw)
+        regs = data.get("registrations") or []
+        if not regs:
+            return None
+        return regs[0]
+
+
+# Initialize the WWA client
+wwa_client = WWAClient(
+    base_url=Config.WWA_API_URL,
+    affiliate_id=Config.WWA_AFFILIATE_ID,
+    api_key=Config.WWA_API_KEY,
+    user_agent=BROWSER_USER_AGENT,
+)
 
 
 # ============================================================================
@@ -1935,6 +2061,39 @@ def run_migrations():
                 db.session.commit()
                 logger.info("mt5_connector_indicator table created")
 
+            # Create broker_accounts table if missing (WWA integration)
+            if 'broker_accounts' not in existing_tables:
+                logger.info("Creating broker_accounts table...")
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS broker_accounts (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        broker VARCHAR(100) NOT NULL,
+                        uid VARCHAR(100) NOT NULL,
+                        attribution_status VARCHAR(20) DEFAULT 'pending',
+                        registration_status VARCHAR(50),
+                        registration_date TIMESTAMP,
+                        country VARCHAR(10),
+                        deposit_amount FLOAT DEFAULT 0.0,
+                        deposit_date TIMESTAMP,
+                        required_deposit FLOAT DEFAULT 1000.0,
+                        volume_lots FLOAT DEFAULT 0.0,
+                        required_volume_lots FLOAT DEFAULT 1.0,
+                        cpa_status VARCHAR(20) DEFAULT 'pending',
+                        commission_amount FLOAT DEFAULT 0.0,
+                        commission_status VARCHAR(20) DEFAULT 'pending',
+                        last_checked_at TIMESTAMP,
+                        last_check_error VARCHAR(300),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_user_broker_uid UNIQUE (user_id, broker, uid)
+                    )
+                """))
+                db.session.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_broker_accounts_uid ON broker_accounts(uid)
+                """))
+                db.session.commit()
+                logger.info("broker_accounts table created")
+
             # Add missing columns to users table
             columns = [col['name'] for col in inspector.get_columns('users')]
             
@@ -2415,6 +2574,9 @@ def user_dashboard():
     # Get connector indicator info
     connector = MT5ConnectorIndicator.query.first()
 
+    # Broker accounts (WWA)
+    broker_accounts = BrokerAccount.query.filter_by(user_id=user.id).all()
+
     return render_template(
         "user/dashboard.html",
         user=user,
@@ -2435,7 +2597,8 @@ def user_dashboard():
         vps_default_port=Config.FOREXVPS_DEFAULT_RDP_PORT,
         indicator_download_url=url_for('download_connector') if connector else None,
         indicator_version=connector.version if connector else '1.0',
-        webrequest_url=Config.APP_URL
+        webrequest_url=Config.APP_URL,
+        broker_accounts=broker_accounts
     )
 
 # ============================================================================
@@ -2652,6 +2815,313 @@ def user_reset_vps_password():
         db.session.rollback()
         msg = "Wachtwoord resetten mislukt." if lang == 'nl' else "Password reset failed."
         return jsonify({"success": False, "error": msg}), 500
+
+
+# ============================================================================
+# WWA BROKER TRACKER ROUTES
+# ============================================================================
+
+def _find_broker_account_by_uid(uid):
+    """
+    Postbacks only carry [userid] (the UID), not our internal broker name,
+    so match on uid alone. If a UID is somehow registered under more than
+    one broker for the same user, this takes the most recently created -
+    in practice a given UID belongs to exactly one broker.
+    """
+    return BrokerAccount.query.filter_by(uid=uid).order_by(BrokerAccount.created_at.desc()).first()
+
+
+def _check_postback_secret():
+    """Optional shared-secret check if WWA_POSTBACK_SECRET is set and
+    &secret=... was included in the postback URLs configured at WWA."""
+    if not Config.WWA_POSTBACK_SECRET:
+        return True
+    return request.args.get("secret") == Config.WWA_POSTBACK_SECRET
+
+
+@app.route("/broker/check-uid", methods=["POST"])
+@login_required
+def broker_check_uid():
+    """
+    Called from the member dashboard when a member enters a broker + UID.
+    Looks the UID up against WWA and stores/updates a BrokerAccount row.
+    """
+    payload = request.get_json(silent=True) or {}
+    broker = (request.form.get("broker") or payload.get("broker") or "").strip()
+    uid = (request.form.get("uid") or payload.get("uid") or "").strip()
+
+    if not broker or not uid:
+        return jsonify({"success": False, "error": "Broker and UID are required"}), 400
+
+    account = BrokerAccount.query.filter_by(
+        user_id=current_user.id, broker=broker, uid=uid
+    ).first()
+
+    if not account:
+        account = BrokerAccount(user_id=current_user.id, broker=broker, uid=uid)
+        db.session.add(account)
+
+    if not wwa_client.is_configured():
+        account.attribution_status = "pending"
+        account.last_check_error = "WWA API not configured"
+        db.session.commit()
+        return jsonify({"success": True, "attribution_status": "pending", "note": "WWA not configured yet"})
+
+    try:
+        reg = wwa_client.get_registration(uid)
+        account.last_checked_at = datetime.utcnow()
+        account.last_check_error = None
+
+        if reg:
+            account.attribution_status = "confirmed"
+            account.registration_status = reg.get("Status")
+            account.country = reg.get("Country")
+            try:
+                account.deposit_amount = float(reg.get("First_Deposit") or reg.get("Deposits") or 0)
+            except (TypeError, ValueError):
+                pass
+            try:
+                account.volume_lots = float(reg.get("Volume") or 0)
+            except (TypeError, ValueError):
+                pass
+            reg_date = reg.get("Registration_Date")
+            if reg_date:
+                for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        account.registration_date = datetime.strptime(reg_date[:26], fmt)
+                        break
+                    except ValueError:
+                        continue
+        else:
+            account.attribution_status = "not_attributed"
+
+        db.session.commit()
+        log_audit(current_user.id, "broker_uid_checked", f"{broker} | {uid} | {account.attribution_status}", request.remote_addr)
+
+        return jsonify({
+            "success": True,
+            "attribution_status": account.attribution_status,
+            "deposit_amount": account.deposit_amount,
+            "volume_lots": account.volume_lots,
+        })
+
+    except Exception as e:
+        logger.error(f"[WWA] UID check failed for {uid}: {e}")
+        account.last_check_error = str(e)[:300]
+        account.last_checked_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({
+            "success": False,
+            "error": "Could not verify with WWA right now - please try again shortly",
+            "attribution_status": account.attribution_status,
+        }), 502
+
+
+@app.route("/broker/my-accounts")
+@login_required
+def broker_my_accounts():
+    """Return the current user's broker accounts as JSON, for dashboard polling."""
+    accounts = BrokerAccount.query.filter_by(user_id=current_user.id).all()
+    return jsonify({
+        "accounts": [{
+            "id": a.id,
+            "broker": a.broker,
+            "uid": a.uid,
+            "attribution_status": a.attribution_status,
+            "deposit_amount": a.deposit_amount,
+            "required_deposit": a.required_deposit,
+            "volume_lots": a.volume_lots,
+            "required_volume_lots": a.required_volume_lots,
+            "progress_pct": a.progress_pct(),
+            "cpa_status": a.cpa_status,
+            "commission_amount": a.commission_amount,
+            "commission_status": a.commission_status,
+        } for a in accounts]
+    })
+
+
+@app.route("/webhook/wwa/registration", methods=["GET", "POST"])
+def wwa_postback_registration():
+    """Postback receiver for WWA's Registration postback event."""
+    if not _check_postback_secret():
+        return jsonify({"error": "forbidden"}), 403
+    uid = request.args.get("userid", "").strip()
+    account = _find_broker_account_by_uid(uid)
+    if account:
+        account.attribution_status = "confirmed"
+        account.registration_status = "New"
+        account.registration_date = datetime.utcnow()
+        account.country = request.args.get("isocountry") or account.country
+        db.session.commit()
+        logger.info(f"[WWA postback] registration for uid={uid}")
+    else:
+        logger.warning(f"[WWA postback] registration for unknown uid={uid}")
+    return jsonify({"success": True}), 200
+
+
+@app.route("/webhook/wwa/ftd", methods=["GET", "POST"])
+def wwa_postback_ftd():
+    """Postback receiver for WWA's FTD (first time deposit) postback event."""
+    if not _check_postback_secret():
+        return jsonify({"error": "forbidden"}), 403
+    uid = request.args.get("userid", "").strip()
+    account = _find_broker_account_by_uid(uid)
+    if account:
+        try:
+            account.deposit_amount = float(request.args.get("transaction_sum") or account.deposit_amount)
+        except (TypeError, ValueError):
+            pass
+        account.deposit_date = datetime.utcnow()
+        db.session.commit()
+        logger.info(f"[WWA postback] FTD for uid={uid} amount={account.deposit_amount}")
+    else:
+        logger.warning(f"[WWA postback] FTD for unknown uid={uid}")
+    return jsonify({"success": True}), 200
+
+
+@app.route("/webhook/wwa/qualified-cpa", methods=["GET", "POST"])
+def wwa_postback_qualified_cpa():
+    """Postback receiver for WWA's Qualified CPA postback event."""
+    if not _check_postback_secret():
+        return jsonify({"error": "forbidden"}), 403
+    uid = request.args.get("userid", "").strip()
+    account = _find_broker_account_by_uid(uid)
+    if account:
+        account.cpa_status = "qualified"
+        db.session.commit()
+        logger.info(f"[WWA postback] Qualified CPA for uid={uid}")
+    else:
+        logger.warning(f"[WWA postback] Qualified CPA for unknown uid={uid}")
+    return jsonify({"success": True}), 200
+
+
+@app.route("/webhook/wwa/commission", methods=["GET", "POST"])
+def wwa_postback_commission():
+    """Postback receiver for WWA's Commission postback event."""
+    if not _check_postback_secret():
+        return jsonify({"error": "forbidden"}), 403
+    uid = request.args.get("userid", "").strip()
+    account = _find_broker_account_by_uid(uid)
+    if account:
+        try:
+            amount = float(request.args.get("commissionamount") or 0)
+            account.commission_amount = (account.commission_amount or 0) + amount
+        except (TypeError, ValueError):
+            pass
+        account.commission_status = "pending"  # flip to "paid" via your own payout process/admin action
+        db.session.commit()
+        logger.info(f"[WWA postback] Commission for uid={uid} amount={request.args.get('commissionamount')}")
+    else:
+        logger.warning(f"[WWA postback] Commission for unknown uid={uid}")
+    return jsonify({"success": True}), 200
+
+
+@app.route("/webhook/wwa/lead", methods=["GET", "POST"])
+def wwa_postback_lead():
+    """Postback receiver for WWA's Lead postback event."""
+    if not _check_postback_secret():
+        return jsonify({"error": "forbidden"}), 403
+    uid = request.args.get("userid", "").strip()
+    logger.info(f"[WWA postback] Lead for uid={uid} (no BrokerAccount action needed yet)")
+    return jsonify({"success": True}), 200
+
+
+@app.route("/admin/broker-tracker")
+@admin_required
+def admin_broker_tracker():
+    """Admin Broker Tracker dashboard - attribution, deposits, volume, CPA, commission."""
+    broker_filter = request.args.get("broker", "").strip()
+    attribution_filter = request.args.get("attribution", "").strip()
+    cpa_filter = request.args.get("cpa", "").strip()
+    search = request.args.get("q", "").strip()
+    page = request.args.get("page", 1, type=int)
+    per_page = 25
+
+    query = BrokerAccount.query.join(User, BrokerAccount.user_id == User.id)
+
+    if broker_filter:
+        query = query.filter(BrokerAccount.broker == broker_filter)
+    if attribution_filter:
+        query = query.filter(BrokerAccount.attribution_status == attribution_filter)
+    if cpa_filter:
+        query = query.filter(BrokerAccount.cpa_status == cpa_filter)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(db.or_(
+            User.email.ilike(like),
+            User.first_name.ilike(like),
+            User.last_name.ilike(like),
+            BrokerAccount.uid.ilike(like),
+        ))
+
+    total = query.count()
+    accounts = query.order_by(BrokerAccount.created_at.desc()) \
+        .offset((page - 1) * per_page).limit(per_page).all()
+
+    total_accounts = BrokerAccount.query.count()
+    attributed_count = BrokerAccount.query.filter_by(attribution_status="confirmed").count()
+    ftd_count = BrokerAccount.query.filter(BrokerAccount.deposit_amount > 0).count()
+    cpa_qualified_count = BrokerAccount.query.filter_by(cpa_status="qualified").count()
+    total_commission = db.session.query(db.func.sum(BrokerAccount.commission_amount)).scalar() or 0
+
+    brokers = [b[0] for b in db.session.query(BrokerAccount.broker).distinct().all()]
+
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    return render_template(
+        "admin/broker_tracker.html",
+        accounts=accounts,
+        total_accounts=total_accounts,
+        attributed_count=attributed_count,
+        ftd_count=ftd_count,
+        cpa_qualified_count=cpa_qualified_count,
+        total_commission=total_commission,
+        brokers=brokers,
+        broker_filter=broker_filter,
+        attribution_filter=attribution_filter,
+        cpa_filter=cpa_filter,
+        search=search,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+    )
+
+
+@app.route("/admin/broker-tracker/refresh/<int:account_id>", methods=["POST"])
+@admin_required
+def admin_broker_tracker_refresh(account_id):
+    """Manually re-check a single broker account against the WWA API."""
+    account = db.session.get(BrokerAccount, account_id)
+    if not account:
+        flash("Broker account not found.", "error")
+        return redirect(url_for("admin_broker_tracker"))
+
+    if not wwa_client.is_configured():
+        flash("WWA API is not configured.", "error")
+        return redirect(request.referrer or url_for("admin_broker_tracker"))
+
+    try:
+        reg = wwa_client.get_registration(account.uid)
+        account.last_checked_at = datetime.utcnow()
+        account.last_check_error = None
+        if reg:
+            account.attribution_status = "confirmed"
+            account.registration_status = reg.get("Status")
+            try:
+                account.deposit_amount = float(reg.get("First_Deposit") or reg.get("Deposits") or account.deposit_amount)
+                account.volume_lots = float(reg.get("Volume") or account.volume_lots)
+            except (TypeError, ValueError):
+                pass
+        else:
+            account.attribution_status = "not_attributed"
+        db.session.commit()
+        flash(f"Refreshed {account.uid} from WWA.", "success")
+    except Exception as e:
+        account.last_check_error = str(e)[:300]
+        db.session.commit()
+        flash(f"Refresh failed: {e}", "error")
+
+    return redirect(request.referrer or url_for("admin_broker_tracker"))
 
 
 # ============================================================================
@@ -3142,6 +3612,7 @@ def admin_dashboard():
     active_vps = User.query.filter_by(vps_status='active').count()
     journal_accounts = JournalAccount.query.filter_by(archived=False).count()
     journal_trades = JournalTrade.query.count()
+    broker_accounts_count = BrokerAccount.query.count()
 
     recent_users = User.query.filter_by(is_admin=False).order_by(User.created_at.desc()).limit(10).all()
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
@@ -3182,6 +3653,7 @@ def admin_dashboard():
         active_vps=active_vps,
         journal_accounts=journal_accounts,
         journal_trades=journal_trades,
+        broker_accounts_count=broker_accounts_count,
         recent_users=recent_users,
         recent_orders=recent_orders,
         recent_licenses=recent_licenses,
@@ -3299,6 +3771,7 @@ def admin_user_detail(user_id):
     orders = user.orders.order_by(Order.created_at.desc()).all()
     licenses = user.licenses.order_by(License.created_at.desc()).all()
     journal_accounts = user.journal_accounts.filter_by(archived=False).order_by(JournalAccount.created_at).all()
+    broker_accounts = BrokerAccount.query.filter_by(user_id=user.id).order_by(BrokerAccount.created_at.desc()).all()
 
     vps_password = decrypt_data(user.vps_password) if user.vps_password else None
 
@@ -3308,6 +3781,7 @@ def admin_user_detail(user_id):
         orders=orders,
         licenses=licenses,
         journal_accounts=journal_accounts,
+        broker_accounts=broker_accounts,
         vps_password=vps_password,
         now=datetime.utcnow()
     )
