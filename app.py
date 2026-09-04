@@ -10,8 +10,6 @@ ACCOUNT SLOT LOGIC:
 - Multiple EAs on same MT5 account share 1 slot
 - Slot freed only when ALL EAs on that account are removed
 - Heartbeat auto-cleanup for crashed EAs (fully automatic)
-
-FIXED: Proper MT5 account tracking with unique account_number
 FIXED: Unlimited validations (max_validations=None skips the check)
 FIXED: Heartbeats no longer increment validation_count
 FIXED: Cancellation = stop auto-renewal, user keeps full access until paid period ends
