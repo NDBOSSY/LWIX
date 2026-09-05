@@ -395,6 +395,7 @@
         background: #fff;
         transition: box-shadow 0.15s;
     }
+    .acc-card:last-child { margin-bottom: 0; }
     .acc-card:hover { box-shadow: var(--j-shadow); }
     .acc-card.selected { border-color: var(--j-accent); box-shadow: 0 0 0 3px var(--j-accent-bg); }
     .acc-card h3 {
@@ -554,27 +555,6 @@
         max-width: 100%;
     }
 
-    .waiting-ea {
-        background: var(--j-sunken);
-        border: 1px solid var(--j-border);
-        border-radius: 14px;
-        padding: 2rem 1.5rem;
-        margin-bottom: 1.5rem;
-        text-align: center;
-    }
-    .waiting-ea .icon-circle {
-        width: 52px;
-        height: 52px;
-        border-radius: 14px;
-        background: var(--j-accent-bg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1rem;
-        color: var(--j-accent);
-        font-size: 1.4rem;
-    }
-
     .detail-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -676,51 +656,6 @@
     .btn-outline { background: #fff; border: 1px solid var(--j-border-strong); color: var(--j-ink); }
     .btn-outline:hover { border-color: var(--j-ink); }
 
-    .setup-guide {
-        background: var(--j-sunken);
-        border: 1px solid var(--j-border);
-        border-radius: 14px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    .setup-guide h3 {
-        font-size: 1rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .setup-guide h3 i { color: var(--j-accent); }
-    .setup-guide .steps {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-    .setup-guide .step {
-        background: var(--j-surface);
-        border: 1px solid var(--j-border);
-        border-radius: 10px;
-        padding: 1rem;
-        text-align: center;
-    }
-    .setup-guide .step .step-num {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: var(--j-accent-bg);
-        color: var(--j-accent);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.85rem;
-        margin: 0 auto 0.5rem;
-    }
-    .setup-guide .step h4 { font-size: 0.82rem; font-weight: 700; margin-bottom: 0.3rem; }
-    .setup-guide .step p { font-size: 0.75rem; color: var(--j-muted); margin: 0; }
-
     .troubleshoot-box {
         background: #fff3cd;
         border: 1px solid #ffc107;
@@ -752,6 +687,165 @@
     @media (max-width: 1150px) {
         .accounts-flex { grid-template-columns: 1fr; }
     }
+
+    /* ===== Connect-first hero (Step 1) ===== */
+    .connect-hero {
+        background: var(--j-surface);
+        border: 1px solid var(--j-border);
+        border-radius: 18px;
+        padding: 1.75rem 2rem;
+        box-shadow: var(--j-shadow);
+        max-width: 900px;
+        margin-bottom: 1.5rem;
+    }
+    .step-badge {
+        display: inline-block;
+        background: var(--j-accent-bg);
+        color: var(--j-accent);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.32rem 0.8rem;
+        border-radius: 20px;
+        margin-bottom: 0.9rem;
+    }
+    .connect-hero h2 {
+        font-size: 1.4rem;
+        font-weight: 800;
+        margin: 0 0 0.4rem;
+        letter-spacing: -0.01em;
+    }
+    .connect-hero > p.hero-sub {
+        color: var(--j-muted);
+        font-size: 0.88rem;
+        margin: 0 0 1.4rem;
+        max-width: 560px;
+        line-height: 1.5;
+    }
+    .connect-hero-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    .whats-next {
+        background: var(--j-sunken);
+        border: 1px solid var(--j-border);
+        border-radius: 14px;
+        padding: 1.1rem 1.2rem;
+    }
+    .whats-next .wn-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: var(--j-accent-bg);
+        color: var(--j-accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.8rem;
+        font-size: 1.05rem;
+    }
+    .whats-next h4 { font-size: 0.88rem; font-weight: 800; margin: 0 0 0.7rem; }
+    .whats-next ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+    .whats-next ul li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        font-size: 0.8rem;
+        color: var(--j-ink-secondary);
+        line-height: 1.35;
+    }
+    .whats-next ul li i {
+        color: #fff;
+        background: var(--j-accent);
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6rem;
+        flex-shrink: 0;
+        margin-top: 0.15rem;
+    }
+    @media (max-width: 780px) {
+        .connect-hero { padding: 1.3rem 1.2rem; }
+        .connect-hero-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ===== Collapsible accordion (Manual Trading section) ===== */
+    .accordion {
+        border: 1px solid var(--j-border);
+        border-radius: 16px;
+        overflow: hidden;
+        max-width: 900px;
+        background: var(--j-surface);
+        box-shadow: var(--j-shadow);
+    }
+    .accordion-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem 1.3rem;
+        cursor: pointer;
+        background: var(--j-violet-bg);
+        user-select: none;
+    }
+    .accordion-header .ah-left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+    .accordion-header .ah-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--j-violet);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    .accordion-header h3 { font-size: 0.92rem; font-weight: 800; margin: 0; }
+    .accordion-header p { font-size: 0.76rem; color: var(--j-muted); margin: 0.15rem 0 0; }
+    .accordion-header .chevron { color: var(--j-violet); transition: transform 0.2s; flex-shrink: 0; }
+    .accordion.open .accordion-header .chevron { transform: rotate(180deg); }
+    .accordion-body { display: none; padding: 1.3rem; border-top: 1px solid var(--j-border); }
+    .accordion.open .accordion-body { display: block; }
+
+    /* ===== Waiting-state split (EA Portfolio vs Manual Trading) ===== */
+    .waiting-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 780px) { .waiting-split { grid-template-columns: 1fr; } }
+    .waiting-card {
+        background: var(--j-sunken);
+        border: 1px solid var(--j-border);
+        border-radius: 14px;
+        padding: 1.5rem 1.3rem;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .waiting-card .icon-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.9rem;
+        font-size: 1.25rem;
+    }
+    .waiting-card.ea .icon-circle { background: var(--j-accent-bg); color: var(--j-accent); }
+    .waiting-card.manual .icon-circle { background: var(--j-violet-bg); color: var(--j-violet); }
+    .waiting-card h4 { font-weight: 800; font-size: 0.92rem; margin: 0 0 0.5rem; }
+    .waiting-card p { font-size: 0.82rem; color: var(--j-muted); margin: 0 0 1rem; line-height: 1.5; }
 
     @media (max-width: 780px) {
         .journal-wrapper { padding: 1rem 0.9rem 3rem; overflow-x: hidden; }
@@ -803,8 +897,9 @@
         .btn-download { justify-content: center; }
         .form-grid { gap: 0.6rem; }
         .modal-box { padding: 1.1rem; width: 94%; }
-        .setup-guide .steps { grid-template-columns: 1fr; }
         .accounts-flex { gap: 0.9rem; }
+        .accordion-header { padding: 0.9rem 1rem; }
+        .accordion-body { padding: 1rem; }
     }
 
     @media (max-width: 420px) {
@@ -834,50 +929,57 @@
         </div>
     </div>
 
-    {# NO ACCOUNTS - SHOW SETUP GUIDE #}
+    {# NO ACCOUNTS - SHOW CONNECT-FIRST SETUP #}
     {% if not account %}
     <div>
+        <p style="color: var(--j-muted); font-size: 0.9rem; margin: -0.75rem 0 1.5rem;" data-en="Connect your MT5 account to automatically sync your trades and results." data-nl="Verbind je MT5 account om automatisch je trades en resultaten te synchroniseren.">
+            {{ 'Verbind je MT5 account om automatisch je trades en resultaten te synchroniseren.' if current_language == 'nl' else 'Connect your MT5 account to automatically sync your trades and results.' }}
+        </p>
 
-        {# EA Portfolio Setup Guide #}
-        <div class="setup-guide" style="max-width: 900px;">
-            <h3><i class="fas fa-robot"></i> <span data-en="EA Portfolio" data-nl="EA Portfolio">{{ 'EA Portfolio' if current_language == 'nl' else 'EA Portfolio' }}</span></h3>
-            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;" data-en="Coming soon! Connect your EA accounts and track automated trading performance." data-nl="Binnenkort beschikbaar! Verbind je EA-accounts en volg geautomatiseerde handelsprestaties.">
-                {{ 'Binnenkort beschikbaar! Verbind je EA-accounts en volg geautomatiseerde handelsprestaties.' if current_language == 'nl' else 'Coming soon! Connect your EA accounts and track automated trading performance.' }}
+        {# STEP 1 - Connect MT5 Account (primary focus) #}
+        <div class="connect-hero">
+            <span class="step-badge" data-en="STEP 1" data-nl="STAP 1">{{ 'STAP 1' if current_language == 'nl' else 'STEP 1' }}</span>
+            <h2 data-en="Connect Your MT5 Account" data-nl="Verbind je MT5 Account">{{ 'Verbind je MT5 Account' if current_language == 'nl' else 'Connect Your MT5 Account' }}</h2>
+            <p class="hero-sub" data-en="Connect your MT5 account and automatically view your trades, results, and statistics." data-nl="Verbind je MT5 account en bekijk automatisch je trades, resultaten en statistieken.">
+                {{ 'Verbind je MT5 account en bekijk automatisch je trades, resultaten en statistieken.' if current_language == 'nl' else 'Connect your MT5 account and automatically view your trades, results, and statistics.' }}
             </p>
-        </div>
-
-        {# Manual Trading Setup Guide #}
-        <div class="setup-guide" style="max-width: 900px;">
-            <h3><i class="fas fa-rocket"></i> <span data-en="Manual Trading – MT5 Journal Sync Service" data-nl="Handmatig Handelen – MT5 Journal Sync Service">{{ 'Handmatig Handelen – MT5 Journal Sync Service' if current_language == 'nl' else 'Manual Trading – MT5 Journal Sync Service' }}</span></h3>
-            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;" data-en="Connect your MT5 account and install the sync service to automatically track your manual trades." data-nl="Verbind je MT5-account en installeer de sync-service om je handmatige trades automatisch te volgen.">
-                {{ 'Verbind je MT5-account en installeer de sync-service om je handmatige trades automatisch te volgen.' if current_language == 'nl' else 'Connect your MT5 account and install the sync service to automatically track your manual trades.' }}
-            </p>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-num">1</div>
-                    <h4 data-en="Connect MT5 Account" data-nl="Verbind MT5 Account">{{ 'Verbind MT5 Account' if current_language == 'nl' else 'Connect MT5 Account' }}</h4>
-                    <p data-en="Enter your MT5 login number below to link your account." data-nl="Voer hieronder je MT5-login in om je account te koppelen.">{{ 'Voer hieronder je MT5-login in om je account te koppelen.' if current_language == 'nl' else 'Enter your MT5 login number below to link your account.' }}</p>
+            <div class="connect-hero-grid">
+                <div>
+                    <form method="POST" action="{{ url_for('journal_account_new') }}">
+                        <div class="form-grid">
+                            <div>
+                                <label data-en="Account Name (optional)" data-nl="Accountnaam (optioneel)">{{ 'Accountnaam (optioneel)' if current_language == 'nl' else 'Account Name (optional)' }}</label>
+                                <input name="name" placeholder="{{ 'Bijv. FTMO 100K' if current_language == 'nl' else 'e.g. FTMO 100K' }}">
+                            </div>
+                            <div>
+                                <label data-en="MT5 Login Number *" data-nl="MT5 Login Nummer *">{{ 'MT5 Login Nummer *' if current_language == 'nl' else 'MT5 Login Number *' }}</label>
+                                <input name="mt5_login" placeholder="{{ 'Bijv. 12345678' if current_language == 'nl' else 'e.g. 12345678' }}" required>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" type="submit" style="margin-top:1.1rem;">
+                            <i class="fas fa-plug"></i> <span data-en="Connect Account" data-nl="Account Verbinden">{{ 'Account Verbinden' if current_language == 'nl' else 'Connect Account' }}</span>
+                        </button>
+                    </form>
                 </div>
-                <div class="step">
-                    <div class="step-num">2</div>
-                    <h4 data-en="Install Sync Service" data-nl="Installeer Sync Service">{{ 'Installeer Sync Service' if current_language == 'nl' else 'Install Sync Service' }}</h4>
-                    <p data-en="Download and install the MT5 Journal Sync Service." data-nl="Download en installeer de MT5 Journal Sync Service.">{{ 'Download en installeer de MT5 Journal Sync Service.' if current_language == 'nl' else 'Download and install the MT5 Journal Sync Service.' }}</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">3</div>
-                    <h4 data-en="Auto-Sync Trades" data-nl="Auto-Sync Trades">{{ 'Auto-Sync Trades' if current_language == 'nl' else 'Auto-Sync Trades' }}</h4>
-                    <p data-en="Your trades sync automatically every 5 minutes." data-nl="Je trades synchroniseren automatisch elke 5 minuten.">{{ 'Je trades synchroniseren automatisch elke 5 minuten.' if current_language == 'nl' else 'Your trades sync automatically every 5 minutes.' }}</p>
+                <div class="whats-next">
+                    <div class="wn-icon"><i class="fas fa-chart-line"></i></div>
+                    <h4 data-en="What happens next?" data-nl="Wat gebeurt er daarna?">{{ 'Wat gebeurt er daarna?' if current_language == 'nl' else 'What happens next?' }}</h4>
+                    <ul>
+                        <li><i class="fas fa-check"></i> <span data-en="Your trades sync automatically" data-nl="Je trades worden automatisch gesynchroniseerd">{{ 'Je trades worden automatisch gesynchroniseerd' if current_language == 'nl' else 'Your trades sync automatically' }}</span></li>
+                        <li><i class="fas fa-check"></i> <span data-en="Results and stats are updated" data-nl="Resultaten en statistieken worden bijgewerkt">{{ 'Resultaten en statistieken worden bijgewerkt' if current_language == 'nl' else 'Results and stats are updated' }}</span></li>
+                        <li><i class="fas fa-check"></i> <span data-en="Everything organized in your journal" data-nl="Alles overzichtelijk in jouw journal">{{ 'Alles overzichtelijk in jouw journal' if current_language == 'nl' else 'Everything organized in your journal' }}</span></li>
+                    </ul>
                 </div>
             </div>
         </div>
 
-        {# Existing Accounts (left) + Connect form (right), side by side #}
-        <div class="accounts-flex" style="max-width: 900px;">
-            <div class="accounts-list">
-                {% if accounts %}
-                <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem;">
-                    <i class="fas fa-list"></i> <span data-en="Your Accounts" data-nl="Jouw Accounts">{{ 'Jouw Accounts' if current_language == 'nl' else 'Your Accounts' }}</span>
-                </h2>
+        {# Existing Accounts (if any) #}
+        {% if accounts %}
+        <div class="panel" style="max-width: 900px;">
+            <div class="panel-head">
+                <div class="t"><i class="fas fa-list"></i> <span data-en="Your Accounts" data-nl="Jouw Accounts">{{ 'Jouw Accounts' if current_language == 'nl' else 'Your Accounts' }}</span></div>
+            </div>
+            <div class="panel-body">
                 {% for a in accounts %}
                 <div class="acc-card">
                     <div>
@@ -911,66 +1013,58 @@
                     </div>
                 </div>
                 {% endfor %}
-                {% endif %}
-            </div>
-
-            {# Connect Account Form #}
-            <div class="new-form">
-                <h3><i class="fas fa-plug"></i> <span data-en="Step 1: Connect Your MT5 Account" data-nl="Stap 1: Verbind je MT5 Account">{{ 'Stap 1: Verbind je MT5 Account' if current_language == 'nl' else 'Step 1: Connect Your MT5 Account' }}</span></h3>
-                <p style="color: var(--j-muted); font-size: 0.82rem; margin-bottom: 0.9rem;" data-en="Enter your MT5 login number. Your broker, server, currency, and balance will be auto-detected by the sync service." data-nl="Voer je MT5-login in. Je broker, server, valuta en saldo worden automatisch gedetecteerd door de sync-service.">
-                    {{ 'Voer je MT5-login in. Je broker, server, valuta en saldo worden automatisch gedetecteerd door de sync-service.' if current_language == 'nl' else 'Enter your MT5 login number. Your broker, server, currency, and balance will be auto-detected by the sync service.' }}
-                </p>
-                <form method="POST" action="{{ url_for('journal_account_new') }}">
-                    <div class="form-grid">
-                        <div>
-                            <label data-en="Account Name (optional)" data-nl="Accountnaam (optioneel)">{{ 'Accountnaam (optioneel)' if current_language == 'nl' else 'Account Name (optional)' }}</label>
-                            <input name="name" placeholder="{{ 'bijv. FTMO 100K' if current_language == 'nl' else 'e.g. FTMO 100K' }}">
-                        </div>
-                        <div>
-                            <label data-en="MT5 Login Number *" data-nl="MT5 Login Nummer *">{{ 'MT5 Login Nummer *' if current_language == 'nl' else 'MT5 Login Number *' }}</label>
-                            <input name="mt5_login" placeholder="52601220" required>
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                        <i class="fas fa-plug"></i> <span data-en="Connect Account" data-nl="Account Verbinden">{{ 'Account Verbinden' if current_language == 'nl' else 'Connect Account' }}</span>
-                    </button>
-                </form>
             </div>
         </div>
+        {% endif %}
 
-        {# Step 2 & 3: Download and Install Service #}
-        <div class="indicator-card" style="max-width: 900px;">
-            <div class="ind-head">
-                <div class="ind-head-text">
-                    <h3><i class="fas fa-sync-alt"></i> <span data-en="Step 2 & 3: Install the MT5 Journal Sync Service" data-nl="Stap 2 & 3: Installeer de MT5 Journal Sync Service">{{ 'Stap 2 & 3: Installeer de MT5 Journal Sync Service' if current_language == 'nl' else 'Step 2 & 3: Install the MT5 Journal Sync Service' }}</span></h3>
-                    <p data-en="Download the service, install it in MT5, and your manual trades will sync automatically in the background. No license key needed — runs silently every 5 minutes." data-nl="Download de service, installeer deze in MT5 en je handmatige trades synchroniseren automatisch op de achtergrond. Geen licentiesleutel nodig — draait stil elke 5 minuten.">
+        {# Manual Trading - collapsed by default, expand when needed #}
+        <div class="accordion" id="manualSyncAccordionHome" style="margin-top: 1.5rem;">
+            <div class="accordion-header" onclick="toggleAccordion('manualSyncAccordionHome')">
+                <div class="ah-left">
+                    <div class="ah-icon"><i class="fas fa-sync-alt"></i></div>
+                    <div>
+                        <h3 data-en="Manual Trading – MT5 Journal Sync Service" data-nl="Handmatig Handelen – MT5 Journal Sync Service">{{ 'Handmatig Handelen – MT5 Journal Sync Service' if current_language == 'nl' else 'Manual Trading – MT5 Journal Sync Service' }}</h3>
+                        <p data-en="Only needed if you trade manually and want those trades synced too. Click to expand." data-nl="Alleen nodig als je handmatig handelt en die trades ook wilt synchroniseren. Klik om uit te klappen.">
+                            {{ 'Alleen nodig als je handmatig handelt en die trades ook wilt synchroniseren. Klik om uit te klappen.' if current_language == 'nl' else 'Only needed if you trade manually and want those trades synced too. Click to expand.' }}
+                        </p>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-down chevron"></i>
+            </div>
+            <div class="accordion-body">
+                <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0 0 0.5rem;" data-en="Connect your MT5 account and install the sync service to automatically track your manual trades." data-nl="Verbind je MT5-account en installeer de sync-service om je handmatige trades automatisch te volgen.">
+                    {{ 'Verbind je MT5-account en installeer de sync-service om je handmatige trades automatisch te volgen.' if current_language == 'nl' else 'Connect your MT5 account and install the sync service to automatically track your manual trades.' }}
+                </p>
+
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin: 1rem 0;">
+                    <p style="color: var(--j-muted); font-size: 0.82rem; margin: 0; max-width: 480px;" data-en="Download the service, install it in MT5, and your manual trades will sync automatically in the background. No license key needed — runs silently every 5 minutes." data-nl="Download de service, installeer deze in MT5 en je handmatige trades synchroniseren automatisch op de achtergrond. Geen licentiesleutel nodig — draait stil elke 5 minuten.">
                         {{ 'Download de service, installeer deze in MT5 en je handmatige trades synchroniseren automatisch op de achtergrond. Geen licentiesleutel nodig — draait stil elke 5 minuten.' if current_language == 'nl' else 'Download the service, install it in MT5, and your manual trades will sync automatically in the background. No license key needed — runs silently every 5 minutes.' }}
                     </p>
+                    <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSyncService.ex5') }}" download>
+                        <i class="fas fa-download"></i> <span data-en="Download Service File" data-nl="Download Service Bestand">{{ 'Download Service Bestand' if current_language == 'nl' else 'Download Service File' }}</span>
+                    </a>
                 </div>
-                <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSyncService.ex5') }}" download>
-                    <i class="fas fa-download"></i> <span data-en="Download Service File" data-nl="Download Service Bestand">{{ 'Download Service Bestand' if current_language == 'nl' else 'Download Service File' }}</span>
-                </a>
-            </div>
 
-            <ol class="steps-list">
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Download het Service-bestand</strong> met de knop hierboven. Sla het op je computer op.{% else %}<strong>Download the Service file</strong> using the button above. Save it to your computer.{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Installeer in MT5:</strong> Kopieer het <code>.ex5</code> bestand naar je MT5 <code>MQL5/Services</code> map.<br><small style="color: var(--j-muted);">In MT5: Bestand → Gegevensmap openen → MQL5 → Services</small>{% else %}<strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br><small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small>{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Vernieuw MT5:</strong> Klik in het Navigator-paneel (Ctrl+N) met de rechtermuisknop op <strong>Services</strong> en kies <strong>Vernieuwen</strong>.<br><small style="color: var(--j-muted);">Of herstart MT5.</small>{% else %}<strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click <strong>Services</strong> and choose <strong>Refresh</strong>.<br><small style="color: var(--j-muted);">Or simply restart MT5.</small>{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Sta WebRequest toe:</strong> Ga in MT5 naar <strong>Tools → Opties → Expert Advisors</strong>, vink <strong>"WebRequest toestaan voor vermelde URL"</strong> aan, en voeg exact toe:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% else %}<strong>Allow WebRequest:</strong> In MT5, go to <strong>Tools → Options → Expert Advisors</strong>, tick <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Start de Service:</strong> Vouw in het Navigator-paneel <strong>Services</strong> uit, zoek <strong>MT5JournalSyncService</strong> en <strong>dubbelklik</strong> erop. Controleer de instellingen en klik op <strong>OK</strong>.{% else %}<strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>, find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it. Review the settings and click <strong>OK</strong>.{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Controleer of het draait:</strong> Druk op Ctrl+T om de Terminal te openen, klik op het <strong>Experts</strong> tabblad. Je zou moeten zien:<br><code style="color: #0c8b51;">[SERVICE] Trading Engine Journal Sync Service</code>{% else %}<strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the <strong>Experts</strong> tab. You should see:<br><code style="color: #0c8b51;">[SERVICE] Trading Engine Journal Sync Service</code>{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Automatisch starten (aanbevolen):</strong> Klik met de rechtermuisknop op de service in Navigator → <strong>Toevoegen aan Favorieten</strong>. Het start automatisch wanneer je MT5 opent.{% else %}<strong>Auto-start (recommended):</strong> Right-click the service in Navigator → <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.{% endif %}</span></li>
-            </ol>
+                <ol class="steps-list">
+                    <li><span class="step-text">{% if current_language == 'nl' %}<strong>Download het Service-bestand</strong> met de knop hierboven. Sla het op je computer op.{% else %}<strong>Download the Service file</strong> using the button above. Save it to your computer.{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}<strong>Installeer in MT5:</strong> Kopieer het <code>.ex5</code> bestand naar je MT5 <code>MQL5/Services</code> map.<br><small style="color: var(--j-muted);">In MT5: Bestand → Gegevensmap openen → MQL5 → Services</small>{% else %}<strong>Install in MT5:</strong> Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br><small style="color: var(--j-muted);">In MT5: File → Open Data Folder → MQL5 → Services</small>{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}<strong>Vernieuw MT5:</strong> Klik in het Navigator-paneel (Ctrl+N) met de rechtermuisknop op <strong>Services</strong> en kies <strong>Vernieuwen</strong>.<br><small style="color: var(--j-muted);">Of herstart MT5.</small>{% else %}<strong>Refresh MT5:</strong> In the Navigator panel (Ctrl+N), right-click <strong>Services</strong> and choose <strong>Refresh</strong>.<br><small style="color: var(--j-muted);">Or simply restart MT5.</small>{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}<strong>Sta WebRequest toe:</strong> Ga in MT5 naar <strong>Tools → Opties → Expert Advisors</strong>, vink <strong>"WebRequest toestaan voor vermelde URL"</strong> aan, en voeg exact toe:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% else %}<strong>Allow WebRequest:</strong> In MT5, go to <strong>Tools → Options → Expert Advisors</strong>, tick <strong>"Allow WebRequest for listed URL"</strong>, and add exactly:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}<strong>Start de Service:</strong> Vouw in het Navigator-paneel <strong>Services</strong> uit, zoek <strong>MT5JournalSyncService</strong> en <strong>dubbelklik</strong> erop. Controleer de instellingen en klik op <strong>OK</strong>.{% else %}<strong>Start the Service:</strong> In the Navigator panel, expand <strong>Services</strong>, find <strong>MT5JournalSyncService</strong>, and <strong>double-click</strong> it. Review the settings and click <strong>OK</strong>.{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}<strong>Controleer of het draait:</strong> Druk op Ctrl+T om de Terminal te openen, klik op het <strong>Experts</strong> tabblad. Je zou moeten zien:<br><code style="color: #0c8b51;">[SERVICE] Trading Engine Journal Sync Service</code>{% else %}<strong>Verify it's running:</strong> Press Ctrl+T to open the Terminal, click the <strong>Experts</strong> tab. You should see:<br><code style="color: #0c8b51;">[SERVICE] Trading Engine Journal Sync Service</code>{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}<strong>Automatisch starten (aanbevolen):</strong> Klik met de rechtermuisknop op de service in Navigator → <strong>Toevoegen aan Favorieten</strong>. Het start automatisch wanneer je MT5 opent.{% else %}<strong>Auto-start (recommended):</strong> Right-click the service in Navigator → <strong>Add to Favorites</strong>. It will start automatically whenever you open MT5.{% endif %}</span></li>
+                </ol>
 
-            <div class="troubleshoot-box">
-                <strong><i class="fas fa-exclamation-triangle"></i> <span data-en="Troubleshooting:" data-nl="Probleemoplossing:">{{ 'Probleemoplossing:' if current_language == 'nl' else 'Troubleshooting:' }}</span></strong>
-                <ul>
-                    <li>{% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer Stap 4 — de WebRequest URL moet exact worden toegevoegd zoals hierboven getoond.{% else %}<strong>HTTP -1 error?</strong> Check Step 4 — the WebRequest URL must be added exactly as shown above.{% endif %}</li>
-                    <li>{% if current_language == 'nl' %}<strong>Geen trades synchroniseren?</strong> Zorg dat je Stap 1 hebt voltooid (verbind je MT5-account hierboven).{% else %}<strong>No trades syncing?</strong> Make sure you completed Step 1 (connect your MT5 account above).{% endif %}</li>
-                    <li>{% if current_language == 'nl' %}<strong>Service niet in Navigator?</strong> Controleer Stap 2 — het bestand moet in de <code>MQL5/Services</code> map staan, vernieuw daarna.{% else %}<strong>Service not in Navigator?</strong> Check Step 2 — the file must be in the <code>MQL5/Services</code> folder, then refresh.{% endif %}</li>
-                    <li>{% if current_language == 'nl' %}<strong>Service gestopt?</strong> Dubbelklik er opnieuw op in Navigator om te herstarten.{% else %}<strong>Service stopped?</strong> Double-click it again in Navigator to restart.{% endif %}</li>
-                    <li>{% if current_language == 'nl' %}<strong>Nog steeds problemen?</strong> Neem contact op met support voor hulp.{% else %}<strong>Still having issues?</strong> Contact support for help.{% endif %}</li>
-                </ul>
+                <div class="troubleshoot-box">
+                    <strong><i class="fas fa-exclamation-triangle"></i> <span data-en="Troubleshooting:" data-nl="Probleemoplossing:">{{ 'Probleemoplossing:' if current_language == 'nl' else 'Troubleshooting:' }}</span></strong>
+                    <ul>
+                        <li>{% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer Stap 4 — de WebRequest URL moet exact worden toegevoegd zoals hierboven getoond.{% else %}<strong>HTTP -1 error?</strong> Check Step 4 — the WebRequest URL must be added exactly as shown above.{% endif %}</li>
+                        <li>{% if current_language == 'nl' %}<strong>Geen trades synchroniseren?</strong> Zorg dat je Stap 1 hebt voltooid (verbind je MT5-account hierboven).{% else %}<strong>No trades syncing?</strong> Make sure you completed Step 1 (connect your MT5 account above).{% endif %}</li>
+                        <li>{% if current_language == 'nl' %}<strong>Service niet in Navigator?</strong> Controleer Stap 2 — het bestand moet in de <code>MQL5/Services</code> map staan, vernieuw daarna.{% else %}<strong>Service not in Navigator?</strong> Check Step 2 — the file must be in the <code>MQL5/Services</code> folder, then refresh.{% endif %}</li>
+                        <li>{% if current_language == 'nl' %}<strong>Service gestopt?</strong> Dubbelklik er opnieuw op in Navigator om te herstarten.{% else %}<strong>Service stopped?</strong> Double-click it again in Navigator to restart.{% endif %}</li>
+                        <li>{% if current_language == 'nl' %}<strong>Nog steeds problemen?</strong> Neem contact op met support voor hulp.{% else %}<strong>Still having issues?</strong> Contact support for help.{% endif %}</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -1002,7 +1096,7 @@
                 <span class="dot" style="background: var(--j-amber);"></span>
                 <span data-en="Last sync:" data-nl="Laatste sync:">{{ 'Laatste sync:' if current_language == 'nl' else 'Last sync:' }}</span> {{ account.last_synced_at.strftime('%d %b %H:%M') }}
             {% else %}
-                <span class="dot" style="background: #c8311e;"></span> <span data-en="Waiting for Service..." data-nl="Wachten op Service...">{{ 'Wachten op Service...' if current_language == 'nl' else 'Waiting for Service...' }}</span>
+                <span class="dot" style="background: #c8311e;"></span> <span data-en="Waiting for data..." data-nl="Wachten op gegevens...">{{ 'Wachten op gegevens...' if current_language == 'nl' else 'Waiting for data...' }}</span>
             {% endif %}
         </div>
     </div>
@@ -1027,16 +1121,27 @@
     {% if active_tab == 'dashboard' %}
 
         {% if not account.last_synced_at %}
-        <div class="waiting-ea">
-            <div class="icon-circle"><i class="fas fa-sync-alt"></i></div>
-            <h3 style="font-weight: 700; margin-bottom: 0.5rem;" data-en="Waiting for Sync Service" data-nl="Wachten op Sync Service">{{ 'Wachten op Sync Service' if current_language == 'nl' else 'Waiting for Sync Service' }}</h3>
-            <p style="font-size: 0.85rem; color: var(--j-muted); max-width: 450px; margin: 0 auto 1rem;" data-en="Your trades will appear here automatically once the MT5 Journal Sync Service connects. Make sure you've installed and started the service with account" data-nl="Je trades verschijnen hier automatisch zodra de MT5 Journal Sync Service verbinding maakt. Zorg dat je de service hebt geïnstalleerd en gestart met account">
-                {{ 'Je trades verschijnen hier automatisch zodra de MT5 Journal Sync Service verbinding maakt. Zorg dat je de service hebt geïnstalleerd en gestart met account' if current_language == 'nl' else 'Your trades will appear here automatically once the MT5 Journal Sync Service connects. Make sure you\'ve installed and started the service with account' }}
-                <strong>#{{ account.mt5_login }}</strong>.
-            </p>
-            <a href="{{ url_for('journal_page', account_id=account.id, tab='accounts') }}" class="btn btn-primary" style="margin-top: 0.5rem;">
-                <i class="fas fa-cog"></i> <span data-en="Setup Instructions" data-nl="Setup Instructies">{{ 'Setup Instructies' if current_language == 'nl' else 'Setup Instructions' }}</span>
-            </a>
+        <div class="waiting-split">
+            <div class="waiting-card ea">
+                <div class="icon-circle"><i class="fas fa-robot"></i></div>
+                <h4 data-en="EA Portfolio" data-nl="EA Portfolio">{{ 'EA Portfolio' if current_language == 'nl' else 'EA Portfolio' }}</h4>
+                <p data-en="After connecting your MT5 account, it can take around 5–15 minutes for the data to be retrieved and appear in your Trading Journal. No further action is needed." data-nl="Nadat je je MT5-account hebt gekoppeld, kan het ongeveer 5–15 minuten duren voordat de gegevens zijn opgehaald en zichtbaar worden in je Trading Journal. Je hoeft verder niets te doen.">
+                    {{ 'Nadat je je MT5-account hebt gekoppeld, kan het ongeveer 5–15 minuten duren voordat de gegevens zijn opgehaald en zichtbaar worden in je Trading Journal. Je hoeft verder niets te doen.' if current_language == 'nl' else 'After connecting your MT5 account, it can take around 5–15 minutes for the data to be retrieved and appear in your Trading Journal. No further action is needed.' }}
+                </p>
+                <span style="font-size:0.72rem; color: var(--j-soft);">
+                    <span data-en="Account:" data-nl="Account:">{{ 'Account:' if current_language == 'nl' else 'Account:' }}</span> <strong>#{{ account.mt5_login }}</strong>
+                </span>
+            </div>
+            <div class="waiting-card manual">
+                <div class="icon-circle"><i class="fas fa-pen"></i></div>
+                <h4 data-en="Manual Trading" data-nl="Manual Trading">{{ 'Manual Trading' if current_language == 'nl' else 'Manual Trading' }}</h4>
+                <p data-en="If this is an account you use for manual trading and you want to sync those trades to your Trading Journal, you need to install the MT5 Journal Sync Service." data-nl="Gebruik je dit account om handmatig te traden en wil je deze trades automatisch synchroniseren met je Trading Journal? Dan moet je de MT5 Journal Sync Service installeren.">
+                    {{ 'Gebruik je dit account om handmatig te traden en wil je deze trades automatisch synchroniseren met je Trading Journal? Dan moet je de MT5 Journal Sync Service installeren.' if current_language == 'nl' else 'If this is an account you use for manual trading and you want to sync those trades to your Trading Journal, you need to install the MT5 Journal Sync Service.' }}
+                </p>
+                <a href="{{ url_for('journal_page', account_id=account.id, tab='accounts') }}" class="btn btn-primary">
+                    <i class="fas fa-cog"></i> <span data-en="Setup Instructions" data-nl="Setup Instructies">{{ 'Setup Instructies' if current_language == 'nl' else 'Setup Instructions' }}</span>
+                </a>
+            </div>
         </div>
         {% endif %}
 
@@ -1390,45 +1495,50 @@
             </div>
         </div>
 
-        {# Manual Trading – MT5 Journal Sync Service #}
-        <div class="setup-guide" style="max-width: 900px; margin-bottom: 1.5rem;">
-            <h3><i class="fas fa-sync-alt"></i> <span data-en="Manual Trading – MT5 Journal Sync Service" data-nl="Handmatig Handelen – MT5 Journal Sync Service">{{ 'Handmatig Handelen – MT5 Journal Sync Service' if current_language == 'nl' else 'Manual Trading – MT5 Journal Sync Service' }}</span></h3>
-            <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0;" data-en="The sync service runs in MT5 background and automatically sends your manual trades to the journal every 5 minutes." data-nl="De sync-service draait op de achtergrond in MT5 en stuurt je handmatige trades automatisch elke 5 minuten naar het journaal.">
-                {{ 'De sync-service draait op de achtergrond in MT5 en stuurt je handmatige trades automatisch elke 5 minuten naar het journaal.' if current_language == 'nl' else 'The sync service runs in MT5 background and automatically sends your manual trades to the journal every 5 minutes.' }}
-            </p>
-        </div>
+        {# Manual Trading – collapsible, open by default here since the user came for setup #}
+        <div class="accordion open" id="manualSyncAccordionTab" style="max-width: 900px;">
+            <div class="accordion-header" onclick="toggleAccordion('manualSyncAccordionTab')">
+                <div class="ah-left">
+                    <div class="ah-icon"><i class="fas fa-sync-alt"></i></div>
+                    <div>
+                        <h3 data-en="Manual Trading – MT5 Journal Sync Service" data-nl="Handmatig Handelen – MT5 Journal Sync Service">{{ 'Handmatig Handelen – MT5 Journal Sync Service' if current_language == 'nl' else 'Manual Trading – MT5 Journal Sync Service' }}</h3>
+                        <p data-en="Only needed if you trade manually and want those trades synced too." data-nl="Alleen nodig als je handmatig handelt en die trades ook wilt synchroniseren.">{{ 'Alleen nodig als je handmatig handelt en die trades ook wilt synchroniseren.' if current_language == 'nl' else 'Only needed if you trade manually and want those trades synced too.' }}</p>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-down chevron"></i>
+            </div>
+            <div class="accordion-body">
+                <p style="color: var(--j-muted); font-size: 0.85rem; margin: 0 0 1rem;" data-en="The sync service runs in MT5 background and automatically sends your manual trades to the journal every 5 minutes." data-nl="De sync-service draait op de achtergrond in MT5 en stuurt je handmatige trades automatisch elke 5 minuten naar het journaal.">
+                    {{ 'De sync-service draait op de achtergrond in MT5 en stuurt je handmatige trades automatisch elke 5 minuten naar het journaal.' if current_language == 'nl' else 'The sync service runs in MT5 background and automatically sends your manual trades to the journal every 5 minutes.' }}
+                </p>
 
-        {# Service Installation Instructions #}
-        <div class="indicator-card" style="max-width: 900px;">
-            <div class="ind-head">
-                <div class="ind-head-text">
-                    <h3><i class="fas fa-download"></i> <span data-en="How to Install the MT5 Sync Service" data-nl="Hoe de MT5 Sync Service te Installeren">{{ 'Hoe de MT5 Sync Service te Installeren' if current_language == 'nl' else 'How to Install the MT5 Sync Service' }}</span></h3>
-                    <p data-en="Follow these steps to install the service that auto-syncs your manual trades." data-nl="Volg deze stappen om de service te installeren die je handmatige trades automatisch synchroniseert.">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom: 1rem;">
+                    <p style="color: var(--j-muted); font-size: 0.82rem; margin: 0; max-width: 480px;" data-en="Follow these steps to install the service that auto-syncs your manual trades." data-nl="Volg deze stappen om de service te installeren die je handmatige trades automatisch synchroniseert.">
                         {{ 'Volg deze stappen om de service te installeren die je handmatige trades automatisch synchroniseert.' if current_language == 'nl' else 'Follow these steps to install the service that auto-syncs your manual trades.' }}
                     </p>
+                    <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSync.ex5') }}" download>
+                        <i class="fas fa-download"></i> <span data-en="Download Service File" data-nl="Download Service Bestand">{{ 'Download Service Bestand' if current_language == 'nl' else 'Download Service File' }}</span>
+                    </a>
                 </div>
-                <a class="btn-download" href="{{ indicator_download_url or url_for('static', filename='downloads/MT5JournalSync.ex5') }}" download>
-                    <i class="fas fa-download"></i> <span data-en="Download Service File" data-nl="Download Service Bestand">{{ 'Download Service Bestand' if current_language == 'nl' else 'Download Service File' }}</span>
-                </a>
-            </div>
 
-            <ol class="steps-list">
-                <li><span class="step-text">{% if current_language == 'nl' %}<strong>Download</strong> het servicebestand met de knop hierboven.{% else %}<strong>Download</strong> the service file using the button above.{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}Kopieer het <code>.ex5</code> bestand naar je MT5 <code>MQL5/Services</code> map.<br><small style="color: var(--j-muted);">Bestand → Gegevensmap openen → MQL5 → Services</small>{% else %}Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br><small style="color: var(--j-muted);">File → Open Data Folder → MQL5 → Services</small>{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}In Navigator (Ctrl+N), rechtsklik op <strong>Services</strong> → <strong>Vernieuwen</strong>.{% else %}In Navigator (Ctrl+N), right-click <strong>Services</strong> → <strong>Refresh</strong>.{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}Ga naar <strong>Tools → Opties → Expert Advisors</strong>, schakel <strong>WebRequest</strong> in, voeg toe:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% else %}Go to <strong>Tools → Options → Expert Advisors</strong>, enable <strong>WebRequest</strong>, add:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}In Navigator, <strong>dubbelklik</strong> op <strong>MT5JournalSync</strong> → <strong>OK</strong>.{% else %}In Navigator, <strong>double-click</strong> <strong>MT5JournalSync</strong> → <strong>OK</strong>.{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}Controleer in Experts tab (Ctrl+T): zoek naar het groene succesbericht.{% else %}Verify in Experts tab (Ctrl+T): look for the green success message.{% endif %}</span></li>
-                <li><span class="step-text">{% if current_language == 'nl' %}Rechtsklik service → <strong>Toevoegen aan Favorieten</strong> voor automatisch starten met MT5.{% else %}Right-click service → <strong>Add to Favorites</strong> for auto-start with MT5.{% endif %}</span></li>
-            </ol>
+                <ol class="steps-list">
+                    <li><span class="step-text">{% if current_language == 'nl' %}<strong>Download</strong> het servicebestand met de knop hierboven.{% else %}<strong>Download</strong> the service file using the button above.{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}Kopieer het <code>.ex5</code> bestand naar je MT5 <code>MQL5/Services</code> map.<br><small style="color: var(--j-muted);">Bestand → Gegevensmap openen → MQL5 → Services</small>{% else %}Copy the <code>.ex5</code> file into your MT5 <code>MQL5/Services</code> folder.<br><small style="color: var(--j-muted);">File → Open Data Folder → MQL5 → Services</small>{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}In Navigator (Ctrl+N), rechtsklik op <strong>Services</strong> → <strong>Vernieuwen</strong>.{% else %}In Navigator (Ctrl+N), right-click <strong>Services</strong> → <strong>Refresh</strong>.{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}Ga naar <strong>Tools → Opties → Expert Advisors</strong>, schakel <strong>WebRequest</strong> in, voeg toe:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% else %}Go to <strong>Tools → Options → Expert Advisors</strong>, enable <strong>WebRequest</strong>, add:<br><code>{{ webrequest_url or 'https://members.tradingengine.nl' }}</code>{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}In Navigator, <strong>dubbelklik</strong> op <strong>MT5JournalSync</strong> → <strong>OK</strong>.{% else %}In Navigator, <strong>double-click</strong> <strong>MT5JournalSync</strong> → <strong>OK</strong>.{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}Controleer in Experts tab (Ctrl+T): zoek naar het groene succesbericht.{% else %}Verify in Experts tab (Ctrl+T): look for the green success message.{% endif %}</span></li>
+                    <li><span class="step-text">{% if current_language == 'nl' %}Rechtsklik service → <strong>Toevoegen aan Favorieten</strong> voor automatisch starten met MT5.{% else %}Right-click service → <strong>Add to Favorites</strong> for auto-start with MT5.{% endif %}</span></li>
+                </ol>
 
-            <div class="troubleshoot-box">
-                <strong><i class="fas fa-exclamation-triangle"></i> <span data-en="Troubleshooting:" data-nl="Probleemoplossing:">{{ 'Probleemoplossing:' if current_language == 'nl' else 'Troubleshooting:' }}</span></strong>
-                <ul>
-                    <li>{% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer of WebRequest URL exact is toegevoegd zoals getoond.{% else %}<strong>HTTP -1 error?</strong> Check WebRequest URL is added exactly as shown.{% endif %}</li>
-                    <li>{% if current_language == 'nl' %}<strong>Service niet gevonden?</strong> Zorg dat het bestand in <code>MQL5/Services</code> staat en je hebt vernieuwd.{% else %}<strong>Service not found?</strong> Make sure file is in <code>MQL5/Services</code> and you refreshed.{% endif %}</li>
-                    <li>{% if current_language == 'nl' %}<strong>Geen sync?</strong> Zorg dat je eerst je MT5-login hierboven hebt toegevoegd.{% else %}<strong>No sync?</strong> Make sure you added your MT5 login above first.{% endif %}</li>
-                </ul>
+                <div class="troubleshoot-box">
+                    <strong><i class="fas fa-exclamation-triangle"></i> <span data-en="Troubleshooting:" data-nl="Probleemoplossing:">{{ 'Probleemoplossing:' if current_language == 'nl' else 'Troubleshooting:' }}</span></strong>
+                    <ul>
+                        <li>{% if current_language == 'nl' %}<strong>HTTP -1 fout?</strong> Controleer of WebRequest URL exact is toegevoegd zoals getoond.{% else %}<strong>HTTP -1 error?</strong> Check WebRequest URL is added exactly as shown.{% endif %}</li>
+                        <li>{% if current_language == 'nl' %}<strong>Service niet gevonden?</strong> Zorg dat het bestand in <code>MQL5/Services</code> staat en je hebt vernieuwd.{% else %}<strong>Service not found?</strong> Make sure file is in <code>MQL5/Services</code> and you refreshed.{% endif %}</li>
+                        <li>{% if current_language == 'nl' %}<strong>Geen sync?</strong> Zorg dat je eerst je MT5-login hierboven hebt toegevoegd.{% else %}<strong>No sync?</strong> Make sure you added your MT5 login above first.{% endif %}</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -1472,6 +1582,11 @@
             }
         })
         .catch(function(error) { console.error('Language toggle failed:', error); });
+    }
+
+    function toggleAccordion(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.toggle('open');
     }
 
     {% if active_tab == 'dashboard' and weekly_bars %}
