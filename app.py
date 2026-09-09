@@ -56,6 +56,20 @@ ADDED: WWA (WealthWave Affiliation / Cellxpert) broker tracking integration
        - BrokerAccount model, WWA API client, member UID-check endpoint,
        postback receivers for registration/FTD/qualified-CPA/commission/lead
        events, and an admin Broker Tracker dashboard.
+FIXED: Stripe API version 2026-04-22.dahlia (and potentially other versions)
+       moved the Invoice object's subscription reference off the top-level
+       "subscription" field and into parent.subscription_details.subscription.
+       The invoice.paid renewal handler was still reading only the old
+       top-level field, which came back None on every renewal invoice under
+       the new schema. That caused User.query.filter_by(stripe_subscription_id=None)
+       to run - silently matching nothing (renewal never applied) or, worse,
+       incorrectly matching some unrelated user whose stripe_subscription_id
+       happened to be NULL in the database. Added extract_subscription_id(),
+       which checks the new nested location first and falls back to the old
+       top-level field, so renewals keep working across this and future API
+       version changes. Also added explicit error logging (instead of a
+       silent no-op) when no subscription ID can be resolved at all, so this
+       class of failure is never silent again.
 """
 
 import os
@@ -1207,6 +1221,41 @@ def parse_wix_date(date_str):
             return datetime.strptime(date_str.strip(), fmt)
         except ValueError:
             continue
+    return None
+
+
+def extract_subscription_id(stripe_object):
+    """
+    Get the subscription ID referenced by a Stripe Invoice (or similarly
+    shaped) object, robust to API version changes.
+
+    As of Stripe API version 2026-04-22.dahlia, the Invoice object no
+    longer has a top-level "subscription" field. The reference moved to:
+        invoice["parent"]["subscription_details"]["subscription"]
+
+    Older API versions (and possibly future ones) put/put back a plain
+    top-level "subscription" field, so this checks the new nested location
+    first and falls back to the legacy top-level field, rather than
+    assuming either one is guaranteed to exist. Returns None if neither
+    location has a value - callers must handle that explicitly instead of
+    passing None into a database lookup, since filtering on a NULL column
+    can silently match an unrelated record.
+    """
+    if not stripe_object:
+        return None
+
+    # Newest known location (API version 2026-04-22.dahlia and later)
+    parent = stripe_object.get("parent") or {}
+    subscription_details = parent.get("subscription_details") or {}
+    sub_id = subscription_details.get("subscription")
+    if sub_id:
+        return sub_id
+
+    # Legacy top-level field (pre-dahlia API versions)
+    sub_id = stripe_object.get("subscription")
+    if sub_id:
+        return sub_id
+
     return None
 
 
@@ -4510,6 +4559,12 @@ def stripe_payment_webhook():
             plan_duration = metadata.get("plan_duration", "")
             amount_total = (session_data.get("amount_total") or 0) / 100
             order_id = session_data.get("id", "")
+            # Checkout Session objects still carry "subscription" as a plain
+            # top-level field in current Stripe API versions (this field
+            # lives directly on the Session object, not nested under an
+            # Invoice's "parent", so it isn't affected by the dahlia
+            # Invoice schema change). Kept as a direct read intentionally -
+            # see extract_subscription_id() for the Invoice-specific fix.
             stripe_subscription_id = session_data.get("subscription")
             stripe_customer_id = session_data.get("customer")
 
@@ -4593,53 +4648,74 @@ def stripe_payment_webhook():
             if billing_reason != "subscription_cycle":
                 logger.info(f"[STRIPE] Ignoring invoice.paid (billing_reason={billing_reason})")
             else:
-                sub_id = invoice.get("subscription")
                 invoice_id = invoice.get("id")
-                user = User.query.filter_by(stripe_subscription_id=sub_id).first()
 
-                if not user:
-                    logger.warning(f"[STRIPE] invoice.paid for unknown subscription {sub_id}")
+                # FIXED: As of Stripe API version 2026-04-22.dahlia, invoices
+                # no longer carry a top-level "subscription" field - it moved
+                # to parent.subscription_details.subscription. Reading only
+                # the old top-level field returned None here on every
+                # renewal, which then fed straight into a
+                # filter_by(stripe_subscription_id=None) lookup - silently
+                # matching nothing (renewal skipped) or, worse, matching an
+                # unrelated user whose stripe_subscription_id happened to be
+                # NULL. extract_subscription_id() checks both locations.
+                sub_id = extract_subscription_id(invoice)
+
+                if not sub_id:
+                    # Never silently fall through to a filter_by(None) query.
+                    # If Stripe changes the schema again, this makes the
+                    # failure loud instead of a quiet mismatch.
+                    logger.error(
+                        f"[STRIPE] invoice.paid ({invoice_id}) has billing_reason="
+                        f"subscription_cycle but no resolvable subscription ID - "
+                        f"check for another Stripe API schema change"
+                    )
                 else:
-                    # Idempotency guard - Stripe can redeliver the same webhook
-                    already_processed = AuditLog.query.filter(
-                        AuditLog.user_id == user.id,
-                        AuditLog.action == "stripe_renewal",
-                        AuditLog.details.like(f"%{invoice_id}%")
-                    ).first()
+                    user = User.query.filter_by(stripe_subscription_id=sub_id).first()
 
-                    if already_processed:
-                        logger.info(f"[STRIPE] Invoice {invoice_id} already processed for {user.email}, skipping")
+                    if not user:
+                        logger.warning(f"[STRIPE] invoice.paid for unknown subscription {sub_id}")
                     else:
-                        days = user.subscription_duration_days or 30
+                        # Idempotency guard - Stripe can redeliver the same webhook
+                        already_processed = AuditLog.query.filter(
+                            AuditLog.user_id == user.id,
+                            AuditLog.action == "stripe_renewal",
+                            AuditLog.details.like(f"%{invoice_id}%")
+                        ).first()
 
-                        # Extend membership - seamless whether still active or already lapsed
-                        if user.membership_end and user.membership_end > datetime.utcnow():
-                            user.membership_end += timedelta(days=days)
+                        if already_processed:
+                            logger.info(f"[STRIPE] Invoice {invoice_id} already processed for {user.email}, skipping")
                         else:
-                            user.membership_end = datetime.utcnow() + timedelta(days=days)
-                        user.membership_status = "active"
+                            days = user.subscription_duration_days or 30
 
-                        # Extend/reactivate the license key the same way
-                        license = user.licenses.filter(
-                            License.status != "revoked"
-                        ).order_by(License.created_at.desc()).first()
-
-                        if license:
-                            if license.expires_at and license.expires_at > datetime.utcnow():
-                                license.expires_at += timedelta(days=days)
+                            # Extend membership - seamless whether still active or already lapsed
+                            if user.membership_end and user.membership_end > datetime.utcnow():
+                                user.membership_end += timedelta(days=days)
                             else:
-                                license.expires_at = datetime.utcnow() + timedelta(days=days)
-                            license.status = "active"
+                                user.membership_end = datetime.utcnow() + timedelta(days=days)
+                            user.membership_status = "active"
 
-                        db.session.commit()
+                            # Extend/reactivate the license key the same way
+                            license = user.licenses.filter(
+                                License.status != "revoked"
+                            ).order_by(License.created_at.desc()).first()
 
-                        log_audit(
-                            user.id,
-                            "stripe_renewal",
-                            f"+{days}d | invoice={invoice_id} | license={license.mask_license_key() if license else 'none'}",
-                            request.remote_addr
-                        )
-                        logger.info(f"[STRIPE] Renewed {user.email}: +{days}d, membership_end={user.membership_end}")
+                            if license:
+                                if license.expires_at and license.expires_at > datetime.utcnow():
+                                    license.expires_at += timedelta(days=days)
+                                else:
+                                    license.expires_at = datetime.utcnow() + timedelta(days=days)
+                                license.status = "active"
+
+                            db.session.commit()
+
+                            log_audit(
+                                user.id,
+                                "stripe_renewal",
+                                f"+{days}d | invoice={invoice_id} | license={license.mask_license_key() if license else 'none'}",
+                                request.remote_addr
+                            )
+                            logger.info(f"[STRIPE] Renewed {user.email}: +{days}d, membership_end={user.membership_end}")
 
         elif event_type == "customer.subscription.deleted":
             sub = event["data"]["object"]._to_dict_recursive()
