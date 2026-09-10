@@ -4903,6 +4903,15 @@ def auto_init_db():
         except Exception as e:
             logger.error(f"DB init failed: {e}")
 
+
+@app.route("/debug-my-ip")
+def debug_my_ip():
+    import urllib.request
+    ip = urllib.request.urlopen("https://api.ipify.org").read().decode()
+    return {"outbound_ip": ip}
+
+
+
 # ============================================================================
 # APPLICATION STARTUP
 # ============================================================================
