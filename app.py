@@ -257,8 +257,13 @@ limiter = Limiter(
 )
 
 # Logging
+# Default to INFO rather than DEBUG so routine noise (e.g. every quiet EA
+# heartbeat sync) doesn't flood the log stream and bury real events.
+# Set LOG_LEVEL=DEBUG in the environment if you need full verbosity while
+# troubleshooting - no code change required.
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s] - %(message)s"
 )
 logger = logging.getLogger(__name__)
@@ -1256,6 +1261,83 @@ def extract_subscription_id(stripe_object):
     if sub_id:
         return sub_id
 
+    return None
+
+
+def get_invoice_period_end(invoice):
+    """
+    Extract the exact billing period end for a paid invoice's subscription
+    line item, straight from Stripe's own invoice payload - no extra API
+    call needed, since Stripe already includes it.
+
+    This exists because locally computing membership_end/license.expires_at
+    as "+N days" (e.g. +30) drifts from Stripe's real, calendar-based
+    billing cycles - a monthly subscription that started on the 14th of a
+    31-day month renews on the 14th of the next month, which is 31 days
+    later, not 30. That one-to-three-day gap made membership_end/expires_at
+    fall due a day or two before Stripe's own invoice/renewal actually
+    fires, which is exactly what caused License/membership rows to show as
+    "expired" while the real Stripe subscription was still current and
+    about to renew on schedule.
+
+    Using Stripe's own period end instead of a local approximation removes
+    this drift entirely, for every renewal, going forward.
+
+    Returns None if the invoice doesn't have a usable line item/period -
+    callers must fall back to a duration-based calculation in that case,
+    never assume this always succeeds.
+    """
+    try:
+        lines = (invoice.get("lines") or {}).get("data") or []
+        if not lines:
+            return None
+        period = lines[0].get("period") or {}
+        end_ts = period.get("end")
+        if not end_ts:
+            return None
+        return datetime.utcfromtimestamp(end_ts)
+    except Exception as e:
+        logger.warning(f"[STRIPE] Could not read period end from invoice: {e}")
+        return None
+
+
+def get_subscription_period_end(subscription_id):
+    """
+    Fetch the exact current period end for a subscription directly from
+    Stripe, so a brand-new user's initial membership_end lines up with
+    Stripe's real billing cycle instead of an approximate flat-duration
+    window computed locally (see get_invoice_period_end for why that drift
+    matters).
+
+    Checks both known locations for this field, since Stripe has been
+    moving "current_period_end" off the Subscription object itself and
+    onto each Subscription Item (to support multiple differently-billed
+    items per subscription) - the same kind of schema relocation that
+    broke the invoice.paid handler, so this is written defensively against
+    it happening here too.
+
+    Returns None (caller must fall back to a duration-based calculation) if
+    Stripe isn't configured, no subscription_id was given, or the API call
+    fails for any reason - this must never raise and break checkout
+    processing.
+    """
+    if not subscription_id or stripe is None or not Config.STRIPE_API_KEY:
+        return None
+    try:
+        sub = stripe.Subscription.retrieve(subscription_id)
+        sub_dict = sub.to_dict() if hasattr(sub, "to_dict") else dict(sub)
+
+        period_end = sub_dict.get("current_period_end")
+
+        if not period_end:
+            items = (sub_dict.get("items") or {}).get("data") or []
+            if items:
+                period_end = items[0].get("current_period_end")
+
+        if period_end:
+            return datetime.utcfromtimestamp(period_end)
+    except Exception as e:
+        logger.warning(f"[STRIPE] Could not retrieve period end for subscription {subscription_id}: {e}")
     return None
 
 
@@ -3540,11 +3622,25 @@ def journal_api_ingest():
 
     db.session.commit()
 
-    logger.info(
-        f"[JOURNAL] Sync for MT5-{mt5_login}: "
-        f"{total_imported} new, {total_skipped} skipped "
-        f"across {len(accounts)} account(s)"
-    )
+    # Only log at INFO when something actually happened. This endpoint is
+    # polled repeatedly by every connected EA (often every few minutes,
+    # sometimes multiple times a second across accounts) even when there
+    # are zero new trades to sync - logging every single one of those
+    # no-op heartbeats drowned out everything else in the app's logs.
+    # A quiet, ordinary sync still gets a DEBUG line (visible if you
+    # explicitly need to trace polling activity), just not at INFO.
+    if total_imported > 0:
+        logger.info(
+            f"[JOURNAL] Sync for MT5-{mt5_login}: "
+            f"{total_imported} new, {total_skipped} skipped "
+            f"across {len(accounts)} account(s)"
+        )
+    else:
+        logger.debug(
+            f"[JOURNAL] Sync for MT5-{mt5_login}: "
+            f"{total_imported} new, {total_skipped} skipped "
+            f"across {len(accounts)} account(s)"
+        )
 
     return jsonify({
         "success": True,
@@ -4581,7 +4677,15 @@ def stripe_payment_webhook():
                         duration_days, subscription_type = 36500, "lifetime"
 
                 membership_start = datetime.utcnow()
-                membership_end = membership_start + timedelta(days=duration_days)
+
+                # Prefer Stripe's own exact billing period end over a flat
+                # local approximation, so a monthly subscription that
+                # started on e.g. Aug 14 correctly ends Sep 14 (31 days),
+                # not a hardcoded 30 days later. Falls back to the local
+                # calculation if Stripe can't be reached or this isn't a
+                # subscription checkout at all (e.g. lifetime one-time pay).
+                exact_period_end = get_subscription_period_end(stripe_subscription_id) if stripe_subscription_id else None
+                membership_end = exact_period_end or (membership_start + timedelta(days=duration_days))
 
                 user = User.query.filter_by(email=email).first()
 
@@ -4688,8 +4792,24 @@ def stripe_payment_webhook():
                         else:
                             days = user.subscription_duration_days or 30
 
+                            # Prefer Stripe's own exact period end (already
+                            # present in this invoice's payload) over a flat
+                            # local "+N days" approximation. Stripe bills on
+                            # real calendar cycles (e.g. Aug 14 -> Sep 14 is
+                            # 31 days), so a flat 30-day add drifts by a day
+                            # or two every cycle - which previously caused
+                            # membership_end/license.expires_at to fall due
+                            # BEFORE Stripe's actual renewal fired, making
+                            # still-current subscribers show as "expired" a
+                            # day or two early. Falls back to the old +days
+                            # calculation only if this invoice has no usable
+                            # period data.
+                            exact_period_end = get_invoice_period_end(invoice)
+
                             # Extend membership - seamless whether still active or already lapsed
-                            if user.membership_end and user.membership_end > datetime.utcnow():
+                            if exact_period_end:
+                                user.membership_end = exact_period_end
+                            elif user.membership_end and user.membership_end > datetime.utcnow():
                                 user.membership_end += timedelta(days=days)
                             else:
                                 user.membership_end = datetime.utcnow() + timedelta(days=days)
@@ -4701,7 +4821,9 @@ def stripe_payment_webhook():
                             ).order_by(License.created_at.desc()).first()
 
                             if license:
-                                if license.expires_at and license.expires_at > datetime.utcnow():
+                                if exact_period_end:
+                                    license.expires_at = exact_period_end
+                                elif license.expires_at and license.expires_at > datetime.utcnow():
                                     license.expires_at += timedelta(days=days)
                                 else:
                                     license.expires_at = datetime.utcnow() + timedelta(days=days)
@@ -4902,15 +5024,6 @@ def auto_init_db():
                 logger.info("Admin user created")
         except Exception as e:
             logger.error(f"DB init failed: {e}")
-
-
-@app.route("/debug-my-ip")
-def debug_my_ip():
-    import urllib.request
-    ip = urllib.request.urlopen("https://api.ipify.org").read().decode()
-    return {"outbound_ip": ip}
-
-
 
 # ============================================================================
 # APPLICATION STARTUP
