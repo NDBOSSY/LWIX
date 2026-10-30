@@ -1,9 +1,5 @@
 """
-Subscription & Licensing Platform
-Complete Flask Application with Wix Integration, Stripe Integration, OTP Auth, 
-License Management, Discord Integration & ThinkHuge VPS Auto-Provisioning
-+ Trading Journal with MT5 Sync Agent Integration
-+ MT5 Connector Indicator Management
+
 
 ACCOUNT SLOT LOGIC:
 - Each UNIQUE MT5 account number = 1 slot
