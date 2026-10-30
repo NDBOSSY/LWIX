@@ -1,8 +1,12 @@
 """
-
+Subscription & Licensing Platform
+Complete Flask Application with Wix Integration, Stripe Integration, OTP Auth, 
+License Management, Discord Integration & ThinkHuge VPS Auto-Provisioning
++ Trading Journal with MT5 Sync Agent Integration
++ MT5 Connector Indicator Management
 
 ACCOUNT SLOT LOGIC:
-- Each UNIQUE MT5 account numbers
+- Each UNIQUE MT5 account number = 1 slot
 - Multiple EAs on same MT5 account share 1 slot
 - Slot freed only when ALL EAs on that account are removed
 - Heartbeat auto-cleanup for crashed EAs (fully automatic)
@@ -1732,7 +1736,28 @@ def record_stripe_renewal_order(user, invoice):
     if not invoice_id:
         return None
     try:
-        if Order.query.filter_by(wix_order_id=invoice_id).first():
+        # Date the order by when Stripe actually collected the money (for SEPA
+        # that is the settlement day), not by when we happened to record it.
+        paid_at = None
+        try:
+            paid_ts = (invoice.get("status_transitions") or {}).get("paid_at")
+            if paid_ts:
+                paid_at = datetime.utcfromtimestamp(paid_ts)
+        except Exception:
+            paid_at = None
+
+        existing = Order.query.filter_by(wix_order_id=invoice_id).first()
+        if existing:
+            # Correct the date of an order recorded earlier with the wrong day
+            if (
+                paid_at
+                and existing.ip_address == "stripe"
+                and existing.created_at
+                and abs((existing.created_at - paid_at).total_seconds()) > 3600
+            ):
+                existing.created_at = paid_at
+                db.session.commit()
+                logger.info(f"[STRIPE] Corrected date of renewal order {invoice_id} to {paid_at}")
             return None
         amount = (invoice.get("amount_paid") or 0) / 100
         if amount <= 0:
@@ -1751,6 +1776,8 @@ def record_stripe_renewal_order(user, invoice):
             ip_address="stripe",
             raw_data=json.dumps(invoice, default=str),
         )
+        if paid_at:
+            order.created_at = paid_at
         db.session.add(order)
         db.session.commit()
         logger.info(f"[STRIPE] Recorded renewal order {invoice_id} for {user.email}: {amount:.2f}")
@@ -2823,13 +2850,27 @@ def run_migrations():
             # One-time: record renewals Stripe already collected (they were never
             # counted as revenue). Flagged in settings so it runs once; it is
             # idempotent anyway, and /admin/backfill-renewal-orders can re-run it.
+            # (v2: also corrects the date of renewal orders recorded with the
+            # backfill day instead of the payment day, and fills in the missing
+            # currency on older Stripe checkout orders.)
             try:
-                done = Setting.query.filter_by(key="stripe_renewal_orders_backfilled").first()
-                if not done and stripe is not None and Config.STRIPE_API_KEY:
-                    scanned, created = backfill_stripe_renewal_orders()
-                    db.session.add(Setting(key="stripe_renewal_orders_backfilled", value="1"))
+                done = Setting.query.filter_by(key="stripe_renewal_orders_backfilled_v2").first()
+                if not done:
+                    if stripe is not None and Config.STRIPE_API_KEY:
+                        scanned, created = backfill_stripe_renewal_orders()
+                        logger.info(f"Renewal-order backfill complete: {created} order(s) added")
+
+                    fixed = 0
+                    for order in Order.query.filter(
+                        Order.currency.is_(None), Order.wix_order_id.like("cs_%")
+                    ).all():
+                        order.currency = (order.user.currency if order.user else None) or "EUR"
+                        fixed += 1
+                    if fixed:
+                        logger.info(f"Filled in missing currency on {fixed} Stripe checkout order(s)")
+
+                    db.session.add(Setting(key="stripe_renewal_orders_backfilled_v2", value="1"))
                     db.session.commit()
-                    logger.info(f"Renewal-order backfill complete: {created} order(s) added")
             except Exception as e:
                 logger.error(f"Renewal-order backfill failed: {e}")
                 db.session.rollback()
@@ -5349,6 +5390,7 @@ def stripe_payment_webhook():
                         wix_order_id=order_id,
                         plan_name=plan_name,
                         plan_price=amount_total,
+                        currency=(session_data.get("currency") or "eur").upper(),
                         total_amount=amount_total,
                         subscription_type=subscription_type,
                         subscription_duration_days=duration_days,
