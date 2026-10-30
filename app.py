@@ -70,6 +70,34 @@ FIXED: Stripe API version 2026-04-22.dahlia (and potentially other versions)
        version changes. Also added explicit error logging (instead of a
        silent no-op) when no subscription ID can be resolved at all, so this
        class of failure is never silent again.
+CHANGED: Access for Stripe-managed subscribers now FOLLOWS STRIPE'S SUBSCRIPTION
+       STATUS instead of a local date timeline. Previously membership_end and
+       license.expires_at were plain dates, so a license could expire while
+       Stripe was still collecting the payment (slow SEPA debits that take
+       days to settle, or card retries during the dunning window), locking the
+       customer out and letting cleanup_expired_vps() terminate their VPS.
+       - New users.stripe_subscription_status column (auto-migrated, backfilled).
+       - User.has_active_access() is the single access check. For Stripe-managed
+         users: active / trialing / past_due = access (past_due means Stripe is
+         still retrying); canceled / unpaid / incomplete* / paused = no access.
+         Admin "revoked" always wins. Wix / lifetime / admin-granted users keep
+         the old date-based behaviour.
+       - User.is_membership_active(), License.is_valid() and
+         cleanup_expired_vps() all use that one check.
+       - customer.subscription.updated keeps the stored status in sync;
+         customer.subscription.deleted is the real expiry (expires membership +
+         license, VPS cleanup then terminates the server).
+       - invoice.payment_failed logs + sends a Dutch "betaling mislukt" email.
+       - invoice.paid no longer restores access for a subscription that Stripe
+         has already cancelled (the invoice status is left "past-due" by the
+         Stripe dunning settings, so an old invoice can be paid later).
+       - Background reconciliation sweep re-reads subscriptions from Stripe so a
+         missed webhook can never leave someone with permanent (or no) access.
+       - /api/validate-license returns a rolling expires_at for Stripe-managed
+         users so an EA that compares that date locally doesn't shut down
+         while Stripe is still collecting.
+       - Admin extend / reactivate on a dead Stripe subscription now detaches it
+         (status "admin_override") so the admin's manual grant actually works.
 """
 
 import os
@@ -144,7 +172,16 @@ class Config:
     WIX_WEBHOOK_SECRET = os.getenv("WIX_WEBHOOK_SECRET", "")
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
     STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", os.getenv("STRIPE_SECRET_KEY", ""))
-    
+    # How often (seconds) the background sweep re-reads non-settled Stripe
+    # subscriptions from Stripe to correct any missed webhooks, and how many
+    # subscriptions it checks per run.
+    STRIPE_RECONCILE_INTERVAL_SECONDS = int(os.getenv("STRIPE_RECONCILE_INTERVAL_SECONDS", 900))
+    STRIPE_RECONCILE_BATCH_SIZE = int(os.getenv("STRIPE_RECONCILE_BATCH_SIZE", 50))
+    # /api/validate-license reports expires_at as at least "now + this many
+    # days" for Stripe-managed users with active access, so an EA comparing
+    # that date locally keeps running while Stripe is still collecting.
+    STRIPE_EA_EXPIRY_BUFFER_DAYS = int(os.getenv("STRIPE_EA_EXPIRY_BUFFER_DAYS", 3))
+
     # Discord configuration
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
     DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "")
@@ -335,6 +372,22 @@ def inject_globals():
 # MODELS
 # ============================================================================
 
+# --- Stripe subscription statuses and what they mean for access -------------
+# "past_due" means Stripe is STILL TRYING to collect (card retries, or a SEPA
+# debit that failed and is being retried), so the customer keeps access until
+# Stripe actually cancels the subscription (customer.subscription.deleted).
+STRIPE_ACCESS_STATUSES = frozenset({"active", "trialing", "past_due"})
+# Every status Stripe can report for a subscription. A user is only treated as
+# "Stripe-managed" when the stored status is one of these.
+STRIPE_KNOWN_STATUSES = frozenset({
+    "active", "trialing", "past_due", "unpaid", "canceled",
+    "incomplete", "incomplete_expired", "paused",
+})
+# Sentinel stored when an admin manually grants time on a subscription that
+# Stripe has already ended. It is NOT a Stripe status, so the user falls back to
+# date-based access and the reconciliation sweep leaves them alone.
+STRIPE_STATUS_ADMIN_OVERRIDE = "admin_override"
+
 
 class User(UserMixin, db.Model):
     """User model for authentication, membership, and VPS tracking."""
@@ -363,7 +416,10 @@ class User(UserMixin, db.Model):
     # Stripe integration
     stripe_subscription_id = db.Column(db.String(100), nullable=True)
     stripe_customer_id = db.Column(db.String(100), nullable=True)
-    
+    # Mirror of Stripe's subscription.status (active / past_due / canceled ...).
+    # For Stripe-managed users THIS decides access, not membership_end.
+    stripe_subscription_status = db.Column(db.String(30), nullable=True)
+
     # Membership
     membership_status = db.Column(db.String(20), default="pending", index=True)
     membership_start = db.Column(db.DateTime, nullable=True)
@@ -413,15 +469,57 @@ class User(UserMixin, db.Model):
     orders = db.relationship("Order", backref="user", lazy="dynamic", cascade="all, delete-orphan")
     journal_accounts = db.relationship("JournalAccount", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
-    def is_membership_active(self):
-        """Check if the user's membership is currently active."""
-        if self.membership_status not in ["active", "cancelled"]:
+    def is_stripe_managed(self):
+        """True when Stripe's subscription status is the source of truth for access."""
+        return bool(
+            self.stripe_subscription_id
+            and self.stripe_subscription_status in STRIPE_KNOWN_STATUSES
+        )
+
+    def has_active_access(self):
+        """
+        THE single access check (membership, licenses, VPS all use this).
+
+        - Admin "revoked" and never-paid "pending" always mean no access.
+        - Stripe-managed users: access follows Stripe's subscription status.
+          active / trialing / past_due (Stripe still retrying) = access;
+          canceled / unpaid / incomplete* / paused = no access. Local dates and
+          the local "expired" flag are ignored - Stripe decides.
+        - Everyone else (Wix, lifetime, admin-granted): date-based, as before.
+
+        Pure read - no database writes. is_membership_active() adds the
+        local-status self-healing on top of this.
+        """
+        status = self.membership_status
+        if not status or status in ("revoked", "pending"):
+            return False
+
+        if self.is_stripe_managed():
+            return self.stripe_subscription_status in STRIPE_ACCESS_STATUSES
+
+        if status not in ("active", "cancelled"):
             return False
         if self.membership_end and self.membership_end < datetime.utcnow():
-            self.membership_status = "expired"
-            db.session.commit()
             return False
         return True
+
+    def is_membership_active(self):
+        """Check if the user's membership is currently active."""
+        has_access = self.has_active_access()
+        try:
+            if has_access:
+                # Heal a local "expired" flag set by the old date-based logic
+                # while Stripe still says the subscription is alive.
+                if self.membership_status == "expired" and self.is_stripe_managed():
+                    self.membership_status = "active"
+                    db.session.commit()
+            elif self.membership_status in ("active", "cancelled"):
+                self.membership_status = "expired"
+                db.session.commit()
+        except Exception as e:
+            logger.error(f"[ACCESS] Could not sync membership_status for user {self.id}: {e}")
+            db.session.rollback()
+        return has_access
 
     def get_active_license(self):
         """Get the user's active license, if any."""
@@ -544,17 +642,66 @@ class License(db.Model):
         "LicenseAccount", backref="license", lazy="dynamic", cascade="all, delete-orphan"
     )
 
+    def _is_latest_license_of_user(self):
+        """True if this is the user's newest non-revoked license."""
+        latest = (
+            License.query.filter(License.user_id == self.user_id, License.status != "revoked")
+            .order_by(License.created_at.desc(), License.id.desc())
+            .first()
+        )
+        return bool(latest and latest.id == self.id)
+
     def is_valid(self):
-        """Check if license is currently valid."""
-        if self.status != "active":
-            return False
-        if self.expires_at < datetime.utcnow():
-            self.status = "expired"
-            db.session.commit()
-            return False
+        """
+        Check if license is currently valid.
+
+        For Stripe-managed users validity follows the user's Stripe-driven
+        access (see User.has_active_access) instead of this row's expires_at,
+        so a license stays valid while Stripe is still collecting payment and
+        is restored automatically if an older run of the date-based logic had
+        marked it "expired". Everyone else keeps the date-based behaviour.
+        """
+        user = self.user
+        if user is not None and user.is_stripe_managed():
+            if self.status not in ("active", "expired"):
+                return False  # revoked (admin) always wins
+            if not user.has_active_access():
+                if self.status == "active":
+                    self.status = "expired"
+                    db.session.commit()
+                return False
+            if self.status == "expired":
+                # Only the newest license is revived, so old keys the user
+                # replaced can't be brought back to life by validating them.
+                if not self._is_latest_license_of_user():
+                    return False
+                self.status = "active"
+                db.session.commit()
+        else:
+            if self.status != "active":
+                return False
+            if self.expires_at < datetime.utcnow():
+                self.status = "expired"
+                db.session.commit()
+                return False
+
         if self.max_validations is not None and self.validation_count >= self.max_validations:
             return False
         return True
+
+    def effective_expires_at(self):
+        """
+        The expires_at reported to the EA. For Stripe-managed users with live
+        access it is a rolling date (never earlier than now + buffer), because
+        the stored date is not what decides access for them. The EA keeps
+        re-validating, and the server is what actually enforces access.
+        """
+        user = self.user
+        if user is not None and user.is_stripe_managed() and user.has_active_access():
+            floor = datetime.utcnow() + timedelta(days=Config.STRIPE_EA_EXPIRY_BUFFER_DAYS)
+            if not self.expires_at or self.expires_at < floor:
+                return floor
+        return self.expires_at
 
     def mask_license_key(self):
         """Mask the license key for display."""
@@ -1324,21 +1471,389 @@ def get_subscription_period_end(subscription_id):
     if not subscription_id or stripe is None or not Config.STRIPE_API_KEY:
         return None
     try:
-        sub = stripe.Subscription.retrieve(subscription_id)
-        sub_dict = sub.to_dict() if hasattr(sub, "to_dict") else dict(sub)
+        sub_dict = fetch_stripe_subscription(subscription_id)
+        if sub_dict:
+            return subscription_period_end_from_dict(sub_dict)
+    except Exception as e:
+        logger.warning(f"[STRIPE] Could not retrieve period end for subscription {subscription_id}: {e}")
+    return None
 
+
+def subscription_period_end_from_dict(sub_dict):
+    """
+    Read current_period_end from a Subscription dict, checking both the
+    subscription itself and its first item (Stripe moved it onto items).
+    Returns a naive UTC datetime, or None.
+    """
+    try:
         period_end = sub_dict.get("current_period_end")
-
         if not period_end:
             items = (sub_dict.get("items") or {}).get("data") or []
             if items:
                 period_end = items[0].get("current_period_end")
-
         if period_end:
             return datetime.utcfromtimestamp(period_end)
     except Exception as e:
-        logger.warning(f"[STRIPE] Could not retrieve period end for subscription {subscription_id}: {e}")
+        logger.warning(f"[STRIPE] Could not read period end from subscription: {e}")
     return None
+
+
+# ============================================================================
+# STRIPE SUBSCRIPTION STATE SYNC
+# One place that pushes Stripe's subscription state onto our User/License rows.
+# Used by the webhooks AND the background reconciliation sweep, so both always
+# reach the same conclusion.
+# ============================================================================
+
+def fetch_stripe_subscription(subscription_id):
+    """
+    Retrieve a subscription from Stripe as a plain dict.
+
+    Returns None if Stripe isn't configured. Returns {"id": ..., "status":
+    "canceled", "_missing": True} if Stripe says the subscription doesn't
+    exist at all. Any other API failure RAISES, so callers never mistake a
+    network error for a cancellation.
+    """
+    if not subscription_id or stripe is None or not Config.STRIPE_API_KEY:
+        return None
+    try:
+        sub = stripe.Subscription.retrieve(subscription_id)
+    except Exception as e:
+        if getattr(e, "code", None) == "resource_missing" or "No such subscription" in str(e):
+            return {"id": subscription_id, "status": "canceled", "_missing": True}
+        raise
+    return sub.to_dict() if hasattr(sub, "to_dict") else dict(sub)
+
+
+def _latest_license_for(user):
+    """The user's newest non-revoked license (the one renewals act on)."""
+    return user.licenses.filter(License.status != "revoked").order_by(
+        License.created_at.desc()
+    ).first()
+
+
+def detach_dead_stripe_subscription(user):
+    """
+    Call before an admin (or Wix/lifetime purchase) manually grants time to a
+    user whose Stripe subscription has already ended. Without this, the Stripe
+    status (canceled etc.) would still override the grant. Marks the user as
+    date-based. A live subscription is left untouched. Caller commits.
+    """
+    if user.is_stripe_managed() and user.stripe_subscription_status not in STRIPE_ACCESS_STATUSES:
+        logger.info(
+            f"[STRIPE] Detaching ended subscription {user.stripe_subscription_id} "
+            f"(status={user.stripe_subscription_status}) from {user.email}: manual grant"
+        )
+        user.stripe_subscription_status = STRIPE_STATUS_ADMIN_OVERRIDE
+        return True
+    return False
+
+
+def apply_stripe_subscription_state(user, sub, source="webhook", preserve_future_grants=False):
+    """
+    Apply a Stripe Subscription (dict) to our rows. Idempotent.
+
+    - Stores the status (which is what grants/denies access).
+    - Access statuses: heals a stale local "expired" flag/license, syncs the
+      cancel-at-period-end flag, and (active/trialing only) extends the dates
+      to Stripe's current period end. Dates are never shortened here.
+    - Non-access statuses (canceled, unpaid, ...): expires membership + license
+      (the VPS cleanup then terminates the server).
+    Admin "revoked" is never touched. Returns the status. Caller does not need
+    to commit; this commits.
+
+    preserve_future_grants (used by the one-time migration backfill only): if
+    Stripe reports the subscription ended but the user still has well over a
+    day of paid-through time locally, that time came from somewhere other than
+    this subscription (an older Stripe link plus a later Wix/lifetime/admin
+    grant). Don't lock them out on first sync - keep them date-based instead.
+    """
+    status = (sub or {}).get("status")
+    if not status:
+        return None
+
+    previous = user.stripe_subscription_status
+
+    # canceled / incomplete_expired are terminal in Stripe (a subscription can
+    # never come back). Webhooks can arrive out of order, so a late "past_due"
+    # or "active" update must not resurrect a subscription we already saw end.
+    if previous in ("canceled", "incomplete_expired") and status != previous:
+        logger.info(
+            f"[STRIPE] Ignoring {source} status '{status}' for {user.email}: "
+            f"subscription already {previous}"
+        )
+        return previous
+
+    now = datetime.utcnow()
+
+    if (
+        preserve_future_grants
+        and status not in STRIPE_ACCESS_STATUSES
+        and user.membership_status in ("active", "cancelled")
+        and user.membership_end
+        and user.membership_end > now + timedelta(days=1)
+    ):
+        logger.warning(
+            f"[STRIPE] {user.email}: Stripe says {status} but local access runs until "
+            f"{user.membership_end}; keeping date-based access (manual grant / other source)"
+        )
+        user.stripe_subscription_status = STRIPE_STATUS_ADMIN_OVERRIDE
+        db.session.commit()
+        return STRIPE_STATUS_ADMIN_OVERRIDE
+
+    user.stripe_subscription_status = status
+
+    if user.membership_status == "revoked":
+        db.session.commit()
+        return status
+
+    if status in STRIPE_ACCESS_STATUSES:
+        cancel_at_period_end = bool(sub.get("cancel_at_period_end"))
+
+        # Mirror cancel-at-period-end (user cancelled in Stripe's portal etc.)
+        if user.membership_status in ("active", "expired"):
+            user.membership_status = "cancelled" if cancel_at_period_end else "active"
+        elif user.membership_status == "cancelled" and not cancel_at_period_end:
+            user.membership_status = "active"
+
+        period_end = subscription_period_end_from_dict(sub)
+        extend_dates = status in ("active", "trialing") and period_end
+        if extend_dates and (not user.membership_end or period_end > user.membership_end):
+            user.membership_end = period_end
+
+        lic = _latest_license_for(user)
+        if lic:
+            if lic.status == "expired":
+                lic.status = "active"
+            if extend_dates and (not lic.expires_at or period_end > lic.expires_at):
+                lic.expires_at = period_end
+    else:
+        if user.membership_status in ("active", "cancelled"):
+            user.membership_status = "expired"
+        if not user.membership_end or user.membership_end > now:
+            user.membership_end = now
+        lic = _latest_license_for(user)
+        if lic and lic.status == "active":
+            lic.status = "expired"
+            if not lic.expires_at or lic.expires_at > now:
+                lic.expires_at = now
+
+    db.session.commit()
+
+    if previous != status:
+        logger.info(f"[STRIPE] {user.email}: subscription status {previous} -> {status} ({source})")
+        log_audit(
+            user.id,
+            "stripe_status_changed",
+            f"{previous or 'none'} -> {status} | sub={user.stripe_subscription_id} | via={source}",
+            "system",
+        )
+    return status
+
+
+def refresh_user_from_stripe(user, source="reconcile"):
+    """Re-read the user's subscription from Stripe and apply it. Never raises."""
+    if not user.stripe_subscription_id:
+        return None
+    try:
+        sub = fetch_stripe_subscription(user.stripe_subscription_id)
+        if not sub:
+            return None
+        return apply_stripe_subscription_state(
+            user, sub, source=source, preserve_future_grants=(source == "migration")
+        )
+    except Exception as e:
+        logger.warning(f"[STRIPE] Could not refresh {user.email} from Stripe ({source}): {e}")
+        db.session.rollback()
+        return None
+
+
+_last_stripe_reconcile = 0.0
+
+
+def reconcile_stripe_subscriptions(force=False):
+    """
+    Safety net for missed webhooks: re-read subscriptions from Stripe whose
+    local state may be stale, and correct any drift.
+
+    Candidates (terminal "canceled" and admin-override users are skipped):
+      - no stored status yet (backfill for existing subscribers)
+      - past_due / unpaid / incomplete / paused (waiting for a Stripe outcome)
+      - "active" but membership_end has already passed (a renewal webhook
+        probably didn't arrive - e.g. a SEPA debit still settling)
+    Throttled to Config.STRIPE_RECONCILE_INTERVAL_SECONDS per process.
+    """
+    global _last_stripe_reconcile
+    if stripe is None or not Config.STRIPE_API_KEY:
+        return
+    now_ts = time.time()
+    if not force and now_ts - _last_stripe_reconcile < Config.STRIPE_RECONCILE_INTERVAL_SECONDS:
+        return
+    _last_stripe_reconcile = now_ts
+
+    try:
+        now = datetime.utcnow()
+        candidates = User.query.filter(
+            User.stripe_subscription_id.isnot(None),
+            User.membership_status != "revoked",
+            db.or_(
+                User.stripe_subscription_status.is_(None),
+                User.stripe_subscription_status.in_(
+                    ["past_due", "unpaid", "incomplete", "paused", "trialing"]
+                ),
+                db.and_(
+                    User.stripe_subscription_status == "active",
+                    User.membership_end.isnot(None),
+                    User.membership_end < now,
+                ),
+            ),
+        ).limit(Config.STRIPE_RECONCILE_BATCH_SIZE).all()
+
+        if not candidates:
+            return
+
+        logger.info(f"[STRIPE] Reconcile: checking {len(candidates)} subscription(s)")
+        for user in candidates:
+            refresh_user_from_stripe(user, source="reconcile")
+
+    except Exception as e:
+        logger.error(f"[STRIPE] Error in reconcile_stripe_subscriptions: {e}")
+        db.session.rollback()
+
+
+def record_stripe_renewal_order(user, invoice):
+    """
+    Record a PAID Stripe renewal invoice as an Order, so renewals show up in
+    Total Revenue, the Orders list and the user's order history (before this,
+    only the first checkout created an Order, so every renewal was invisible).
+
+    Idempotent: the invoice id is stored as the order's unique id, so webhook
+    redeliveries and the one-time backfill can never double count. Zero-amount
+    invoices (credits/trials) are not revenue and are skipped.
+    Returns the new Order, or None if skipped / already recorded.
+    """
+    invoice_id = invoice.get("id")
+    if not invoice_id:
+        return None
+    try:
+        if Order.query.filter_by(wix_order_id=invoice_id).first():
+            return None
+        amount = (invoice.get("amount_paid") or 0) / 100
+        if amount <= 0:
+            return None
+        order = Order(
+            user_id=user.id,
+            wix_order_id=invoice_id,
+            plan_name=user.plan_name,
+            plan_price=amount,
+            currency=(invoice.get("currency") or user.currency or "eur").upper(),
+            total_amount=amount,
+            subscription_type=user.subscription_type,
+            subscription_duration_days=user.subscription_duration_days,
+            status="completed",
+            payment_status="paid",
+            ip_address="stripe",
+            raw_data=json.dumps(invoice, default=str),
+        )
+        db.session.add(order)
+        db.session.commit()
+        logger.info(f"[STRIPE] Recorded renewal order {invoice_id} for {user.email}: {amount:.2f}")
+        return order
+    except Exception as e:
+        # e.g. a racing duplicate hitting the unique constraint - never break the webhook
+        logger.warning(f"[STRIPE] Could not record renewal order {invoice_id}: {e}")
+        db.session.rollback()
+        return None
+
+
+def backfill_stripe_renewal_orders():
+    """
+    Create Orders for renewal invoices Stripe already collected before renewals
+    were recorded. Only "subscription_cycle" invoices are used: the first
+    invoice of a subscription is already covered by the checkout Order and
+    would be double counted. Safe to run repeatedly. Returns (scanned, created).
+    """
+    if stripe is None or not Config.STRIPE_API_KEY:
+        return (0, 0)
+    scanned = created = 0
+    users = User.query.filter(User.stripe_subscription_id.isnot(None)).all()
+    for user in users:
+        try:
+            invoices = stripe.Invoice.list(
+                subscription=user.stripe_subscription_id, status="paid", limit=100
+            )
+            for inv in invoices.auto_paging_iter():
+                d = inv.to_dict() if hasattr(inv, "to_dict") else dict(inv)
+                if d.get("billing_reason") != "subscription_cycle":
+                    continue
+                scanned += 1
+                if record_stripe_renewal_order(user, d):
+                    created += 1
+        except Exception as e:
+            logger.warning(f"[STRIPE] Renewal-order backfill failed for {user.email}: {e}")
+            db.session.rollback()
+    logger.info(f"[STRIPE] Renewal-order backfill: scanned={scanned} created={created}")
+    return (scanned, created)
+
+
+def send_payment_failed_email(user, invoice):
+    """Dutch 'betaling mislukt' email while Stripe is still retrying (or after the last try)."""
+    try:
+        next_ts = invoice.get("next_payment_attempt")
+        next_dt = datetime.utcfromtimestamp(next_ts) if next_ts else None
+        name = user.first_name or "klant"
+        portal = f"{Config.APP_URL.rstrip('/')}/dashboard"
+
+        if next_dt:
+            retry_nl = (
+                f"We proberen de betaling automatisch opnieuw op {format_date_dutch(next_dt)}. "
+                f"Je toegang blijft in de tussentijd gewoon actief."
+            )
+            subject = "Je betaling is mislukt - we proberen het opnieuw"
+        else:
+            retry_nl = (
+                "Dit was de laatste automatische poging. Zonder een geslaagde betaling wordt "
+                "je abonnement binnenkort beëindigd en verlies je de toegang tot je EA's en VPS."
+            )
+            subject = "Laatste kans: je betaling is mislukt"
+
+        text = (
+            f"Hoi {name},\n\n"
+            f"Je maandelijkse betaling voor Trading Engine is helaas mislukt. {retry_nl}\n\n"
+            f"Controleer of er voldoende saldo staat en of je betaalgegevens kloppen. "
+            f"Kom je er niet uit? Reageer dan op deze e-mail.\n\nDashboard: {portal}"
+        )
+        html = (
+            f"<h3>Je betaling is mislukt</h3><p>Hoi {name},</p>"
+            f"<p>Je maandelijkse betaling voor Trading Engine is helaas mislukt. {retry_nl}</p>"
+            f"<p>Controleer of er voldoende saldo staat en of je betaalgegevens kloppen. "
+            f"Kom je er niet uit? Reageer dan op deze e-mail.</p>"
+            f"<p><a href=\"{portal}\">Naar je dashboard</a></p>"
+        )
+        send_email_async(subject, [user.email], text, html)
+    except Exception as e:
+        # Never let an email problem break the webhook
+        logger.error(f"[EMAIL] Failed to queue payment-failed email for {user.email}: {e}")
+
+
+def send_subscription_ended_email(user):
+    """Dutch email when Stripe ended the subscription because payment never succeeded."""
+    try:
+        name = user.first_name or "klant"
+        text = (
+            f"Hoi {name},\n\nOmdat we je betaling niet konden incasseren, is je abonnement bij "
+            f"Trading Engine beëindigd. Je toegang tot de EA's en je VPS is daarmee gestopt. "
+            f"Wil je weer verder? Sluit dan een nieuw abonnement af, dan zetten we alles weer voor je klaar."
+        )
+        html = (
+            f"<h3>Je abonnement is beëindigd</h3><p>Hoi {name},</p>"
+            f"<p>Omdat we je betaling niet konden incasseren, is je abonnement bij Trading Engine "
+            f"beëindigd. Je toegang tot de EA's en je VPS is daarmee gestopt.</p>"
+            f"<p>Wil je weer verder? Sluit dan een nieuw abonnement af, dan zetten we alles weer voor je klaar.</p>"
+        )
+        send_email_async("Je abonnement is beëindigd", [user.email], text, html)
+    except Exception as e:
+        logger.error(f"[EMAIL] Failed to queue subscription-ended email for {user.email}: {e}")
 
 
 def send_email_async(subject, recipients, body, html_body=None):
@@ -2000,14 +2515,27 @@ def retry_pending_vps_provisioning():
 # ============================================================================
 
 def cleanup_expired_vps():
-    """Terminate VPS for users with expired memberships."""
+    """
+    Terminate VPS for users who no longer have access.
+
+    "No access" is decided by User.has_active_access(), the same check used
+    everywhere else: for Stripe-managed users that means Stripe cancelled the
+    subscription (never merely "past_due" while Stripe is still retrying, and
+    never because a local date passed); for everyone else it is the date.
+    """
     try:
-        expired_users = User.query.filter(
-            User.membership_end < datetime.utcnow(),
-            User.membership_status.in_(['expired', 'cancelled']),
+        candidates = User.query.filter(
             User.vps_id.isnot(None),
-            User.vps_status == 'active'
+            User.vps_status == 'active',
+            User.is_admin == False,
+            db.or_(
+                User.stripe_subscription_id.isnot(None),
+                User.membership_end < datetime.utcnow(),
+                User.membership_status.in_(['expired', 'revoked']),
+            ),
         ).all()
+
+        expired_users = [u for u in candidates if not u.has_active_access()]
 
         for user in expired_users:
             logger.info(f"[ThinkHuge] Terminating VPS for expired membership: {user.email}")
@@ -2061,6 +2589,10 @@ def cleanup_stale_sessions():
     except Exception as e:
         logger.error(f"Auto-cleanup error: {e}")
         db.session.rollback()
+
+    # Correct any missed Stripe webhooks first, so the VPS cleanup below acts
+    # on Stripe's real state (throttled internally)
+    reconcile_stripe_subscriptions()
 
     # Also run VPS cleanup
     cleanup_expired_vps()
@@ -2267,6 +2799,44 @@ def run_migrations():
                     """))
                     db.session.commit()
                     logger.info(f"{col_name} column added")
+
+            # Stripe subscription status (access follows Stripe, not local dates)
+            if 'stripe_subscription_status' not in columns:
+                logger.info("Adding stripe_subscription_status column to users table...")
+                db.session.execute(db.text("""
+                    ALTER TABLE users ADD COLUMN stripe_subscription_status VARCHAR(30)
+                """))
+                db.session.commit()
+                logger.info("stripe_subscription_status column added")
+
+            # Backfill: existing subscribers get their status from Stripe. Users
+            # whose lookup fails stay NULL (date-based until the next sweep).
+            try:
+                to_backfill = User.query.filter(
+                    User.stripe_subscription_id.isnot(None),
+                    User.stripe_subscription_status.is_(None),
+                ).all()
+                if to_backfill and stripe is not None and Config.STRIPE_API_KEY:
+                    logger.info(f"Backfilling Stripe subscription status for {len(to_backfill)} user(s)...")
+                    for u in to_backfill:
+                        refresh_user_from_stripe(u, source="migration")
+            except Exception as e:
+                logger.error(f"Stripe status backfill failed (will retry via reconcile sweep): {e}")
+                db.session.rollback()
+
+            # One-time: record renewals Stripe already collected (they were never
+            # counted as revenue). Flagged in settings so it runs once; it is
+            # idempotent anyway, and /admin/backfill-renewal-orders can re-run it.
+            try:
+                done = Setting.query.filter_by(key="stripe_renewal_orders_backfilled").first()
+                if not done and stripe is not None and Config.STRIPE_API_KEY:
+                    scanned, created = backfill_stripe_renewal_orders()
+                    db.session.add(Setting(key="stripe_renewal_orders_backfilled", value="1"))
+                    db.session.commit()
+                    logger.info(f"Renewal-order backfill complete: {created} order(s) added")
+            except Exception as e:
+                logger.error(f"Renewal-order backfill failed: {e}")
+                db.session.rollback()
 
             # Fix bad licenses (max_accounts null or <= 0)
             bad_licenses = License.query.filter(
@@ -2766,10 +3336,22 @@ def generate_license():
         user_level = current_user.get_plan_level()
         max_accounts = get_max_accounts_for_level(user_level)
 
+        # Anchor the stored date to the paid period when there is one, not to
+        # "now + N days" (that mismatch is what let a license expire before the
+        # billing date). For Stripe-managed users access follows Stripe anyway.
+        if (
+            not is_test
+            and current_user.membership_end
+            and current_user.membership_end > datetime.utcnow()
+        ):
+            license_expires_at = current_user.membership_end
+        else:
+            license_expires_at = datetime.utcnow() + timedelta(days=days)
+
         lic = License(
             user_id=current_user.id,
             license_key=key,
-            expires_at=datetime.utcnow() + timedelta(days=days),
+            expires_at=license_expires_at,
             ea_version="1.0.0",
             license_type=license_type,
             max_accounts=max_accounts,
@@ -3764,11 +4346,16 @@ def admin_dashboard():
     ea_files = EAFile.query.order_by(EAFile.upload_date.desc()).all()
     connector_indicator = MT5ConnectorIndicator.query.first()
 
+    # Revenue per plan type = money actually collected (all orders incl. Stripe
+    # renewals), not the sum of each user's plan price (which only ever showed
+    # the first payment).
     subscription_stats = db.session.query(
         User.subscription_type,
-        db.func.count(User.id),
-        db.func.sum(User.plan_price)
-    ).filter(User.is_admin == False).group_by(User.subscription_type).all()
+        db.func.count(db.distinct(User.id)),
+        db.func.sum(Order.total_amount)
+    ).outerjoin(Order, Order.user_id == User.id).filter(
+        User.is_admin == False
+    ).group_by(User.subscription_type).all()
 
     test_mode = Setting.query.filter_by(key="test_mode").first()
     is_test_mode = test_mode.value == "on" if test_mode else False
@@ -3809,6 +4396,15 @@ def admin_dashboard():
         problematic_licenses=problematic_licenses,
         vps_pending_users=vps_pending_users
     )
+
+@app.route("/admin/backfill-renewal-orders", methods=["POST"])
+@admin_required
+def admin_backfill_renewal_orders():
+    """Pull already-paid Stripe renewal invoices into Orders (idempotent)."""
+    scanned, created = backfill_stripe_renewal_orders()
+    flash(f"Stripe-verlengingen gecontroleerd: {scanned}, nieuw toegevoegd: {created}.", "success")
+    return redirect(url_for("admin_dashboard"))
+
 
 @app.route("/admin/fix-all-licenses", methods=["POST"])
 @admin_required
@@ -4049,6 +4645,9 @@ def reactivate_membership(user_id):
         db.session.commit()
         flash(f"Abonnement van {user.email} is hervat (auto-renewal weer actief).", "success")
     else:
+        # A manual grant on a subscription Stripe has already ended must not
+        # be overridden by that subscription's "canceled" status.
+        detach_dead_stripe_subscription(user)
         user.membership_status = "active"
         user.membership_start = datetime.utcnow()
         user.membership_end = datetime.utcnow() + timedelta(days=user.subscription_duration_days or 30)
@@ -4066,6 +4665,12 @@ def extend_membership(user_id):
     user = db.session.get(User, user_id)
     if user:
         days = int(request.form.get("days", 30))
+
+        # If Stripe has already ended this user's subscription, Stripe's
+        # "canceled" status would still override this manual extension, so
+        # detach it (the user becomes date-based). A live subscription is
+        # left alone - it already has access.
+        detach_dead_stripe_subscription(user)
 
         # Extend membership
         if user.membership_end and user.membership_end > datetime.utcnow():
@@ -4344,7 +4949,7 @@ def api_validate_license():
 
             return jsonify({
                 "valid": True,
-                "expires_at": lic.expires_at.isoformat(),
+                "expires_at": lic.effective_expires_at().isoformat(),
                 "user_email": lic.user.email,
                 "accounts_used": total_slots,
                 "accounts_max": lic.max_accounts,
@@ -4380,7 +4985,7 @@ def api_validate_license():
         new_total = lic.accounts.count()
         return jsonify({
             "valid": True,
-            "expires_at": lic.expires_at.isoformat(),
+            "expires_at": lic.effective_expires_at().isoformat(),
             "user_email": lic.user.email,
             "accounts_used": new_total,
             "accounts_max": lic.max_accounts,
@@ -4563,6 +5168,9 @@ def wix_payment_webhook():
             user.wix_order_id = order_id or user.wix_order_id
             user.wix_payment_id = order_id or user.wix_payment_id
             user.email_verified = True
+            # A new Wix purchase is date-based; don't let an older, ended
+            # Stripe subscription's "canceled" status override it.
+            detach_dead_stripe_subscription(user)
             user.membership_status = "active"
             user.membership_start = membership_start
             user.membership_end = membership_end
@@ -4684,7 +5292,24 @@ def stripe_payment_webhook():
                 # not a hardcoded 30 days later. Falls back to the local
                 # calculation if Stripe can't be reached or this isn't a
                 # subscription checkout at all (e.g. lifetime one-time pay).
-                exact_period_end = get_subscription_period_end(stripe_subscription_id) if stripe_subscription_id else None
+                exact_period_end = None
+                stripe_status = None
+                if stripe_subscription_id:
+                    try:
+                        sub_snapshot = fetch_stripe_subscription(stripe_subscription_id)
+                    except Exception as e:
+                        logger.warning(f"[STRIPE] Could not read new subscription {stripe_subscription_id}: {e}")
+                        sub_snapshot = None
+                    if sub_snapshot:
+                        exact_period_end = subscription_period_end_from_dict(sub_snapshot)
+                        stripe_status = sub_snapshot.get("status")
+                    # A completed Checkout means Stripe accepted the order (card
+                    # paid, or an async debit like SEPA is processing). Never
+                    # lock a brand-new customer out just because Stripe hasn't
+                    # flipped the status yet; the reconcile sweep and
+                    # subscription.updated webhooks keep it accurate afterwards.
+                    if stripe_status not in STRIPE_KNOWN_STATUSES or stripe_status == "incomplete":
+                        stripe_status = "active"
                 membership_end = exact_period_end or (membership_start + timedelta(days=duration_days))
 
                 user = User.query.filter_by(email=email).first()
@@ -4704,13 +5329,22 @@ def stripe_payment_webhook():
                         subscription_duration_days=duration_days,
                         stripe_subscription_id=stripe_subscription_id,
                         stripe_customer_id=stripe_customer_id,
+                        stripe_subscription_status=stripe_status,
                     )
                     db.session.add(user)
                 else:
                     user.membership_status = "active"
                     user.membership_start = membership_start
                     user.membership_end = membership_end
-                    user.stripe_subscription_id = stripe_subscription_id or user.stripe_subscription_id
+                    if stripe_subscription_id:
+                        # New subscription replaces whatever was linked before
+                        user.stripe_subscription_id = stripe_subscription_id
+                        user.stripe_subscription_status = stripe_status
+                    else:
+                        # One-time purchase (e.g. lifetime): date-based. If an
+                        # old Stripe subscription has already ended, detach it
+                        # so its "canceled" status doesn't override this.
+                        detach_dead_stripe_subscription(user)
                     user.stripe_customer_id = stripe_customer_id or user.stripe_customer_id
 
                 if not Order.query.filter_by(wix_order_id=order_id).first() and order_id:
@@ -4787,8 +5421,42 @@ def stripe_payment_webhook():
                             AuditLog.details.like(f"%{invoice_id}%")
                         ).first()
 
+                        # Ask Stripe for the subscription's CURRENT status. The
+                        # "if all retries fail" setting leaves the invoice
+                        # past-due after Stripe cancels the subscription, so an
+                        # old invoice can still be paid later (e.g. via the
+                        # hosted invoice link). That payment must NOT silently
+                        # bring a cancelled subscription's access back.
+                        live_status = user.stripe_subscription_status
+                        live_sub = None
+                        try:
+                            live_sub = fetch_stripe_subscription(sub_id)
+                            if live_sub and live_sub.get("status"):
+                                live_status = live_sub.get("status")
+                        except Exception as e:
+                            logger.warning(f"[STRIPE] Could not confirm status of {sub_id} for invoice {invoice_id}: {e}")
+                        subscription_ended = (
+                            live_status in STRIPE_KNOWN_STATUSES
+                            and live_status not in STRIPE_ACCESS_STATUSES
+                        )
+
                         if already_processed:
                             logger.info(f"[STRIPE] Invoice {invoice_id} already processed for {user.email}, skipping")
+                        elif subscription_ended:
+                            logger.warning(
+                                f"[STRIPE] Invoice {invoice_id} was paid for {user.email} but subscription "
+                                f"{sub_id} is {live_status} - NOT restoring access. Needs manual review/refund."
+                            )
+                            if live_sub:
+                                apply_stripe_subscription_state(user, live_sub, source="invoice.paid")
+                            # The money was collected, so it is still recorded as revenue
+                            record_stripe_renewal_order(user, invoice)
+                            log_audit(
+                                user.id,
+                                "stripe_paid_on_ended_subscription",
+                                f"invoice={invoice_id} | sub={sub_id} | status={live_status} | access NOT restored",
+                                request.remote_addr
+                            )
                         else:
                             days = user.subscription_duration_days or 30
 
@@ -4814,6 +5482,10 @@ def stripe_payment_webhook():
                             else:
                                 user.membership_end = datetime.utcnow() + timedelta(days=days)
                             user.membership_status = "active"
+                            # Paid invoice on a live subscription = Stripe says it is current.
+                            user.stripe_subscription_status = (
+                                live_status if live_status in STRIPE_ACCESS_STATUSES else "active"
+                            )
 
                             # Extend/reactivate the license key the same way
                             license = user.licenses.filter(
@@ -4831,6 +5503,9 @@ def stripe_payment_webhook():
 
                             db.session.commit()
 
+                            # Count this renewal in revenue / order history
+                            record_stripe_renewal_order(user, invoice)
+
                             log_audit(
                                 user.id,
                                 "stripe_renewal",
@@ -4839,24 +5514,79 @@ def stripe_payment_webhook():
                             )
                             logger.info(f"[STRIPE] Renewed {user.email}: +{days}d, membership_end={user.membership_end}")
 
+        elif event_type == "invoice.payment_failed":
+            invoice = event["data"]["object"]._to_dict_recursive()
+            invoice_id = invoice.get("id")
+            sub_id = extract_subscription_id(invoice)
+            user = User.query.filter_by(stripe_subscription_id=sub_id).first() if sub_id else None
+
+            if not user:
+                logger.info(f"[STRIPE] invoice.payment_failed ({invoice_id}) for unknown subscription {sub_id}")
+            else:
+                attempt = invoice.get("attempt_count") or 1
+                has_next_attempt = bool(invoice.get("next_payment_attempt"))
+                logger.warning(
+                    f"[STRIPE] Payment failed for {user.email}: invoice={invoice_id} "
+                    f"attempt={attempt} next_attempt={invoice.get('next_payment_attempt')}"
+                )
+
+                # Stripe moves the subscription to past_due (access is kept
+                # while it retries). Re-read it so our stored status is right
+                # even if the subscription.updated webhook arrives late.
+                refresh_user_from_stripe(user, source="invoice.payment_failed")
+
+                # One audit row + one email per failed attempt (idempotent on redelivery)
+                marker = f"invoice={invoice_id} | attempt={attempt}"
+                already_logged = AuditLog.query.filter(
+                    AuditLog.user_id == user.id,
+                    AuditLog.action == "stripe_payment_failed",
+                    AuditLog.details.like(f"%{marker}%"),
+                ).first()
+                if not already_logged:
+                    log_audit(
+                        user.id,
+                        "stripe_payment_failed",
+                        f"{marker} | next_attempt={'yes' if has_next_attempt else 'no (final)'}",
+                        request.remote_addr
+                    )
+                    # First failure, and the final one, are the useful moments to email
+                    if attempt == 1 or not has_next_attempt:
+                        send_payment_failed_email(user, invoice)
+
         elif event_type == "customer.subscription.deleted":
             sub = event["data"]["object"]._to_dict_recursive()
             sub_id = sub.get("id")
             user = User.query.filter_by(stripe_subscription_id=sub_id).first()
             if user:
                 logger.info(f"[STRIPE] Subscription {sub_id} deleted at Stripe for {user.email}")
+                was_revoked = user.membership_status == "revoked"
+                # The REAL expiry: Stripe ended the subscription (period ended
+                # after a user cancellation, or every payment retry failed).
+                sub["status"] = "canceled"
+                apply_stripe_subscription_state(user, sub, source="subscription.deleted")
                 log_audit(user.id, "stripe_subscription_deleted", f"sub_id={sub_id}", request.remote_addr)
+
+                reason = ((sub.get("cancellation_details") or {}).get("reason") or "")
+                if reason == "payment_failed" and not was_revoked:
+                    send_subscription_ended_email(user)
 
         elif event_type == "customer.subscription.updated":
             sub = event["data"]["object"]._to_dict_recursive()
             sub_id = sub.get("id")
-            cancel_at_period_end = sub.get("cancel_at_period_end")
             user = User.query.filter_by(stripe_subscription_id=sub_id).first()
             if user:
                 logger.info(
                     f"[STRIPE] Subscription {sub_id} updated for {user.email}: "
-                    f"cancel_at_period_end={cancel_at_period_end}"
+                    f"status={sub.get('status')} cancel_at_period_end={sub.get('cancel_at_period_end')}"
                 )
+                # Prefer Stripe's live view over the event payload: events can be
+                # delivered late or out of order, the live read can't be stale.
+                live_sub = None
+                try:
+                    live_sub = fetch_stripe_subscription(sub_id)
+                except Exception as e:
+                    logger.warning(f"[STRIPE] Could not re-read {sub_id}, using event payload: {e}")
+                apply_stripe_subscription_state(user, live_sub or sub, source="subscription.updated")
 
         return jsonify({"status": "success"}), 200
 
