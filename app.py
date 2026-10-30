@@ -2,7 +2,7 @@
 
 
 ACCOUNT SLOT LOGIC:
-- Each UNIQUE MT5 account number
+- Each UNIQUE MT5 account numbers
 - Multiple EAs on same MT5 account share 1 slot
 - Slot freed only when ALL EAs on that account are removed
 - Heartbeat auto-cleanup for crashed EAs (fully automatic)
