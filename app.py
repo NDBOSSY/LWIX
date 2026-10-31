@@ -241,6 +241,11 @@ class Config:
 
     FOREXVPS_DEFAULT_RDP_PORT = os.getenv("FOREXVPS_DEFAULT_RDP_PORT", "42014")
 
+    # Show the VPS management section on the members dashboard. Off by default:
+    # the ThinkHuge partnership has ended and clients now buy their VPS directly
+    # from ForexVPS. Set SHOW_VPS_SECTION=true to show it again.
+    SHOW_VPS_SECTION = os.getenv("SHOW_VPS_SECTION", "false").lower() == "true"
+
     FOREXVPS_RETRY_INTERVAL_SECONDS = int(os.getenv("FOREXVPS_RETRY_INTERVAL_SECONDS", 600))
     FOREXVPS_RETRY_MAX_AGE_MINUTES = int(os.getenv("FOREXVPS_RETRY_MAX_AGE_MINUTES", 1440))
 
@@ -1863,15 +1868,16 @@ def send_subscription_ended_email(user):
     """Dutch email when Stripe ended the subscription because payment never succeeded."""
     try:
         name = user.first_name or "klant"
+        lost = "de EA's en je VPS" if Config.SHOW_VPS_SECTION else "de EA's"
         text = (
             f"Hoi {name},\n\nOmdat we je betaling niet konden incasseren, is je abonnement bij "
-            f"Trading Engine beëindigd. Je toegang tot de EA's en je VPS is daarmee gestopt. "
+            f"Trading Engine beëindigd. Je toegang tot {lost} is daarmee gestopt. "
             f"Wil je weer verder? Sluit dan een nieuw abonnement af, dan zetten we alles weer voor je klaar."
         )
         html = (
             f"<h3>Je abonnement is beëindigd</h3><p>Hoi {name},</p>"
             f"<p>Omdat we je betaling niet konden incasseren, is je abonnement bij Trading Engine "
-            f"beëindigd. Je toegang tot de EA's en je VPS is daarmee gestopt.</p>"
+            f"beëindigd. Je toegang tot {lost} is daarmee gestopt.</p>"
             f"<p>Wil je weer verder? Sluit dan een nieuw abonnement af, dan zetten we alles weer voor je klaar.</p>"
         )
         send_email_async("Je abonnement is beëindigd", [user.email], text, html)
@@ -3329,7 +3335,10 @@ def user_dashboard():
         days_remaining=days_remaining,
         membership_end_date=user.membership_end,
         current_language=get_user_language(),
-        vps_password_decrypted=vps_password_decrypted,
+        # VPS section is hidden (we no longer provide VPS - clients buy it
+        # directly from ForexVPS). Set SHOW_VPS_SECTION=true to bring it back.
+        show_vps_section=Config.SHOW_VPS_SECTION,
+        vps_password_decrypted=vps_password_decrypted if Config.SHOW_VPS_SECTION else None,
         vps_default_port=Config.FOREXVPS_DEFAULT_RDP_PORT,
         indicator_download_url=url_for('download_connector') if connector else None,
         indicator_version=connector.version if connector else '1.0',
